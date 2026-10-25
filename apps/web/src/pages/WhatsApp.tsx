@@ -126,7 +126,7 @@ function Chat({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         ) : (
           <div className="wa-compose">
-            <select aria-label="Respostas rápidas" value="" onChange={(e) => { const r = replies.data?.find((x) => x.id === e.target.value); if (r) setText(r.body); }} style={{ width: 140 }}>
+            <select aria-label="Respostas rápidas" value="" onChange={(e) => { const r = replies.data?.find((x) => x.id === e.target.value); if (r) setText(r.body.replace(/\{link do card[aá]pio\}/gi, location.origin + '/c')); }} style={{ width: 140 }}>
               <option value="">Rápidas…</option>
               {replies.data?.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
             </select>

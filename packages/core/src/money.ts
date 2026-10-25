@@ -15,7 +15,7 @@ const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 
 /** 1350 -> "R$ 13,50" */
 export function formatBRL(cents: Cents): string {
-  return brl.format(cents / 100).replace(/ /g, ' ');
+  return brl.format(cents / 100).replace(/\u00a0/g, ' ');
 }
 
 /**

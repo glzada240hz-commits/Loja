@@ -176,7 +176,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
       <div className="drawer-body">
         <div className="hstack" style={{ marginBottom: 10 }}>
           <StatusBadge status={o.status} />
-          {o.status !== 'cancelled' && o.status !== 'pending' && <StageBadge stage={o.stage} />}
+          {o.status !== 'cancelled' && o.status !== 'pending' && !(o.type === 'delivery' && o.deliveryStatus && o.deliveryStatus !== 'waiting') && <StageBadge stage={o.stage} />}
           {o.deliveryStatus && o.status !== 'cancelled' && <DeliveryBadge status={o.deliveryStatus} />}
           {o.receivable && o.balanceCents > 0 && <span className="badge red">Conta pendente</span>}
           {o.source === 'online' && <span className="badge blue">Cardápio digital</span>}

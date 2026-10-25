@@ -359,8 +359,8 @@ export async function archiveProduct(ctx: Ctx, productId: string) {
     const [p] = await tx.update(products).set({ active: false, updatedAt: now() }).where(eq(products.id, productId)).returning();
     if (!p) throw notFound();
     await audit(tx, ctx.actor, 'menu.product.archive', 'product', productId, { name: p.name });
+    emit({ type: 'menu.changed' });
   });
-  ctx.bus.publish({ type: 'menu.changed' });
 }
 
 /** Disponibilidade rápida (ex.: acabou o bacon). Pode ser feita pelo caixa? Não: exige menu.manage. */
@@ -437,7 +437,7 @@ export async function saveRecipe(
   requirePerm(ctx.actor, 'menu.manage');
   if (!!target.variantId === !!target.optionId) throw badRequest('Informe variante ou adicional');
   for (const i of items) if (toMilli(i.quantity) <= 0n) throw badRequest('Quantidade da ficha técnica deve ser positiva');
-  return inTx(ctx, async (tx, emit) => {
+  return inTx(ctx, async (tx) => {
     const where = target.variantId ? eq(recipeItems.variantId, target.variantId) : eq(recipeItems.optionId, target.optionId!);
     await tx.delete(recipeItems).where(where);
     for (const i of items) {

@@ -99,6 +99,7 @@ export async function enqueueOrderNotification(tx: Tx, orderId: string, purpose:
         ...base,
         type: 'template',
         body: text,
+        templateParams: { language: 'pt_BR', params },
         status: 'failed',
         error: 'Fora da janela de 24h e sem template aprovado configurado para "' + purpose + '"',
       };

@@ -74,7 +74,7 @@ describe('6/7/16. cardápio digital → cozinha → entrega → acerto do entreg
     const k = await as(h, 'cozinha');
     expect((await k.get('/api/kitchen')).body.tickets).toHaveLength(0);
     await processOutbox(h.deps, h.wa);
-    const sent1 = h.demo.sent.at(-1)!;
+    const sent1 = h.demo.sent.find((x) => /pedido #1 /.test(x.body))!;
     expect(sent1.body).toMatch(/ainda será CONFIRMADO/);
     expect(sent1.body).not.toMatch(/foi confirmado/);
 

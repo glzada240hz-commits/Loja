@@ -95,7 +95,20 @@ export async function retryMessage(ctx: Ctx, messageId: string) {
     const [m] = await tx.select().from(waMessages).where(eq(waMessages.id, messageId)).for('update');
     if (!m || m.direction !== 'out') throw notFound();
     if (m.status !== 'failed') throw conflict('Somente mensagens com falha podem ser reenviadas');
-    await tx.update(waMessages).set({ status: 'queued', nextAttemptAt: now(), attempts: 0, error: null }).where(eq(waMessages.id, m.id));
+    const [c] = await tx.select().from(waContacts).where(eq(waContacts.id, m.contactId));
+    const set: Partial<typeof waMessages.$inferInsert> = { status: 'queued', nextAttemptAt: now(), attempts: 0, error: null };
+    // reavalia a regra da janela de 24h no momento do reenvio
+    if (windowOpen(c?.lastInboundAt)) {
+      if (m.type === 'template' && !m.templateName) set.type = 'text';
+    } else if (m.type === 'text' || !m.templateName) {
+      const purpose = m.dedupeKey?.split(':')[2];
+      const [tpl] = purpose ? await tx.select().from(waTemplates).where(eq(waTemplates.purpose, purpose)) : [];
+      if (!tpl?.active || !m.templateParams) {
+        throw new AppError(422, 'window_closed', 'Janela de 24h fechada e sem template aprovado para esta mensagem. Aguarde o cliente responder.');
+      }
+      Object.assign(set, { type: 'template', templateName: tpl.name, templateParams: { ...(m.templateParams as object), language: tpl.language } });
+    }
+    await tx.update(waMessages).set(set).where(eq(waMessages.id, m.id));
     await audit(tx, ctx.actor, 'whatsapp.retry', 'wa_message', m.id);
     emit({ type: 'wa.outbox' });
     emit({ type: 'whatsapp.changed', contactId: m.contactId });
