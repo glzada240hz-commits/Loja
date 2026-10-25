@@ -1,0 +1,3 @@
+# crontab do usuário "guto": backup a cada 6 horas e cópia diária para fora do servidor
+15 */6 * * * cd /opt/bar-do-guto && BACKUP_KEEP=60 scripts/backup.sh /var/backups/bar-do-guto >> /var/log/bar-do-guto-backup.log 2>&1
+# 0 7 * * * rclone copy /var/backups/bar-do-guto remoto:bar-do-guto-backups   # (exemplo; configure seu destino)

@@ -1,0 +1,100 @@
+# Execução registrada em 25/10/2026 00:31 (America/Sao_Paulo)
+# Node v22.22.0 · PostgreSQL 16.15
+
+## typecheck
+> tsc -p packages/core && tsc -p apps/server && tsc -p apps/web
+
+## lint
+> eslint .
+
+## unit + integration
+
+ RUN  v5.0.5 /home/user/Loja
+
+ ✓ |unit| packages/core/test/money.test.ts > dinheiro em centavos > formata em reais 4ms
+ ✓ |unit| packages/core/test/money.test.ts > dinheiro em centavos > interpreta valores digitados sem ponto flutuante 2ms
+ ✓ |unit| packages/core/test/money.test.ts > dinheiro em centavos > soma exata (0,1 + 0,2) 2ms
+ ✓ |unit| packages/core/test/money.test.ts > dinheiro em centavos > percentual com arredondamento half-up 1ms
+ ✓ |unit| packages/core/test/money.test.ts > dinheiro em centavos > divide conta sem perder centavos 2ms
+ ✓ |unit| packages/core/test/pricing.test.ts > cálculo do pedido > itens com adicionais 4ms
+ ✓ |unit| packages/core/test/pricing.test.ts > cálculo do pedido > desconto só nos itens; entrega separada; cancelados fora 2ms
+ ✓ |unit| packages/core/test/pricing.test.ts > cálculo do pedido > desconto em valor limitado ao subtotal 0ms
+ ✓ |unit| packages/core/test/pricing.test.ts > cálculo do pedido > rejeita valores inválidos 2ms
+ ✓ |unit| packages/core/test/pricing.test.ts > cálculo do pedido > percentual efetivo arredonda para cima (protege o limite) 1ms
+ ✓ |unit| packages/core/test/pricing.test.ts > troco > aplica o saldo e devolve o restante 1ms
+ ✓ |unit| packages/core/test/pricing.test.ts > regras de adicionais > mínimo, máximo, indisponível, estranho e repetido 1ms
+ ✓ |unit| packages/core/test/rules.test.ts > permissões > perfis restritos 3ms
+ ✓ |unit| packages/core/test/rules.test.ts > máquinas de estado > pedido 1ms
+ ✓ |unit| packages/core/test/rules.test.ts > máquinas de estado > cozinha e entrega 0ms
+ ✓ |unit| packages/core/test/rules.test.ts > máquinas de estado > etapa derivada dos tickets 0ms
+ ✓ |unit| packages/core/test/rules.test.ts > Brasil > telefones 1ms
+ ✓ |unit| packages/core/test/rules.test.ts > Brasil > fuso America/Sao_Paulo 2ms
+ ✓ |unit| apps/server/test/unit/server.test.ts > quantidades de estoque exatas > milésimos 4ms
+ ✓ |unit| apps/server/test/unit/server.test.ts > CSV > separador ;, valores em reais e proteção contra fórmula 1ms
+ ✓ |unit| apps/server/test/unit/server.test.ts > assinatura do webhook > HMAC-SHA256 do corpo bruto 2ms
+ ✓ |unit| apps/server/test/unit/server.test.ts > senhas > scrypt com sal 258ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 1. pedido com vários itens, adicionais e observações > calcula no servidor e grava retrato dos itens 719ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 1. pedido com vários itens, adicionais e observações > valida mínimo/máximo de adicionais e disponibilidade 566ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 2. entrega, desconto e total > taxa separada, desconto só sobre itens e limite do caixa 934ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 2. entrega, desconto e total > desconto sem motivo é recusado e taxa manual exige permissão 544ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 3. pagamento dividido e troco > combina Pix, cartão e dinheiro com troco exato 743ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 3. pagamento dividido e troco > Pix integrado não confirma pagamento sem provedor 613ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 3. pagamento dividido e troco > não fecha com saldo devedor; conta pendente exige gerente 763ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 4. cancelamento: efeitos em caixa e estoque > estorna pagamentos, devolve itens não produzidos e registra perda dos produzidos 978ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 4. cancelamento: efeitos em caixa e estoque > cancelar item enviado exige gerente e recalcula 646ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 8. alteração de preço não muda pedidos antigos > mantém retrato de preço e nome 730ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 9. cliques repetidos e requisições duplicadas > mesma chave = um pedido; chave reutilizada com outro conteúdo = erro 680ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 9. cliques repetidos e requisições duplicadas > pagamento repetido com a mesma chave não cobra duas vezes 669ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 9. cliques repetidos e requisições duplicadas > alerta de possível duplicidade sem bloquear pedido legítimo 665ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > 9. cliques repetidos e requisições duplicadas > mesa já ocupada não abre segunda comanda 548ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > comanda, reabertura e histórico > adiciona rodadas, fecha, reabre com auditoria 952ms
+ ✓ |integration| apps/server/test/integration/orders.test.ts > comanda, reabertura e histórico > pesquisa por número, nome, telefone e endereço 571ms
+ ✓ |integration| apps/server/test/integration/resilience.test.ts > 13. uso simultâneo em dois dispositivos > edição concorrente não sobrescreve, números não se repetem, cobrança não duplica 1336ms
+ ✓ |integration| apps/server/test/integration/resilience.test.ts > 13. uso simultâneo em dois dispositivos > atualização em tempo real chega ao outro dispositivo (SSE) 329ms
+ ✓ |integration| apps/server/test/integration/resilience.test.ts > 14. persistência após reiniciar a aplicação > dados e sessões sobrevivem a um novo processo do servidor 4108ms
+ ✓ |integration| apps/server/test/integration/resilience.test.ts > 15. backup e restauração > gera backup válido e restaura em outro banco com os mesmos dados 1336ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > 10. webhooks repetidos, inválidos e fora de ordem > verificação do endpoint 567ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > 10. webhooks repetidos, inválidos e fora de ordem > rejeita assinatura ausente ou inválida 565ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > 10. webhooks repetidos, inválidos e fora de ordem > evento repetido não duplica mensagem nem resposta 532ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > 10. webhooks repetidos, inválidos e fora de ordem > status fora de ordem nunca regride; status antes da mensagem é reprocessado 911ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > 10. webhooks repetidos, inválidos e fora de ordem > mensagens de entrada fora de ordem mantêm a janela pela mais recente 498ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > atendimento automático seguro > cardápio, status só do próprio número, encaminhamento humano e pausa 1389ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > atendimento automático seguro > fora da janela de 24h só template aprovado 987ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > 11. falha de integração e recuperação > atualização que falhou fora da janela pode ser reenviada quando o cliente volta a falar 888ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > 11. falha de integração e recuperação > tentativas com espera crescente, falha definitiva e reenvio manual 771ms
+ ✓ |integration| apps/server/test/integration/whatsapp.test.ts > 11. falha de integração e recuperação > mensagem presa em envio após reinício não é reenviada automaticamente 419ms
+ ✓ |integration| apps/server/test/integration/security.test.ts > 12. acesso proibido entre perfis (verificado no servidor) > matriz de permissões 1397ms
+ ✓ |integration| apps/server/test/integration/security.test.ts > 12. acesso proibido entre perfis (verificado no servidor) > CSRF, cookie de sessão, logout, bloqueio e desativação 949ms
+ ✓ |integration| apps/server/test/integration/security.test.ts > 12. acesso proibido entre perfis (verificado no servidor) > limite de tentativas de login por IP 1046ms
+ ✓ |integration| apps/server/test/integration/security.test.ts > 12. acesso proibido entre perfis (verificado no servidor) > exportação CSV neutraliza fórmulas e dados de entrada são validados 634ms
+ ✓ |integration| apps/server/test/integration/security.test.ts > 12. acesso proibido entre perfis (verificado no servidor) > webhook oficial desativado no modo demonstrativo; simulação só no demo 414ms
+ ✓ |integration| apps/server/test/integration/delivery.test.ts > 6/7/16. cardápio digital → cozinha → entrega → acerto do entregador → fechamento do caixa > fluxo completo 1659ms
+ ✓ |integration| apps/server/test/integration/delivery.test.ts > 6/7/16. cardápio digital → cozinha → entrega → acerto do entregador → fechamento do caixa > valida taxa, mínimo, disponibilidade e loja fechada no servidor 653ms
+ ✓ |integration| apps/server/test/integration/day.test.ts > 5. dia operacional atravessando a meia-noite > mantém pedidos após 00h no turno aberto e separa os dias 1333ms
+
+ Test Files  10 passed (10)
+      Tests  60 passed (60)
+   Start at  03:31:58
+   Duration  43.75s (tests 84%, import 15%, transform 1%)
+
+## e2e
+  dist/sw.js
+  dist/workbox-2fbc6a65.js
+> @guto/server@0.1.0 build
+> node build.mjs
+servidor compilado em dist/
+Seed concluído. Usuário: admin (senha definida em SEED_ADMIN_PASSWORD).
+Usuários demonstrativos: gerente, caixa, cozinha, moto1, moto2 — senha "demo1234".
+Running 11 tests using 1 worker
+  ✓   1 [chromium] › e2e/full-flow.spec.ts:24:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › gerente abre o dia e o caixa (2.0s)
+  ✓   2 [chromium] › e2e/full-flow.spec.ts:34:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › cliente monta o pedido no celular e confirma (2.0s)
+  ✓   3 [chromium] › e2e/full-flow.spec.ts:65:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › caixa aceita o pedido online (1.9s)
+  ✓   4 [chromium] › e2e/full-flow.spec.ts:78:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › cozinha prepara e marca pronto (atualização entre dispositivos) (1.7s)
+  ✓   5 [chromium] › e2e/full-flow.spec.ts:94:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › expedição agrupa, atribui e despacha (1.1s)
+  ✓   6 [chromium] › e2e/full-flow.spec.ts:107:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › entregador vê só a própria entrega e conclui (2.4s)
+  ✓   7 [chromium] › e2e/full-flow.spec.ts:121:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › caixa recebe com troco e finaliza (1.4s)
+  ✓   8 [chromium] › e2e/full-flow.spec.ts:137:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › 9. PDV: clique duplo não duplica pedido (1.6s)
+  ✓   9 [chromium] › e2e/full-flow.spec.ts:152:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › gerente fecha o caixa sem divergência (1.2s)
+  ✓  10 [chromium] › e2e/full-flow.spec.ts:164:1 › queda de conexão é sinalizada claramente (1.3s)
+  ✓  11 [chromium] › e2e/full-flow.spec.ts:175:1 › perfil cozinha não acessa telas do caixa (1.1s)
+  11 passed (21.8s)

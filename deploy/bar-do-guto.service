@@ -1,0 +1,20 @@
+# /etc/systemd/system/bar-do-guto.service
+[Unit]
+Description=Bar do Guto - sistema de gestão
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=guto
+WorkingDirectory=/opt/bar-do-guto
+EnvironmentFile=/opt/bar-do-guto/.env
+ExecStart=/usr/bin/node apps/server/dist/main.js
+Restart=always
+RestartSec=3
+# endurecimento básico
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
