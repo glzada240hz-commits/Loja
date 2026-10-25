@@ -1,0 +1,32 @@
+{
+  "name": "@guto/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "build": "node build.mjs",
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "migrate": "tsx --env-file-if-exists=../../.env src/db/migrate-cli.ts",
+    "seed": "tsx --env-file-if-exists=../../.env src/db/seed-cli.ts",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.3",
+    "@fastify/helmet": "^13.2.0",
+    "@fastify/multipart": "^10.1.6",
+    "@fastify/rate-limit": "^11.2.1",
+    "@fastify/static": "^10.1.7",
+    "@guto/core": "0.1.0",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.7",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
+  }
+}

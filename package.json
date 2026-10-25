@@ -1,0 +1,39 @@
+{
+  "name": "bar-do-guto",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sistema de gestão do Bar do Guto (PDV, cozinha, entregas, caixa, estoque, WhatsApp e cardápio digital)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @guto/server & npm run dev -w @guto/web",
+    "build": "npm run build -w @guto/web && npm run build -w @guto/server",
+    "start": "npm run start -w @guto/server",
+    "typecheck": "tsc -p packages/core && tsc -p apps/server && tsc -p apps/web",
+    "lint": "eslint .",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "playwright test",
+    "db:migrate": "npm run migrate -w @guto/server",
+    "db:seed": "npm run seed -w @guto/server",
+    "db:generate": "npm run db:generate -w @guto/server",
+    "backup": "bash scripts/backup.sh",
+    "restore": "bash scripts/restore.sh"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.5",
+    "@types/node": "^22",
+    "@playwright/test": "1.63.0",
+    "eslint": "^9",
+    "typescript-eslint": "^8.72.0",
+    "eslint-plugin-react-hooks": "^7",
+    "@eslint/js": "^9"
+  }
+}

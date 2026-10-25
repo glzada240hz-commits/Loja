@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+uploads/
+backups/
+test-results/
+playwright-report/
+*.log
+coverage/
+.DS_Store
