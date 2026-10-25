@@ -22,6 +22,8 @@ export const storeSettingsSchema = z.object({
     .array(z.enum(['cash', 'pix_manual', 'credit', 'debit', 'voucher']))
     .default(['cash', 'pix_manual', 'credit', 'debit']),
   pixKeyDisplay: z.string().max(120).default(''),
+  /** largura padrão da bobina para impressão pelo navegador */
+  printWidth: z.union([z.literal(58), z.literal(80)]).default(80),
   receiptFooter: z.string().max(300).default('Obrigado pela preferência!'),
   /** respostas automáticas do WhatsApp (menu, status, atendente) */
   waAutoReplyEnabled: z.boolean().default(true),

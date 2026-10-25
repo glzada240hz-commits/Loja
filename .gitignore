@@ -10,3 +10,5 @@ playwright-report/
 *.log
 coverage/
 .DS_Store
+apps/server/dist/
+apps/web/dev-dist/
