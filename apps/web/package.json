@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:demo": "vite build -c vite.demo.config.ts && node scripts-inline.mjs dist-demo/bar-do-guto-demo.html"
   },
   "dependencies": {
     "@guto/core": "0.1.0",

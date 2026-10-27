@@ -12,3 +12,4 @@ coverage/
 .DS_Store
 apps/server/dist/
 apps/web/dev-dist/
+apps/web/dist-demo/

@@ -1,0 +1,21 @@
+html, body, #root { height: 100%; }
+.demo-shell { display: flex; flex-direction: column; height: 100%; }
+.demo-app { flex: 1; min-height: 0; position: relative; }
+.demo-app > .app, .demo-app > div { height: 100%; }
+.demo-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  padding: 6px max(12px, env(safe-area-inset-left, 0px)); background: #3a2c00; color: #fff3c4; font-size: .85rem;
+}
+.demo-tag { background: var(--brand); color: var(--brand-ink); font-weight: 800; letter-spacing: .5px; padding: 2px 8px; border-radius: 6px; font-size: .75rem; }
+.demo-hint { opacity: .9; }
+.demo-profiles { display: flex; flex-wrap: wrap; gap: 4px; }
+.demo-bar button {
+  font: inherit; font-weight: 700; font-size: .82rem; min-height: 30px; padding: 0 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid #7a6420; background: transparent; color: #fff3c4;
+}
+.demo-bar button[aria-pressed='true'] { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.demo-bar button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.demo-reset-btn { margin-left: auto; }
+.demo-reset { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; }
+@media (max-width: 900px) { .demo-app .sidebar { top: 0; } }
+@media (max-width: 560px) { .demo-hint { display: none; } }
