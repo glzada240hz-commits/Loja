@@ -46,7 +46,8 @@ Atualização de versão: `git pull && npm ci && npm run build && sudo systemctl
 1. **Abrir o dia** (Caixa e dia → Abrir dia). Caixa e gerente podem abrir.
 2. **Abrir o caixa** com o fundo de troco.
 3. Vender pelo **PDV** (atalhos: `F2` busca, `F4` envia, código do produto + Enter).
-   Mesas: tela **Mesas** → mesa livre abre comanda; ocupada mostra a comanda.
+   Mesas: os atendentes lançam pelo celular (app do atendente, ver ATENDENTES.md); o caixa acompanha em
+   **Mesas e comandas**, recebe os avisos de “pediu a conta” e fecha a conta.
 4. Pedidos do **cardápio digital** chegam em *Pedidos → Aguardando aceite*. Só vão para a cozinha e só
    avisam o cliente da confirmação depois do **aceite**.
 5. **Cozinha**: Iniciar preparo → Pronto. Tickets atrasados piscam em vermelho; alterações aparecem em

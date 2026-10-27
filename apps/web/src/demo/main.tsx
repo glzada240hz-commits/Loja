@@ -14,6 +14,7 @@ installMockApi();
 
 const PROFILES: { user: string | null; label: string; role?: Role; path: string }[] = [
   { user: 'gerente', label: 'Gerente', role: 'manager', path: ROLE_HOME.manager },
+  { user: 'atendente1', label: 'Atendente (celular)', role: 'waiter', path: ROLE_HOME.waiter },
   { user: 'caixa', label: 'Caixa', role: 'cashier', path: ROLE_HOME.cashier },
   { user: 'cozinha', label: 'Cozinha', role: 'kitchen', path: ROLE_HOME.kitchen },
   { user: 'moto1', label: 'Entregador', role: 'courier', path: ROLE_HOME.courier },

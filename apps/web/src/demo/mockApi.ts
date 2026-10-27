@@ -19,6 +19,7 @@ import {
   unitTotal,
   validateOptionSelections,
   formatBRL,
+  placeLabel,
   formatTime,
   ORDER_STAGE_LABEL,
   type KitchenStatus,
@@ -38,7 +39,7 @@ const uid = () => (crypto.randomUUID?.() ?? 'x' + Math.random().toString(36).sli
 const nowIso = () => new Date().toISOString();
 const token = () => Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'[b % 64]).join('');
 
-const STORAGE_KEY = 'guto-demo-state-v1';
+const STORAGE_KEY = 'guto-demo-state-v2';
 const SESSION_KEY = 'guto-demo-session-v1';
 
 type Any = any;
@@ -96,7 +97,7 @@ function saveSession() {
 
 function seed(): State {
   const u = (username: string, name: string, role: Role): User => ({ id: uid(), name, username, role, active: true, password: 'demo1234', lastLoginAt: null });
-  const users = [u('admin', 'Administrador', 'admin'), u('gerente', 'Gerente Demo', 'manager'), u('caixa', 'Caixa Demo', 'cashier'), u('cozinha', 'Cozinha Demo', 'kitchen'), u('moto1', 'Entregador 1 (demo)', 'courier'), u('moto2', 'Entregador 2 (demo)', 'courier')];
+  const users = [u('admin', 'Administrador', 'admin'), u('gerente', 'Gerente Demo', 'manager'), u('caixa', 'Caixa Demo', 'cashier'), u('atendente1', 'Atendente Ana', 'waiter'), u('atendente2', 'Atendente Beto', 'waiter'), u('cozinha', 'Cozinha Demo', 'kitchen'), u('moto1', 'Entregador 1 (demo)', 'courier'), u('moto2', 'Entregador 2 (demo)', 'courier')];
   const cat = (name: string, sort: number, sendToKitchen = true) => ({ id: uid(), name, sort, sendToKitchen, active: true });
   const lanches = cat('Lanches', 1), porcoes = cat('Porções', 2), combos = cat('Combos', 3), bebidas = cat('Bebidas', 4, false);
   const opt = (name: string, priceCents: number, costCents: number | null) => ({ id: uid(), name, priceCents, costCents, available: true, active: true });
@@ -186,7 +187,8 @@ function seedScenario() {
   const v = (name: string) => S.products.find((p) => p.name === name)!.variants[0].id;
   const o = (name: string) => S.groups.flatMap((x) => x.options).find((x: Any) => x.name === name)!.id;
   const actor = { id: caixa.id, role: caixa.role as Role, name: caixa.name };
-  createOrder(actor, { type: 'table', tableLabel: '4', items: [{ variantId: v('X-Tudo'), quantity: 2 }, { variantId: v('Refrigerante lata'), quantity: 2 }] }, 'pos');
+  const ana = S.users.find((u) => u.username === 'atendente1')!;
+  createOrder({ id: ana.id, role: ana.role, name: ana.name }, { type: 'table', tableLabel: '4', items: [{ variantId: v('X-Tudo'), quantity: 2, notes: 'um sem tomate' }, { variantId: v('Refrigerante lata'), quantity: 2 }] }, 'pos');
   createOrder(actor, { type: 'counter', customer: { name: 'João', phone: '11 98888-1111' }, items: [{ variantId: v('X-Bacon'), quantity: 1, options: [{ optionId: o('Cheddar'), quantity: 1 }, { optionId: o('Sem cebola'), quantity: 1 }], notes: 'bem passado' }] }, 'pos');
   createOrder(null, {
     type: 'delivery', customer: { name: 'Ana Cliente', phone: '11 96666-5555' },
@@ -438,22 +440,24 @@ const summary = (items: Any[]) => items.map((i) => `${i.quantity}x ${i.productNa
 function refreshStage(o: Any) {
   if (o.status === 'cancelled' || o.status === 'pending') return;
   if (o.stage === 'out_for_delivery' || (o.stage === 'delivered' && o.type === 'delivery')) return;
-  const statuses = o.tickets.filter((t: Any) => o.items.some((i: Any) => i.ticketId === t.id && i.status === 'active')).map((t: Any) => t.status as KitchenStatus);
-  const stage = stageFromTickets(statuses);
+  const live = o.tickets.filter((t: Any) => o.items.some((i: Any) => i.ticketId === t.id && i.status === 'active'));
+  let stage = stageFromTickets(live.map((t: Any) => t.status as KitchenStatus));
+  if (stage === 'ready' && o.type !== 'delivery' && live.length && live.every((t: Any) => t.servedAt)) stage = 'delivered';
   if (o.stage === 'delivered' && stage === 'ready') return;
   if (stage === o.stage) return;
   o.stage = stage;
   if (stage === 'ready' && !o.readyAt) o.readyAt = nowIso();
+  if (stage === 'delivered' && !o.deliveredAt) o.deliveredAt = nowIso();
   event(o, 'stage', null, { to: stage });
   if (stage === 'ready' && o.type === 'takeout') notify(o, 'order_ready');
 }
 
 function launch(o: Any, a: Actor | null) {
   const pending = o.items.filter((i: Any) => i.status === 'active' && !i.sentAt);
-  if (!pending.length) return;
+  if (!pending.length) return null;
   let ticketId: string | null = null;
   if (pending.some((i: Any) => i.sendToKitchen)) {
-    const t = { id: uid(), round: o.tickets.length + 1, status: 'received', createdAt: nowIso(), startedAt: null, readyAt: null, changedAt: null, changeNote: null };
+    const t = { id: uid(), round: o.tickets.length + 1, status: 'received', createdAt: nowIso(), startedAt: null, readyAt: null, changedAt: null, changeNote: null, createdBy: a?.id ?? null, servedAt: null, servedBy: null };
     o.tickets.push(t);
     ticketId = t.id;
   }
@@ -465,6 +469,7 @@ function launch(o: Any, a: Actor | null) {
   }
   event(o, 'items.sent', a, { items: summary(pending) });
   refreshStage(o);
+  return ticketId;
 }
 
 function upsertCustomer(c: Any, address: Any, nbName: string | null) {
@@ -507,12 +512,14 @@ function createOrder(a: Actor | null, input: Any, source: 'pos' | 'online', sup?
   const subtotal = items.reduce((x: number, i: Any) => x + i.totalCents, 0);
   let authorizedBy = source === 'pos' && a ? discountOk(a, subtotal, input.discount, sup) : null;
   let tableLabel: string | null = null;
+  const tabKind = input.type === 'table' ? (input.tabKind ?? 'table') : 'table';
   if (input.type === 'table') {
     tableLabel = input.tableLabel?.trim() || null;
     if (!tableLabel) throw err(422, 'unprocessable', 'Informe a mesa');
-    const busy = S.orders.find((o) => o.businessDayId === day.id && o.tableLabel === tableLabel && ['open', 'pending'].includes(o.status));
-    if (busy) throw err(409, 'table_busy', `A mesa ${tableLabel} já tem comanda aberta (#${busy.number})`, { id: busy.id, number: busy.number });
+    const busy = S.orders.find((o) => o.businessDayId === day.id && (o.tabKind ?? 'table') === tabKind && o.tableLabel === tableLabel && ['open', 'pending'].includes(o.status));
+    if (busy) throw err(409, 'table_busy', `${placeLabel({ type: 'table', tabKind, tableLabel })} já está aberta (pedido #${busy.number}). Adicione os itens nela.`, { id: busy.id, number: busy.number });
   }
+  for (const i of items) i.createdBy = a?.id ?? null;
   let n: Any = null;
   if (input.type === 'delivery') {
     const ad = input.address;
@@ -541,7 +548,7 @@ function createOrder(a: Actor | null, input: Any, source: 'pos' | 'online', sup?
   const eta = input.etaMinutes ?? (input.type === 'delivery' ? (n?.etaMinutes ?? S.settings.deliveryEtaMinutes) : input.type === 'takeout' ? S.settings.pickupEtaMinutes : null);
   const status = source === 'pos' ? 'open' : 'pending';
   const o: Any = {
-    id: uid(), businessDayId: day.id, number: day.lastOrderNumber, type: input.type, source, status, stage: 'received', tableLabel,
+    id: uid(), businessDayId: day.id, number: day.lastOrderNumber, type: input.type, source, status, stage: 'received', tableLabel, tabKind, billRequestedAt: null, billRequestedBy: null,
     customerId: cust.customerId, customerName: cust.name, customerPhone: cust.phone,
     addrStreet: input.type === 'delivery' ? input.address.street.trim() : null, addrNumber: input.type === 'delivery' ? input.address.number.trim() : null,
     addrComplement: input.type === 'delivery' ? input.address.complement || null : null, addrReference: input.type === 'delivery' ? input.address.reference || null : null,
@@ -568,8 +575,12 @@ function orderView(o: Any) {
     ...o,
     courierName: S.couriers.find((c) => c.id === o.courierId)?.name ?? null,
     createdByName: userName(o.createdBy),
+    billRequestedByName: userName(o.billRequestedBy),
+    place: placeLabel(o),
     balanceCents: o.totalCents - o.paidCents,
     payments: o.payments.map((p: Any) => ({ ...p, userName: userName(p.createdBy) })),
+    items: o.items.map((i: Any) => ({ ...i, createdByName: userName(i.createdBy) })),
+    tickets: o.tickets.map((t: Any) => ({ ...t, createdByName: userName(t.createdBy), servedByName: userName(t.servedBy) })),
   };
 }
 function orderRow(o: Any) {
@@ -579,6 +590,16 @@ function orderRow(o: Any) {
     totalCents: o.totalCents, paidCents: o.paidCents, receivable: o.receivable, deliveryStatus: o.deliveryStatus,
     courierName: S.couriers.find((c) => c.id === o.courierId)?.name ?? null, createdAt: o.createdAt, etaAt: o.etaAt, version: o.version,
     referenceDate: S.days.find((d) => d.id === o.businessDayId)?.referenceDate,
+    tabKind: o.tabKind ?? 'table', billRequestedAt: o.billRequestedAt ?? null, createdByName: userName(o.createdBy),
+    rounds: (() => {
+      const live = o.tickets.filter((t: Any) => o.items.some((i: Any) => i.ticketId === t.id && i.status === 'active'));
+      return {
+        received: live.filter((t: Any) => t.status === 'received').length,
+        preparing: live.filter((t: Any) => t.status === 'preparing').length,
+        ready: live.filter((t: Any) => t.status === 'ready' && !t.servedAt).length,
+        served: live.filter((t: Any) => t.servedAt).length,
+      };
+    })(),
   };
 }
 
@@ -1016,24 +1037,72 @@ route('PATCH', '/api/orders/:id', ({ a, params, body }) => {
   publish({ type: 'order.changed', orderId: o.id });
   return orderView(o);
 });
-route('POST', '/api/orders/:id/items', ({ a, params, body }) => {
+route('POST', '/api/orders/:id/items', ({ a, params, body, idem }) => {
   const x = a();
   need(x, 'orders.edit');
+  // acréscimo idempotente: repetir a mesma chave devolve a mesma resposta (sem nova rodada)
+  const r = idempotent(idem, 'items:' + params.id, { items: body.items, send: body.send ?? true }, () => {
+    const o = findOrder(params.id);
+    if (body.version !== undefined) checkVersion(o, body.version);
+    requireEditable(o);
+    const items = resolveItems(body.items);
+    for (const i of items) i.createdBy = x.id;
+    o.items.push(...items);
+    recalc(o);
+    o.version++;
+    event(o, 'items.added', x, { items: summary(items) });
+    let ticketId: string | null = null;
+    if (body.send !== false && o.status === 'open') {
+      if (o.stage === 'delivered') o.stage = 'ready';
+      ticketId = launch(o, x);
+    }
+    publish({ type: 'order.changed', orderId: o.id });
+    publish({ type: 'kitchen.changed', orderId: o.id });
+    return { ticketId };
+  });
+  return { ...orderView(findOrder(params.id)), sentTicketId: r.ticketId };
+});
+route('POST', '/api/orders/:id/request-bill', ({ a, params }) => {
+  const x = a();
+  need(x, 'tables.serve');
   const o = findOrder(params.id);
-  checkVersion(o, body.version);
-  requireEditable(o);
-  const items = resolveItems(body.items);
-  o.items.push(...items);
-  recalc(o);
-  o.version++;
-  event(o, 'items.added', x, { items: summary(items) });
-  if (body.send !== false && o.status === 'open') {
-    if (o.stage === 'delivered') o.stage = 'ready';
-    launch(o, x);
+  if (o.status !== 'open') throw err(409, 'conflict', 'Só é possível pedir a conta de um pedido em aberto');
+  if (!o.billRequestedAt) {
+    Object.assign(o, { billRequestedAt: nowIso(), billRequestedBy: x.id });
+    event(o, 'bill.requested', x);
+    publish({ type: 'bill.requested', orderId: o.id, number: o.number, place: placeLabel(o), by: x.name });
   }
   publish({ type: 'order.changed', orderId: o.id });
-  publish({ type: 'kitchen.changed', orderId: o.id });
   return orderView(o);
+});
+route('POST', '/api/kitchen/tickets/:id/served', ({ a, params }) => {
+  const x = a();
+  need(x, 'tables.serve');
+  const o = S.orders.find((y) => y.tickets.some((t: Any) => t.id === params.id));
+  if (!o) throw err(404, 'not_found', 'Rodada não encontrada');
+  const t = o.tickets.find((y: Any) => y.id === params.id);
+  if (t.status !== 'ready') throw err(409, 'conflict', 'A cozinha ainda não marcou esta rodada como pronta');
+  if (!t.servedAt) {
+    Object.assign(t, { servedAt: nowIso(), servedBy: x.id });
+    event(o, 'served', x, { round: t.round });
+    refreshStage(o);
+  }
+  publish({ type: 'kitchen.changed', orderId: o.id });
+  publish({ type: 'order.changed', orderId: o.id });
+  return { ok: true };
+});
+const presence = new Map<string, Any>();
+route('POST', '/api/presence', ({ a, body }) => {
+  const x = a();
+  const was = presence.get(body.device);
+  presence.set(body.device, { deviceId: body.device, label: body.label ?? 'Dispositivo', userName: x.name, role: x.role, online: true, lastSeen: nowIso(), since: was?.since ?? nowIso() });
+  if (!was) publish({ type: 'presence.changed' });
+  return { ok: true };
+});
+route('GET', '/api/presence', ({ a }) => {
+  a();
+  // na demonstração todos os perfis rodam neste mesmo navegador; a cozinha aparece como um tablet simulado
+  return [...presence.values(), { deviceId: 'demo-tablet', label: 'Tablet da cozinha (simulado)', userName: 'Cozinha Demo', role: 'kitchen', online: true, lastSeen: nowIso(), since: nowIso() }];
 });
 route('POST', '/api/orders/:id/send', ({ a, params, body }) => {
   const x = a();
@@ -1202,7 +1271,7 @@ route('POST', '/api/orders/:id/handover', ({ a, params }) => {
 });
 route('POST', '/api/orders/:id/close', ({ a, params, body }) => {
   const x = a();
-  need(x, 'orders.edit');
+  need(x, 'orders.close');
   const by = body.receivable ? authorize(x, 'orders.close_receivable', body.supervisor) : null;
   const o = findOrder(params.id);
   checkVersion(o, body.version);
@@ -1242,11 +1311,11 @@ route('GET', '/api/kitchen', ({ a }) => {
     for (const t of o.tickets) {
       const show =
         (['open', 'closed'].includes(o.status) && t.status !== 'ready') ||
-        (['open', 'closed'].includes(o.status) && t.status === 'ready' && new Date(t.readyAt).getTime() > recent) ||
+        (['open', 'closed'].includes(o.status) && t.status === 'ready' && !t.servedAt && new Date(t.readyAt).getTime() > recent) ||
         (o.status === 'cancelled' && new Date(o.cancelledAt).getTime() > recent);
       if (!show) continue;
       const items = o.items.filter((i: Any) => i.ticketId === t.id).map((i: Any) => ({ ...i, options: i.options.map((x: Any) => ({ name: x.optionName, group: x.groupName, quantity: x.quantity })) }));
-      if (items.length) tickets.push({ ...t, orderId: o.id, orderNumber: o.number, orderType: o.type, orderStatus: o.status, tableLabel: o.tableLabel, customerName: o.customerName, orderNotes: o.notes, etaAt: o.etaAt, source: o.source, items });
+      if (items.length) tickets.push({ ...t, orderId: o.id, orderNumber: o.number, orderType: o.type, orderStatus: o.status, tableLabel: o.tableLabel, tabKind: o.tabKind, place: placeLabel(o), createdByName: userName(t.createdBy), customerName: o.customerName, orderNotes: o.notes, etaAt: o.etaAt, source: o.source, items });
     }
   tickets.sort((x, y) => x.createdAt.localeCompare(y.createdAt));
   return { lateMinutes: S.settings.kitchenLateMinutes, tickets };

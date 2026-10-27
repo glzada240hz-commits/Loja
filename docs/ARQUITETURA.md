@@ -58,6 +58,18 @@ de referência do dia operacional; horários usam `America/Sao_Paulo`.
 - **Histórico**: `order_events` registra cada mudança com usuário e, quando houver, o gerente que autorizou.
   Ações administrativas também vão para `audit_logs`.
 
+### Atendentes, mesas e comandas
+- Perfil `waiter` (Atendente). Pedido de mesa tem `tab_kind` (`table` = mesa, `tab` = comanda) e
+  `table_label`. Índice único parcial `orders_open_place` garante **uma comanda aberta por mesa/comanda**
+  mesmo com dois aparelhos abrindo ao mesmo tempo.
+- Cada rodada (`kitchen_tickets`) registra quem a lançou (`created_by`) e quando foi levada à mesa
+  (`served_at/served_by`). Todas as rodadas entregues ⇒ etapa “entregue”.
+- Acréscimo (`POST /api/orders/:id/items`) não exige versão (só acrescenta) e é idempotente pela chave
+  `Idempotency-Key` calculada sobre os itens — reenvio após queda devolve a resposta original.
+- `POST /api/orders/:id/request-bill` gera o evento `bill.requested` para o caixa.
+- Presença: `POST /api/presence` (sinal a cada 15 s) + conexão SSE identificada por aparelho;
+  sem sinal por 45 s ou conexão encerrada ⇒ “sem conexão” e evento `presence.changed`.
+
 ### Pagamentos e caixa
 - Pagamento exige caixa aberto; registra a forma, o valor aplicado, o valor entregue e o troco. Cartão/Pix
   não aceitam valor acima do saldo; dinheiro calcula troco (`cashPayment`).

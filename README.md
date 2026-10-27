@@ -17,6 +17,7 @@ WhatsApp (camada para a API oficial) e cardápio digital para clientes.
 | Administrador | Venda (PDV) | tudo, inclusive usuários, templates do WhatsApp, exclusão de dados pessoais |
 | Gerente | Venda (PDV) | tudo exceto usuários, configuração do WhatsApp e exclusão de dados pessoais |
 | Caixa | Venda (PDV) | vendas, pedidos, pagamentos, caixa (sem ver o esperado), entregas, WhatsApp |
+| Atendente | App do atendente (`/atendente`) | abrir mesa/comanda, lançar e acrescentar itens, marcar entregue, pedir a conta |
 | Cozinha | Cozinha | só a fila de produção |
 | Entregador | Minhas entregas | só as entregas atribuídas a ele |
 | Cliente (sem login) | `/c` | cardápio digital e acompanhamento do próprio pedido |
@@ -37,7 +38,7 @@ npm run db:seed                  # aplica migrations e cria admin + dados demons
 npm run dev                      # API em :3000 e interface em http://localhost:5173
 ```
 
-Usuários demonstrativos (somente fora de produção): `gerente`, `caixa`, `cozinha`, `moto1`, `moto2`,
+Usuários demonstrativos (somente fora de produção): `gerente`, `caixa`, `atendente1`, `atendente2`, `cozinha`, `moto1`, `moto2`,
 senha `demo1234`. O usuário `admin` usa a senha definida em `SEED_ADMIN_PASSWORD`.
 
 Versão de produção (um único processo serve API e interface):
@@ -73,6 +74,7 @@ docs               arquitetura, operação, WhatsApp, impressão, testes, pendê
 
 ## Documentação
 
+- [App do atendente (mesas e comandas)](docs/ATENDENTES.md)
 - [Arquitetura e regras de negócio](docs/ARQUITETURA.md)
 - [Operação, implantação, backup e restauração](docs/OPERACAO.md)
 - [WhatsApp: o que está pronto e o que falta configurar](docs/WHATSAPP.md)

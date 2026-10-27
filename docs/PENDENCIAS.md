@@ -28,6 +28,7 @@
   convertidas entre si (g ↔ kg): use a mesma unidade na ficha técnica e no insumo.
 - **Relatórios**: pedidos em aberto entram nas vendas do dia em andamento; o fechamento do dia garante que
   tudo esteja finalizado. “Resultado estimado” não é demonstrativo contábil.
+- **Atendentes**: sem modo offline de lançamento — o rascunho fica no aparelho e só vai à cozinha com o servidor acessível. A presença de aparelhos fica em memória (reiniciar o servidor zera a lista até os aparelhos darem sinal de novo, ~15 s).
 - **Fotos**: guardadas no disco do servidor (`UPLOAD_DIR`); incluir no backup externo.
 
 ## Checkpoint (para continuidade)
