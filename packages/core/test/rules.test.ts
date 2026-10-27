@@ -53,3 +53,23 @@ describe('Brasil', () => {
     expect(localHour(d)).toBe(23);
   });
 });
+
+describe('atendente', () => {
+  it('permissões do perfil atendente', async () => {
+    const { can } = await import('../src/permissions.js');
+    expect(can('waiter', 'orders.create')).toBe(true);
+    expect(can('waiter', 'tables.serve')).toBe(true);
+    expect(can('waiter', 'payments.create')).toBe(false);
+    expect(can('waiter', 'orders.close')).toBe(false);
+    expect(can('waiter', 'orders.discount')).toBe(false);
+    expect(can('waiter', 'orders.cancel')).toBe(false);
+    expect(can('waiter', 'kitchen.view')).toBe(false);
+    expect(can('cashier', 'orders.close')).toBe(true);
+  });
+  it('rótulo de mesa e comanda', async () => {
+    const { placeLabel } = await import('../src/status.js');
+    expect(placeLabel({ type: 'table', tabKind: 'table', tableLabel: '5' })).toBe('Mesa 5');
+    expect(placeLabel({ type: 'table', tabKind: 'tab', tableLabel: '15' })).toBe('Comanda 15');
+    expect(placeLabel({ type: 'delivery' })).toBe('Delivery');
+  });
+});

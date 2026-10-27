@@ -3,6 +3,7 @@ import {
   ORDER_STAGE_LABEL,
   ORDER_STATUS_LABEL,
   ORDER_TYPE_LABEL,
+  placeLabel,
   type DeliveryStatus,
   type OrderStage,
   type OrderStatus,
@@ -16,6 +17,6 @@ const deliveryColor: Record<DeliveryStatus, string> = { waiting: '', en_route: '
 export const StatusBadge = ({ status }: { status: OrderStatus }) => <span className={'badge ' + statusColor[status]}>{ORDER_STATUS_LABEL[status]}</span>;
 export const StageBadge = ({ stage }: { stage: OrderStage }) => <span className={'badge ' + stageColor[stage]}>{ORDER_STAGE_LABEL[stage]}</span>;
 export const DeliveryBadge = ({ status }: { status: DeliveryStatus }) => <span className={'badge ' + deliveryColor[status]}>{DELIVERY_STATUS_LABEL[status]}</span>;
-export const TypeBadge = ({ type, table }: { type: OrderType; table?: string | null }) => (
-  <span className="badge">{type === 'table' && table ? `Mesa ${table}` : ORDER_TYPE_LABEL[type]}</span>
+export const TypeBadge = ({ type, table, tabKind }: { type: OrderType; table?: string | null; tabKind?: 'table' | 'tab' | null }) => (
+  <span className="badge">{type === 'table' && table ? placeLabel({ type, tabKind, tableLabel: table }) : ORDER_TYPE_LABEL[type]}</span>
 );

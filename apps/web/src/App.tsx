@@ -1,9 +1,9 @@
 import { lazy, Suspense, type ReactElement } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ROLE_HOME, type Permission } from '@guto/core';
+import { ROLE_HOME, ROLE_LABEL, type Permission } from '@guto/core';
 import { useAuth } from './lib/auth';
-import { useLiveUpdates } from './lib/live';
+import { deviceKind, useLiveUpdates } from './lib/live';
 import { Loading } from './components/ui';
 import { Login } from './pages/Login';
 
@@ -22,6 +22,7 @@ const Reports = lazy(() => import('./pages/Reports'));
 const WhatsApp = lazy(() => import('./pages/WhatsApp'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Password = lazy(() => import('./pages/Password'));
+const Waiter = lazy(() => import('./pages/waiter/Waiter'));
 const Print = lazy(() => import('./pages/Print'));
 const PublicMenu = lazy(() => import('./pages/public/PublicMenu'));
 const Track = lazy(() => import('./pages/public/Track'));
@@ -39,7 +40,7 @@ export function App() {
   const qc = useQueryClient();
   const loc = useLocation();
   const isPublic = loc.pathname === '/c' || loc.pathname.startsWith('/c/');
-  useLiveUpdates(qc, !!me && !isPublic);
+  useLiveUpdates(qc, !!me && !isPublic, me ? `${ROLE_LABEL[me.role]} · ${me.name} (${deviceKind()})` : 'Dispositivo');
   if (loading && !isPublic) return <Loading />;
   return (
     <Suspense fallback={<Loading />}>
@@ -62,6 +63,7 @@ export function App() {
         <Route path="/relatorios" element={<Private perm="reports.view"><Reports /></Private>} />
         <Route path="/whatsapp" element={<Private perm="whatsapp.inbox"><WhatsApp /></Private>} />
         <Route path="/ajustes" element={<Private perm="settings.manage"><Settings /></Private>} />
+        <Route path="/atendente/*" element={<Private perm="tables.serve"><Waiter /></Private>} />
         <Route path="/senha" element={<Private><Password /></Private>} />
         <Route path="/imprimir/:id" element={<Private perm="orders.view"><Print /></Private>} />
         <Route path="*" element={<Navigate to={me ? ROLE_HOME[me.role] : '/login'} replace />} />

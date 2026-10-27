@@ -51,6 +51,10 @@ function eventLabel(e: OrderEvent): string {
       return `Etapa: ${ORDER_STAGE_LABEL[d.to as 'received'] ?? d.to}`;
     case 'updated':
       return 'Dados do pedido alterados' + (d.notes !== undefined ? ` · obs.: ${d.notes ?? '—'}` : '') + (d.deliveryFee ? ` · taxa ${formatBRL(d.deliveryFee.from)} → ${formatBRL(d.deliveryFee.to)}` : '');
+    case 'bill.requested':
+      return 'Atendente pediu a conta ao caixa';
+    case 'served':
+      return `Rodada ${d.round} entregue na mesa`;
     case 'handed_over':
       return 'Entregue ao cliente no balcão/mesa';
     case 'closed':
@@ -167,7 +171,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
     <>
       <div className="drawer-head">
         <h2>
-          Pedido #{o.number} <TypeBadge type={o.type} table={o.tableLabel} />
+          Pedido #{o.number} <TypeBadge type={o.type} table={o.tableLabel} tabKind={o.tabKind} />
         </h2>
         <Button variant="ghost" onClick={onClose} aria-label="Fechar">
           ✕
@@ -202,6 +206,11 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
           </div>
         )}
         {o.status === 'cancelled' && <div className="alert error">Cancelado em {formatDateTime(o.cancelledAt)} — {o.cancelReason}</div>}
+        {o.billRequestedAt && o.status === 'open' && (
+          <div className="alert warn" style={{ marginTop: 10 }}>
+            Conta pedida às {formatTime(o.billRequestedAt)}{o.billRequestedByName ? ` por ${o.billRequestedByName}` : ''}.
+          </div>
+        )}
 
         <section className="card" style={{ marginTop: 12 }}>
           <div className="hstack">
@@ -275,6 +284,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
                 {i.options.length > 0 && <small className="muted">{i.options.map((x) => (x.quantity > 1 ? `${x.quantity}x ` : '') + x.optionName).join(', ')}</small>}
                 {i.notes && <div className="note" style={{ color: 'var(--orange)', fontSize: '.85rem' }}>“{i.notes}”</div>}
                 {i.status === 'cancelled' && <small className="muted">Cancelado: {i.cancelReason}</small>}
+                {i.createdByName && <div><small className="muted">lançado por {i.createdByName}</small></div>}
               </div>
               <div className="right">
                 <Money cents={i.totalCents} />
@@ -302,12 +312,25 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
             </Button>
           )}
           {o.tickets.length > 0 && (
-            <p style={{ marginTop: 8 }}>
-              <small className="muted">
-                Cozinha:{' '}
-                {o.tickets.map((t) => `rodada ${t.round} ${KITCHEN_STATUS_LABEL[t.status].toLowerCase()}${t.readyAt ? ' às ' + formatTime(t.readyAt) : ''}`).join(' · ')}
-              </small>
-            </p>
+            <div style={{ marginTop: 8 }}>
+              {o.tickets.map((t) => (
+                <div key={t.id} className="hstack" style={{ fontSize: '.85rem', padding: '2px 0' }}>
+                  <b>Rodada {t.round}</b>
+                  <span className="muted">
+                    {formatTime(t.createdAt)} · {t.createdByName ?? 'cardápio digital'}
+                  </span>
+                  <span className="spacer" />
+                  {t.servedAt ? (
+                    <span className="badge dark">entregue {formatTime(t.servedAt)}{t.servedByName ? ` · ${t.servedByName}` : ''}</span>
+                  ) : (
+                    <span className={'badge ' + (t.status === 'ready' ? 'green' : t.status === 'preparing' ? 'yellow' : 'blue')}>
+                      {KITCHEN_STATUS_LABEL[t.status].toLowerCase()}
+                      {t.readyAt ? ' ' + formatTime(t.readyAt) : ''}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </section>
 
@@ -400,12 +423,12 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
         {o.status === 'open' && o.type !== 'delivery' && o.stage === 'ready' && (
           <Button onClick={() => act(() => post(`/api/orders/${o.id}/handover`, {}), 'Entregue ao cliente')}>Entregue ao cliente</Button>
         )}
-        {o.status === 'open' && (
+        {o.status === 'open' && can('orders.close') && (
           <Button variant="dark" disabled={!canClose} busy={busy} onClick={() => close(false)} title={canClose ? '' : 'Requer pagamento completo e pedido pronto/entregue'}>
             Finalizar pedido
           </Button>
         )}
-        {o.status === 'open' && o.balanceCents > 0 && can('orders.edit') && (
+        {o.status === 'open' && o.balanceCents > 0 && can('orders.close') && (
           <Button onClick={() => close(true)}>Fechar como pendente</Button>
         )}
         <span className="spacer" />

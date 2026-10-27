@@ -93,7 +93,7 @@ export default function Orders() {
                   </td>
                   <td className="num">{formatTime(o.createdAt)}</td>
                   <td>
-                    <TypeBadge type={o.type} table={o.tableLabel} />
+                    <TypeBadge type={o.type} table={o.tableLabel} tabKind={o.tabKind} />
                     {o.source === 'online' && <span className="badge blue">online</span>}
                   </td>
                   <td>

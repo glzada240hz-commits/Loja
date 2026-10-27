@@ -8,6 +8,7 @@ import { useConnection } from '../lib/live';
 import { formatDate } from '../lib/format';
 import { Logo } from './Logo';
 import { Button } from './ui';
+import { StaffAlerts } from './StaffAlerts';
 
 interface NavItem {
   to: string;
@@ -18,7 +19,8 @@ interface NavItem {
 const NAV: (NavItem | 'sep')[] = [
   { to: '/pdv', label: 'Venda (PDV)', icon: '🧾', perm: 'orders.create' },
   { to: '/pedidos', label: 'Pedidos', icon: '📋', perm: 'orders.view' },
-  { to: '/mesas', label: 'Mesas', icon: '🍽️', perm: 'orders.view' },
+  { to: '/mesas', label: 'Mesas e comandas', icon: '🍽️', perm: 'orders.view' },
+  { to: '/atendente', label: 'App do atendente', icon: '📱', perm: 'tables.serve' },
   { to: '/cozinha', label: 'Cozinha', icon: '👨‍🍳', perm: 'kitchen.view' },
   { to: '/expedicao', label: 'Entregas', icon: '🛵', perm: 'deliveries.manage' },
   { to: '/entregador', label: 'Minhas entregas', icon: '🛵', perm: 'deliveries.own' },
@@ -123,6 +125,7 @@ export function Layout({ children, title, actions, flush }: { children: ReactNod
           <div className="grow" />
           {actions}
           <DayStatus />
+          <StaffAlerts />
           <ConnectionPill />
         </header>
         <main className={'content' + (flush ? ' flush' : '')}>{children}</main>

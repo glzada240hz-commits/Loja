@@ -20,6 +20,8 @@ interface KTicket {
   orderType: 'counter' | 'takeout' | 'delivery' | 'table';
   orderStatus: string;
   tableLabel: string | null;
+  place: string;
+  createdByName: string | null;
   customerName: string | null;
   orderNotes: string | null;
   etaAt: string | null;
@@ -121,7 +123,7 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
       await post(`/api/kitchen/tickets/${t.id}/status`, { status });
       await qc.invalidateQueries({ queryKey: ['kitchen'] });
     });
-  const label = t.orderType === 'table' ? `Mesa ${t.tableLabel}` : ORDER_TYPE_LABEL[t.orderType];
+  const label = t.orderType === 'table' ? t.place : ORDER_TYPE_LABEL[t.orderType];
   return (
     <article className={'ticket' + (late ? ' late' : '') + (changed ? ' changed' : '') + (cancelled ? ' cancelled' : '')} aria-label={`Pedido ${t.orderNumber}`}>
       <div className="ticket-head">
@@ -134,10 +136,14 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
           {waiting} min
         </span>
       </div>
+      {t.round > 1 && !cancelled && <div className="ticket-extra">ACRÉSCIMO — só os itens abaixo (rodada {t.round})</div>}
       {cancelled && <div className="ticket-change" style={{ background: '#ff5b3d', color: '#fff' }}>PEDIDO CANCELADO — NÃO PREPARAR</div>}
       {changed && <div className="ticket-change">ALTERADO às {formatTime(t.changedAt)}: {t.changeNote}</div>}
       <div className="ticket-body">
-        {t.customerName && <small>{t.customerName}</small>}
+        <div className="ticket-who">
+          {formatTime(t.createdAt)} · {t.createdByName ? `por ${t.createdByName}` : 'cardápio digital'}
+          {t.customerName ? ` · ${t.customerName}` : ''}
+        </div>
         {t.orderNotes && <div className="ticket-note">Obs.: {t.orderNotes}</div>}
         {t.items.map((i) => {
           const removes = i.options.filter((o) => /^sem /i.test(o.name));
