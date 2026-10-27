@@ -114,3 +114,10 @@ export const STOCK_MOVEMENT_LABEL: Record<StockMovementType, string> = {
   adjustment: 'Ajuste de inventário',
   manual_out: 'Saída manual',
 };
+
+/** Mesa ou comanda (cartão numerado) dentro do tipo de pedido "mesa". */
+export type TabKind = 'table' | 'tab';
+export function placeLabel(o: { type: string; tabKind?: TabKind | null; tableLabel?: string | null }): string {
+  if (o.type !== 'table') return ORDER_TYPE_LABEL[o.type as OrderType] ?? o.type;
+  return (o.tabKind === 'tab' ? 'Comanda ' : 'Mesa ') + (o.tableLabel ?? '?');
+}

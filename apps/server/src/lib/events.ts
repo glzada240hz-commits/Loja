@@ -14,6 +14,8 @@ export type LiveEvent =
   | { type: 'menu.changed' }
   | { type: 'stock.changed' }
   | { type: 'whatsapp.changed'; contactId?: string }
+  | { type: 'bill.requested'; orderId: string; number: number; place: string; by: string }
+  | { type: 'presence.changed' }
   /** interno: há mensagens na fila de envio */
   | { type: 'wa.outbox' };
 

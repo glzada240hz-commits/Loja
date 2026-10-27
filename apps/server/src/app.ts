@@ -13,6 +13,7 @@ import { AppError } from './lib/errors.js';
 import { EventBus } from './lib/events.js';
 import type { Actor, Ctx, Deps } from './lib/context.js';
 import { SESSION_COOKIE, sessionActor } from './services/auth.js';
+import { PresenceRegistry } from './services/presence.js';
 import { configureNotify } from './whatsapp/notify.js';
 import { CloudApiProvider, DemoProvider, type WaProvider } from './whatsapp/provider.js';
 import { startWorkers, type Workers } from './workers.js';
@@ -33,12 +34,14 @@ declare module 'fastify' {
   interface FastifyInstance {
     deps: Deps;
     wa: WaProvider;
+    presence: PresenceRegistry;
     ctx(req: FastifyRequest): Ctx;
   }
 }
 
 export interface AppHandle {
   app: FastifyInstance;
+  presence: PresenceRegistry;
   db: Db;
   deps: Deps;
   wa: WaProvider;
@@ -78,6 +81,10 @@ export async function buildApp(config: Config, opts: { db?: Db; wa?: WaProvider;
 
   app.decorate('deps', deps);
   app.decorate('wa', wa);
+  const presence = new PresenceRegistry(bus);
+  app.decorate('presence', presence);
+  const presenceSweep = setInterval(() => presence.sweep(), 10_000);
+  app.addHook('onClose', async () => clearInterval(presenceSweep));
   app.decorateRequest('actor', null);
   app.decorate('ctx', (req: FastifyRequest): Ctx => {
     if (!req.actor) throw new AppError(401, 'unauthorized', 'Faça login para continuar');
@@ -181,6 +188,7 @@ export async function buildApp(config: Config, opts: { db?: Db; wa?: WaProvider;
 
   return {
     app,
+    presence,
     db,
     deps,
     wa,

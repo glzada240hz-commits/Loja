@@ -1,10 +1,11 @@
-export const ROLES = ['admin', 'manager', 'cashier', 'kitchen', 'courier'] as const;
+export const ROLES = ['admin', 'manager', 'cashier', 'waiter', 'kitchen', 'courier'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABEL: Record<Role, string> = {
   admin: 'Administrador',
   manager: 'Gerente',
   cashier: 'Caixa',
+  waiter: 'Atendente',
   kitchen: 'Cozinha',
   courier: 'Entregador',
 };
@@ -18,6 +19,8 @@ export const PERMISSIONS = [
   'orders.cancel',
   'orders.cancel_item_sent', // cancelar item já enviado à cozinha
   'orders.reopen',
+  'orders.close', // finalizar pedido/conta
+  'tables.serve', // atendimento de mesas: marcar entregue, pedir conta
   'orders.close_receivable', // fechar como conta pendente (fiado)
   'orders.delivery_fee_override',
   'payments.create',
@@ -55,6 +58,8 @@ const cashier: Permission[] = [
   'orders.view',
   'orders.create',
   'orders.edit',
+  'orders.close',
+  'tables.serve',
   'orders.discount',
   'payments.create',
   'cash.open',
@@ -77,6 +82,7 @@ export const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
   admin: new Set(PERMISSIONS.filter((p) => p !== 'deliveries.own')),
   manager: new Set(manager),
   cashier: new Set(cashier),
+  waiter: new Set<Permission>(['orders.view', 'orders.create', 'orders.edit', 'tables.serve']),
   kitchen: new Set<Permission>(['kitchen.view', 'kitchen.update']),
   courier: new Set<Permission>(['deliveries.own']),
 };
@@ -90,6 +96,7 @@ export const ROLE_HOME: Record<Role, string> = {
   admin: '/pdv',
   manager: '/pdv',
   cashier: '/pdv',
+  waiter: '/atendente',
   kitchen: '/cozinha',
   courier: '/entregador',
 };

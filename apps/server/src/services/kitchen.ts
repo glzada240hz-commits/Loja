@@ -1,5 +1,5 @@
-import { and, asc, eq, gte, inArray, or, sql } from 'drizzle-orm';
-import { canTransitionKitchen, type KitchenStatus } from '@guto/core';
+import { and, asc, eq, gte, inArray, isNull, or, sql } from 'drizzle-orm';
+import { canTransitionKitchen, placeLabel, type KitchenStatus } from '@guto/core';
 import type { DbOrTx } from '../db/index.js';
 import { kitchenTickets, orderItemOptions, orderItems, orders } from '../db/schema.js';
 import { orderEvent } from '../lib/audit.js';
@@ -18,6 +18,8 @@ export async function kitchenQueue(db: DbOrTx) {
       orderType: orders.type,
       orderStatus: orders.status,
       tableLabel: orders.tableLabel,
+      tabKind: orders.tabKind,
+      createdByName: sql<string | null>`(select name from users u where u.id = ${kitchenTickets.createdBy})`,
       customerName: orders.customerName,
       orderNotes: orders.notes,
       etaAt: orders.etaAt,
@@ -29,7 +31,7 @@ export async function kitchenQueue(db: DbOrTx) {
       or(
         and(eq(orders.status, 'open'), inArray(kitchenTickets.status, ['received', 'preparing'])),
         and(eq(orders.status, 'closed'), inArray(kitchenTickets.status, ['received', 'preparing'])),
-        and(inArray(orders.status, ['open', 'closed']), eq(kitchenTickets.status, 'ready'), gte(kitchenTickets.readyAt, recent)),
+        and(inArray(orders.status, ['open', 'closed']), eq(kitchenTickets.status, 'ready'), gte(kitchenTickets.readyAt, recent), isNull(kitchenTickets.servedAt)),
         and(eq(orders.status, 'cancelled'), gte(orders.cancelledAt, recent)),
       ),
     )
@@ -45,6 +47,9 @@ export async function kitchenQueue(db: DbOrTx) {
       orderType: r.orderType,
       orderStatus: r.orderStatus,
       tableLabel: r.tableLabel,
+      tabKind: r.tabKind,
+      place: placeLabel({ type: r.orderType, tabKind: r.tabKind, tableLabel: r.tableLabel }),
+      createdByName: r.createdByName,
       customerName: r.customerName,
       orderNotes: r.orderNotes,
       etaAt: r.etaAt,

@@ -36,6 +36,7 @@ export async function orderRoutes(app: FastifyInstance) {
       .object({
         type: orderType,
         tableLabel: z.string().max(20).nullish(),
+        tabKind: z.enum(['table', 'tab']).optional(),
         customer: customerInput,
         address: addressInput,
         notes: z.string().max(500).nullish(),
@@ -80,9 +81,10 @@ export async function orderRoutes(app: FastifyInstance) {
   app.post('/api/orders/:id/items', async (req) => {
     const ctx = app.ctx(req);
     const { id } = idParam.parse(req.params);
-    const body = z.object({ version, items: z.array(itemInput).min(1).max(100), send: z.boolean().optional() }).parse(req.body);
-    await svc.addItems(ctx, id, body.version, body.items, body.send ?? true);
-    return svc.getOrder(ctx.db, id);
+    const body = z.object({ version: version.optional(), items: z.array(itemInput).min(1).max(100), send: z.boolean().optional() }).parse(req.body);
+    // a chave de repetição considera só os itens (não a versão): um reenvio após queda de conexão é reconhecido
+    const r = await svc.addItems(ctx, id, body.version, body.items, body.send ?? true, idem(req, `orders.items:${id}`, { items: body.items, send: body.send ?? true }));
+    return { ...(await svc.getOrder(ctx.db, id)), sentTicketId: r.ticketId };
   });
 
   app.post('/api/orders/:id/send', async (req) => {
@@ -164,6 +166,20 @@ export async function orderRoutes(app: FastifyInstance) {
       .parse(req.body);
     await svc.cancelOrder(ctx, id, body.version, body, body.supervisor);
     return svc.getOrder(ctx.db, id);
+  });
+
+  app.post('/api/orders/:id/request-bill', async (req) => {
+    const ctx = app.ctx(req);
+    const { id } = idParam.parse(req.params);
+    await svc.requestBill(ctx, id);
+    return svc.getOrder(ctx.db, id);
+  });
+
+  app.post('/api/kitchen/tickets/:id/served', async (req) => {
+    const ctx = app.ctx(req);
+    const { id } = idParam.parse(req.params);
+    await svc.markServed(ctx, id);
+    return { ok: true };
   });
 
   app.post('/api/orders/:id/handover', async (req) => {

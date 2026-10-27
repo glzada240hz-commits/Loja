@@ -29,6 +29,8 @@ export async function seed(db: Db, opts: SeedOptions) {
       for (const [username, name, role] of [
         ['gerente', 'Gerente Demo', 'manager'],
         ['caixa', 'Caixa Demo', 'cashier'],
+        ['atendente1', 'Atendente Ana (demo)', 'waiter'],
+        ['atendente2', 'Atendente Beto (demo)', 'waiter'],
         ['cozinha', 'Cozinha Demo', 'kitchen'],
         ['moto1', 'Entregador 1 (demo)', 'courier'],
         ['moto2', 'Entregador 2 (demo)', 'courier'],

@@ -5,6 +5,7 @@ import {
   computeOrderTotals,
   effectiveDiscountBp,
   normalizePhoneBR,
+  placeLabel,
   stageFromTickets,
   splitEvenly,
   type DiscountInput,
@@ -67,6 +68,7 @@ export interface CreateOrderInput {
   type: OrderType;
   source?: 'pos' | 'online' | 'whatsapp';
   tableLabel?: string | null;
+  tabKind?: 'table' | 'tab';
   customer?: CustomerInput | null;
   address?: AddressInput | null;
   notes?: string | null;
@@ -216,7 +218,7 @@ async function launchPending(tx: Tx, order: OrderRow, actor: Actor | null, emit:
       .where(eq(kitchenTickets.orderId, order.id));
     const [t] = await tx
       .insert(kitchenTickets)
-      .values({ orderId: order.id, round: (r?.max ?? 0) + 1, createdAt: at })
+      .values({ orderId: order.id, round: (r?.max ?? 0) + 1, createdAt: at, createdBy: actor?.userId ?? null })
       .returning();
     ticketId = t!.id;
     emit({ type: 'kitchen.changed', orderId: order.id });
@@ -240,7 +242,7 @@ export async function refreshStage(tx: Tx, orderId: string, emit: Emit) {
   if (!o || o.status === 'cancelled' || o.status === 'pending') return;
   if (o.stage === 'out_for_delivery' || (o.stage === 'delivered' && o.type === 'delivery')) return;
   const rows = await tx
-    .select({ status: kitchenTickets.status })
+    .select({ status: kitchenTickets.status, servedAt: kitchenTickets.servedAt })
     .from(kitchenTickets)
     .where(
       and(
@@ -248,11 +250,14 @@ export async function refreshStage(tx: Tx, orderId: string, emit: Emit) {
         sql`exists (select 1 from ${orderItems} oi where oi.ticket_id = ${kitchenTickets.id} and oi.status = 'active')`,
       ),
     );
-  const stage = stageFromTickets(rows.map((r) => r.status as KitchenStatus));
+  let stage = stageFromTickets(rows.map((r) => r.status as KitchenStatus));
+  // mesa/comanda: todas as rodadas levadas à mesa pelo atendente = entregue
+  if (stage === 'ready' && o.type !== 'delivery' && rows.length > 0 && rows.every((r) => r.servedAt)) stage = 'delivered';
   if (o.stage === 'delivered' && stage === 'ready') return; // já entregue ao cliente (balcão/mesa)
   if (stage === o.stage) return;
   const set: Partial<OrderRow> = { stage, updatedAt: now() };
   if (stage === 'ready' && !o.readyAt) set.readyAt = now();
+  if (stage === 'delivered' && !o.deliveredAt) set.deliveredAt = now();
   await tx.update(orders).set(set).where(eq(orders.id, orderId));
   await orderEvent(tx, orderId, 'stage', null, { from: o.stage, to: stage });
   if (stage === 'ready' && o.type === 'takeout') {
@@ -366,21 +371,19 @@ export async function createOrder(
     }
   }
 
-  return inTx(ctx, async (tx, emit) => {
+  return withPlaceGuard(ctx, input, () => inTx(ctx, async (tx, emit) => {
     const res = await idempotent(tx, opts.idem, async () => {
       const day = await requireOpenDay(tx);
       const settings = await getSettings(tx);
       const items = await resolveItems(tx, input.items, { online: source === 'online' });
 
       let tableLabel: string | null = null;
+      const tabKind = input.type === 'table' ? (input.tabKind ?? 'table') : 'table';
       if (input.type === 'table') {
         tableLabel = input.tableLabel?.trim().slice(0, 20) || null;
-        if (!tableLabel) throw unprocessable('Informe a mesa');
-        const [busy] = await tx
-          .select({ id: orders.id, number: orders.number })
-          .from(orders)
-          .where(and(eq(orders.businessDayId, day.id), eq(orders.tableLabel, tableLabel), inArray(orders.status, ['open', 'pending'])));
-        if (busy) throw new AppError(409, 'table_busy', `A mesa ${tableLabel} já tem comanda aberta (#${busy.number})`, busy);
+        if (!tableLabel) throw unprocessable(tabKind === 'tab' ? 'Informe o número da comanda' : 'Informe a mesa');
+        const busy = await findOpenPlace(tx, day.id, tabKind, tableLabel);
+        if (busy) throw placeBusy(tabKind, tableLabel, busy);
       }
 
       let nb: typeof neighborhoods.$inferSelect | null = null;
@@ -450,6 +453,7 @@ export async function createOrder(
           status,
           stage: 'received',
           tableLabel,
+          tabKind,
           customerId: cust.customerId,
           customerName: cust.name,
           customerPhone: cust.phone,
@@ -504,7 +508,46 @@ export async function createOrder(
       return { id: order!.id, number, trackingToken: order!.trackingToken };
     });
     return res.value;
-  });
+  }));
+}
+
+async function findOpenPlace(tx: DbOrTx, dayId: string, tabKind: 'table' | 'tab', label: string, exceptId?: string) {
+  const [busy] = await tx
+    .select({ id: orders.id, number: orders.number })
+    .from(orders)
+    .where(
+      and(
+        eq(orders.businessDayId, dayId),
+        eq(orders.tabKind, tabKind),
+        eq(orders.tableLabel, label),
+        inArray(orders.status, ['open', 'pending']),
+        exceptId ? ne(orders.id, exceptId) : undefined,
+      ),
+    );
+  return busy ?? null;
+}
+
+function placeBusy(tabKind: 'table' | 'tab', label: string, busy: { id: string; number: number }) {
+  return new AppError(409, 'table_busy', `${placeLabel({ type: 'table', tabKind, tableLabel: label })} já está aberta (pedido #${busy.number}). Adicione os itens nela.`, busy);
+}
+
+/**
+ * Dois atendentes abrindo a mesma mesa ao mesmo tempo: o índice único parcial do banco
+ * garante uma única comanda aberta; o segundo recebe "mesa ocupada" com o pedido existente.
+ */
+async function withPlaceGuard<T>(ctx: Ctx, input: { type: string; tabKind?: 'table' | 'tab'; tableLabel?: string | null }, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    const pg = (e as { code?: string; constraint?: string; cause?: { code?: string; constraint?: string } });
+    const c = pg.code ? pg : pg.cause;
+    if (c?.code === '23505' && c.constraint === 'orders_open_place' && input.type === 'table' && input.tableLabel) {
+      const day = await requireOpenDay(ctx.db);
+      const busy = await findOpenPlace(ctx.db, day.id, input.tabKind ?? 'table', input.tableLabel.trim());
+      if (busy) throw placeBusy(input.tabKind ?? 'table', input.tableLabel.trim(), busy);
+    }
+    throw e;
+  }
 }
 
 // ---------------- edição ----------------
@@ -536,11 +579,8 @@ export async function updateHeader(ctx: Ctx, orderId: string, version: number, p
       const label = (patch.tableLabel ?? o.tableLabel)?.trim();
       if (!label) throw unprocessable('Informe a mesa');
       if (label !== o.tableLabel) {
-        const [busy] = await tx
-          .select({ id: orders.id, number: orders.number })
-          .from(orders)
-          .where(and(eq(orders.businessDayId, o.businessDayId), eq(orders.tableLabel, label), inArray(orders.status, ['open', 'pending']), ne(orders.id, o.id)));
-        if (busy) throw new AppError(409, 'table_busy', `A mesa ${label} já tem comanda aberta (#${busy.number})`, busy);
+        const busy = await findOpenPlace(tx, o.businessDayId, o.tabKind, label, o.id);
+        if (busy) throw placeBusy(o.tabKind, label, busy);
         changes.table = { from: o.tableLabel, to: label };
       }
       set.tableLabel = label;
@@ -600,25 +640,79 @@ export async function updateHeader(ctx: Ctx, orderId: string, version: number, p
   });
 }
 
-export async function addItems(ctx: Ctx, orderId: string, version: number, items: ItemInput[], send = true) {
+/**
+ * Acrescenta itens a uma comanda. Acréscimo não apaga nada, então a versão é opcional
+ * (o app do atendente envia sem versão para não falhar quando o caixa mexeu no pedido).
+ * Com Idempotency-Key, toques repetidos ou reenvio após queda de conexão devolvem a MESMA
+ * resposta: a rodada nunca é lançada duas vezes.
+ */
+export async function addItems(
+  ctx: Ctx,
+  orderId: string,
+  version: number | undefined,
+  items: ItemInput[],
+  send = true,
+  idem?: IdemKey,
+) {
   requirePerm(ctx.actor, 'orders.edit');
   return inTx(ctx, async (tx, emit) => {
+    const r = await idempotent(tx, idem, async () => {
+      const o = await lockOrder(tx, orderId);
+      if (version !== undefined) checkVersion(o, version);
+      requireEditable(o);
+      if (o.status === 'pending') throw conflict('Aceite o pedido antes de acrescentar itens');
+      if (o.deliveryStatus === 'en_route' || o.deliveryStatus === 'delivered') throw conflict('Entrega já saiu; não é possível adicionar itens');
+      const resolved = await resolveItems(tx, items);
+      const [mx] = await tx.select({ max: sql<number>`coalesce(max(${orderItems.sort}), 0)::int` }).from(orderItems).where(eq(orderItems.orderId, o.id));
+      await insertItems(tx, o.id, resolved, ctx.actor, (mx?.max ?? 0) + 1);
+      await bump(tx, o.id);
+      await recalc(tx, o.id);
+      await orderEvent(tx, o.id, 'items.added', ctx.actor, { items: itemSummary(resolved) });
+      let ticketId: string | null = null;
+      if (send && o.status === 'open') {
+        if (o.stage === 'delivered') await tx.update(orders).set({ stage: 'ready' }).where(eq(orders.id, o.id));
+        ticketId = await launchPending(tx, o, ctx.actor, emit);
+      }
+      emit({ type: 'order.changed', orderId: o.id, number: o.number });
+      return { id: o.id, ticketId };
+    });
+    return r.value;
+  });
+}
+
+/** Atendente pede ao caixa o fechamento da conta. Repetir o pedido não duplica. */
+export async function requestBill(ctx: Ctx, orderId: string) {
+  requirePerm(ctx.actor, 'tables.serve');
+  return inTx(ctx, async (tx, emit) => {
     const o = await lockOrder(tx, orderId);
-    checkVersion(o, version);
-    requireEditable(o);
-    if (o.deliveryStatus === 'en_route' || o.deliveryStatus === 'delivered') throw conflict('Entrega já saiu; não é possível adicionar itens');
-    const resolved = await resolveItems(tx, items);
-    const [r] = await tx.select({ max: sql<number>`coalesce(max(${orderItems.sort}), 0)::int` }).from(orderItems).where(eq(orderItems.orderId, o.id));
-    await insertItems(tx, o.id, resolved, ctx.actor, (r?.max ?? 0) + 1);
-    await bump(tx, o.id);
-    await recalc(tx, o.id);
-    await orderEvent(tx, o.id, 'items.added', ctx.actor, { items: itemSummary(resolved) });
-    if (send && o.status === 'open') {
-      if (o.stage === 'delivered') await tx.update(orders).set({ stage: 'ready' }).where(eq(orders.id, o.id));
-      await launchPending(tx, o, ctx.actor, emit);
+    if (o.status !== 'open') throw conflict('Só é possível pedir a conta de um pedido em aberto');
+    if (!o.billRequestedAt) {
+      await tx.update(orders).set({ billRequestedAt: now(), billRequestedBy: ctx.actor.userId, updatedAt: now() }).where(eq(orders.id, o.id));
+      await orderEvent(tx, o.id, 'bill.requested', ctx.actor, { totalCents: o.totalCents });
+      emit({ type: 'bill.requested', orderId: o.id, number: o.number, place: placeLabel(o), by: ctx.actor.name });
     }
     emit({ type: 'order.changed', orderId: o.id, number: o.number });
     return { id: o.id };
+  });
+}
+
+/** Atendente confirma que levou à mesa os itens de uma rodada pronta. */
+export async function markServed(ctx: Ctx, ticketId: string) {
+  requirePerm(ctx.actor, 'tables.serve');
+  return inTx(ctx, async (tx, emit) => {
+    const [t] = await tx.select().from(kitchenTickets).where(eq(kitchenTickets.id, ticketId)).for('update');
+    if (!t) throw notFound('Rodada não encontrada');
+    const o = await lockOrder(tx, t.orderId);
+    if (o.status === 'cancelled') throw conflict('Pedido cancelado');
+    if (t.status !== 'ready') throw conflict('A cozinha ainda não marcou esta rodada como pronta');
+    if (!t.servedAt) {
+      await tx.update(kitchenTickets).set({ servedAt: now(), servedBy: ctx.actor.userId }).where(eq(kitchenTickets.id, t.id));
+      await orderEvent(tx, o.id, 'served', ctx.actor, { round: t.round });
+      await refreshStage(tx, o.id, emit);
+    }
+    emit({ type: 'kitchen.changed', orderId: o.id });
+    emit({ type: 'order.changed', orderId: o.id, number: o.number });
+    return { id: t.id };
   });
 }
 
@@ -987,7 +1081,7 @@ export async function markHandedOver(ctx: Ctx, orderId: string) {
 }
 
 export async function closeOrder(ctx: Ctx, orderId: string, version: number, input: { receivable?: boolean } = {}, supervisor?: SupervisorInput | null) {
-  requirePerm(ctx.actor, 'orders.edit');
+  requirePerm(ctx.actor, 'orders.close');
   const authorizedBy = input.receivable ? await authorize(ctx.db, ctx.actor, 'orders.close_receivable', supervisor) : null;
   return inTx(ctx, async (tx, emit) => {
     const o = await lockOrder(tx, orderId);
@@ -1062,7 +1156,16 @@ export async function getOrder(db: DbOrTx, orderId: string) {
     .leftJoin(users, eq(users.id, payments.createdBy))
     .where(eq(payments.orderId, orderId))
     .orderBy(asc(payments.createdAt));
-  const tickets = await db.select().from(kitchenTickets).where(eq(kitchenTickets.orderId, orderId)).orderBy(asc(kitchenTickets.round));
+  const tickets = await db
+    .select({
+      t: kitchenTickets,
+      createdByName: sql<string | null>`(select name from users u where u.id = ${kitchenTickets.createdBy})`,
+      servedByName: sql<string | null>`(select name from users u where u.id = ${kitchenTickets.servedBy})`,
+    })
+    .from(kitchenTickets)
+    .where(eq(kitchenTickets.orderId, orderId))
+    .orderBy(asc(kitchenTickets.round));
+  const names = new Map((await db.select({ id: users.id, name: users.name }).from(users)).map((u) => [u.id, u.name]));
   const authUsers = sql`(select name from users u2 where u2.id = ${orderEvents.authorizedBy})`;
   const events = await db
     .select({
@@ -1081,10 +1184,12 @@ export async function getOrder(db: DbOrTx, orderId: string) {
     ...o.order,
     courierName: o.courierName,
     createdByName: o.createdByName,
+    billRequestedByName: o.order.billRequestedBy ? (names.get(o.order.billRequestedBy) ?? null) : null,
+    place: placeLabel(o.order),
     balanceCents: o.order.totalCents - o.order.paidCents,
-    items: items.map((i) => ({ ...i, options: opts.filter((x) => x.orderItemId === i.id) })),
+    items: items.map((i) => ({ ...i, createdByName: i.createdBy ? (names.get(i.createdBy) ?? null) : null, options: opts.filter((x) => x.orderItemId === i.id) })),
     payments: pays.map((p) => ({ ...p.p, userName: p.userName })),
-    tickets,
+    tickets: tickets.map((t) => ({ ...t.t, createdByName: t.createdByName, servedByName: t.servedByName })),
     events,
   };
 }
@@ -1126,6 +1231,18 @@ export async function listOrders(db: DbOrTx, f: OrderFilters) {
       status: orders.status,
       stage: orders.stage,
       tableLabel: orders.tableLabel,
+      tabKind: orders.tabKind,
+      billRequestedAt: orders.billRequestedAt,
+      createdByName: sql<string | null>`(select name from users u where u.id = ${orders.createdBy})`,
+      /** andamento das rodadas: quantas em cada estado (para mesas/comandas) */
+      rounds: sql<{ received: number; preparing: number; ready: number; served: number }>`(
+        select json_build_object(
+          'received', count(*) filter (where kt.status = 'received'),
+          'preparing', count(*) filter (where kt.status = 'preparing'),
+          'ready', count(*) filter (where kt.status = 'ready' and kt.served_at is null),
+          'served', count(*) filter (where kt.served_at is not null))
+        from kitchen_tickets kt where kt.order_id = ${orders.id}
+          and exists (select 1 from order_items oi where oi.ticket_id = kt.id and oi.status = 'active'))`,
       customerName: orders.customerName,
       customerPhone: orders.customerPhone,
       addrStreet: orders.addrStreet,

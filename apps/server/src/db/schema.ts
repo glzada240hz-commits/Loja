@@ -22,7 +22,7 @@ const ts = (name: string) => timestamp(name, { withTimezone: true });
 /** Quantidades de estoque com 3 casas decimais (exatas, numeric). Lidas como string. */
 const qty = (name: string) => numeric(name, { precision: 14, scale: 3 });
 
-export const roleEnum = pgEnum('role', ['admin', 'manager', 'cashier', 'kitchen', 'courier']);
+export const roleEnum = pgEnum('role', ['admin', 'manager', 'cashier', 'kitchen', 'courier', 'waiter']);
 export const orderTypeEnum = pgEnum('order_type', ['counter', 'takeout', 'delivery', 'table']);
 export const orderStatusEnum = pgEnum('order_status', ['pending', 'open', 'closed', 'cancelled']);
 export const orderStageEnum = pgEnum('order_stage', ['received', 'preparing', 'ready', 'out_for_delivery', 'delivered']);
@@ -472,6 +472,10 @@ export const orders = pgTable(
     status: orderStatusEnum('status').notNull(),
     stage: orderStageEnum('stage').notNull().default('received'),
     tableLabel: text('table_label'),
+    /** 'table' = mesa; 'tab' = comanda (cartão numerado) */
+    tabKind: text('tab_kind', { enum: ['table', 'tab'] }).notNull().default('table'),
+    billRequestedAt: ts('bill_requested_at'),
+    billRequestedBy: uuid('bill_requested_by').references(() => users.id),
     customerId: uuid('customer_id').references(() => customers.id),
     customerName: text('customer_name'),
     customerPhone: text('customer_phone'),
@@ -522,6 +526,10 @@ export const orders = pgTable(
   },
   (t) => [
     uniqueIndex('orders_day_number').on(t.businessDayId, t.number),
+    // no máximo uma comanda aberta por mesa/comanda no dia
+    uniqueIndex('orders_open_place')
+      .on(t.businessDayId, t.tabKind, t.tableLabel)
+      .where(sql`table_label is not null and status in ('open', 'pending')`),
     index('orders_status_idx').on(t.status),
     index('orders_phone_idx').on(t.customerPhone),
     index('orders_created_idx').on(t.createdAt),
@@ -544,6 +552,11 @@ export const kitchenTickets = pgTable(
     readyAt: ts('ready_at'),
     changedAt: ts('changed_at'),
     changeNote: text('change_note'),
+    /** quem lançou esta rodada (atendente/caixa) */
+    createdBy: uuid('created_by').references(() => users.id),
+    /** levado à mesa pelo atendente */
+    servedAt: ts('served_at'),
+    servedBy: uuid('served_by').references(() => users.id),
   },
   (t) => [uniqueIndex('ticket_order_round').on(t.orderId, t.round), index('ticket_status_idx').on(t.status)],
 );

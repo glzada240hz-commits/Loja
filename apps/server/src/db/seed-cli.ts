@@ -16,6 +16,6 @@ const r = await seed(db, { adminPassword: pw, demoUsers: demo && cfg.NODE_ENV !=
 if (r.skipped) console.log('Banco já possui usuários; seed ignorado.');
 else {
   console.log('Seed concluído. Usuário: admin (senha definida em SEED_ADMIN_PASSWORD).');
-  if (demo && cfg.NODE_ENV !== 'production') console.log(`Usuários demonstrativos: gerente, caixa, cozinha, moto1, moto2 — senha "${DEMO_PASSWORD}".`);
+  if (demo && cfg.NODE_ENV !== 'production') console.log(`Usuários demonstrativos: gerente, caixa, atendente1, atendente2, cozinha, moto1, moto2 — senha "${DEMO_PASSWORD}".`);
 }
 await pool.end();
