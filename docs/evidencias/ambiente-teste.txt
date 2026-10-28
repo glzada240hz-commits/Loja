@@ -1,0 +1,50 @@
+# Ambiente de testes (scripts/ambiente-teste.mjs) — 28/10/2026 16:46 (America/Sao_Paulo)
+# Banco: PostgreSQL 17 embutido em .teste/pgdata, porta 54329, banco guto_teste (separado), recriado com --zerar. Dados fictícios.
+
+$ PORT=3200 node scripts/ambiente-teste.mjs --zerar
+[teste] Apagando dados de teste anteriores…
+[teste] Criando banco de testes separado em .teste/pgdata …
+[teste] PostgreSQL de testes rodando na porta 54329.
+[teste] Aplicando estrutura do banco e dados fictícios…
+
+==================================================================
+  BAR DO GUTO — AMBIENTE DE TESTES (dados fictícios)
+==================================================================
+  Neste computador:   http://localhost:3200
+  Celular na mesma rede Wi-Fi (sem HTTPS):
+      http://192.0.2.2:3200
+
+  Usuários de teste (senha: demo1234)
+      caixa       → Caixa (PDV, mesas, receber e fechar contas)
+      atendente1  → App do atendente (celular)
+      atendente2  → App do atendente (outro celular)
+      cozinha     → Painel da cozinha
+      gerente     → Gerente (autoriza descontos e cancelamentos)
+      admin       → senha: admin-teste-123
+  Cardápio digital do cliente: <endereço>/c
+
+  O dia e o caixa já estão abertos (fundo de troco R$ 100,00).
+  Para encerrar: feche esta janela ou pressione Ctrl+C.
+==================================================================
+
+$ (consulta) codificação do banco de testes
+encoding: UTF8
+Batata com cheddar e bacon | Batata frita
+
+$ E2E_BASE_URL=http://localhost:3200 npx playwright test e2e/waiter-flow.spec.ts --reporter=list
+
+Running 7 tests using 1 worker
+
+  ✓  1 [chromium] › e2e/waiter-flow.spec.ts:26:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › prepara a loja e abre as três sessões (2.5s)
+  ✓  2 [chromium] › e2e/waiter-flow.spec.ts:44:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › atendente lança o pedido no celular; caixa e cozinha recebem sem recarregar (914ms)
+  ✓  3 [chromium] › e2e/waiter-flow.spec.ts:81:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › acréscimo vira nova rodada só com os itens novos (573ms)
+  ✓  4 [chromium] › e2e/waiter-flow.spec.ts:102:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › cozinha atualiza o preparo; atendente entrega; todos veem (602ms)
+  ✓  5 [chromium] › e2e/waiter-flow.spec.ts:117:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › atendente pede a conta; caixa é avisado, recebe e fecha (755ms)
+  ✓  6 [chromium] › e2e/waiter-flow.spec.ts:139:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › queda de conexão: o pedido não aparece como enviado; reenvio sem duplicar; caixa é avisado (1.1s)
+  ✓  7 [chromium] › e2e/waiter-flow.spec.ts:167:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › resposta perdida após o servidor gravar + toque repetido: nada duplicado (831ms)
+
+  7 passed (8.4s)
+
+# Cookie de sessão: HTTP (Wi-Fi) sem Secure; HTTPS (túnel, X-Forwarded-Proto) com Secure
+set-cookie: guto_session=***; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax
+set-cookie: guto_session=***; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax

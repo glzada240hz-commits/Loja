@@ -26,6 +26,12 @@ Ações sensíveis (desconto acima do limite, cancelamentos, reabertura, estorno
 conta pendente, taxa manual) pedem **autorização do gerente** na própria tela; o nome de quem autorizou
 fica no histórico e na auditoria.
 
+## Testar no Windows (computador + celular), sem instalar banco
+
+Dois cliques em **`iniciar-teste.bat`**: sobe um banco de testes separado com dados fictícios, abre o
+sistema e cria um link HTTPS gratuito para o celular. Passo a passo em
+[docs/TESTE-WINDOWS.md](docs/TESTE-WINDOWS.md). (Em Linux/macOS: `npm install && npm run teste`.)
+
 ## Executar localmente
 
 Requisitos: **Node.js 22+**, **PostgreSQL 14+**.
@@ -59,6 +65,7 @@ Cardápio digital: `http://localhost:3000/c` · Acompanhamento: link enviado ao 
 | `npm run test:unit` | testes unitários (regras de dinheiro, preço, permissões, estados) |
 | `npm run test:integration` | testes com PostgreSQL real (`guto_test`) |
 | `npm run test:e2e` | compila, recria `guto_e2e` e roda o navegador (Playwright) |
+| `npm run teste` | ambiente de testes com PostgreSQL embutido e dados fictícios (`--tunel` cria link HTTPS se houver `cloudflared`) |
 | `npm run backup` / `npm run restore` | backup e restauração (ver [docs/OPERACAO.md](docs/OPERACAO.md)) |
 
 ## Estrutura
@@ -74,6 +81,7 @@ docs               arquitetura, operação, WhatsApp, impressão, testes, pendê
 
 ## Documentação
 
+- [Testar no computador e no celular (Windows)](docs/TESTE-WINDOWS.md)
 - [App do atendente (mesas e comandas)](docs/ATENDENTES.md)
 - [Arquitetura e regras de negócio](docs/ARQUITETURA.md)
 - [Operação, implantação, backup e restauração](docs/OPERACAO.md)

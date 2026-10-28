@@ -13,3 +13,4 @@ coverage/
 apps/server/dist/
 apps/web/dev-dist/
 apps/web/dist-demo/
+.teste/

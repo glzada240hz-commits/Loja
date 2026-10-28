@@ -11,12 +11,13 @@ import { validatePassword } from '../services/admin.js';
 
 export async function authRoutes(app: FastifyInstance) {
   const { db, config } = app.deps;
-  const secure = config.NODE_ENV === 'production' || config.PUBLIC_BASE_URL.startsWith('https://');
+  // Em produção sempre Secure; fora dela, conforme o acesso (HTTPS pelo túnel/proxy ou HTTP na rede local de testes).
+  const isSecure = (protocol: string) => config.NODE_ENV === 'production' || protocol === 'https';
 
   app.post('/api/auth/login', { config: { rateLimit: { max: config.LOGIN_RATE_LIMIT, timeWindow: '1 minute' } } }, async (req, reply) => {
     const body = z.object({ username: z.string().min(1).max(60), password: z.string().min(1).max(200) }).parse(req.body);
     const r = await login(db, body.username, body.password, req.headers['user-agent']);
-    reply.setCookie(SESSION_COOKIE, r.token, { httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: SESSION_TTL_MS / 1000 });
+    reply.setCookie(SESSION_COOKIE, r.token, { httpOnly: true, sameSite: 'lax', secure: isSecure(req.protocol), path: '/', maxAge: SESSION_TTL_MS / 1000 });
     await audit(db, { userId: r.user.id, role: r.user.role, name: r.user.name }, 'auth.login', 'user', r.user.id);
     return { user: r.user, permissions: [...ROLE_PERMISSIONS[r.user.role]] };
   });

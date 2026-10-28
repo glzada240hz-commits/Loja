@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 3100;
+// E2E_BASE_URL: roda contra um servidor já em execução (ex.: o ambiente de testes de scripts/ambiente-teste.mjs).
+const EXTERNAL = process.env.E2E_BASE_URL;
 export const E2E_DB = process.env.E2E_DATABASE_URL ?? 'postgres://guto:guto@localhost:5432/guto_e2e';
 
 export default defineConfig({
@@ -12,14 +14,14 @@ export default defineConfig({
   retries: 0,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: EXTERNAL ?? `http://localhost:${PORT}`,
     locale: 'pt-BR',
     timezoneId: 'America/Sao_Paulo',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 860 } } }],
-  webServer: {
+  webServer: EXTERNAL ? undefined : {
     command: 'node apps/server/dist/main.js',
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: false,

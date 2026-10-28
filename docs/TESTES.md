@@ -84,6 +84,11 @@ simultâneos e reenvio tardio, entregue/pedido de conta sem evento duplicado, pr
 
 Capturas: `evidencias/w01…w09`.
 
+O mesmo fluxo também foi executado contra o **ambiente de testes** (`scripts/ambiente-teste.mjs`:
+PostgreSQL embutido, banco `guto_teste` separado, dados fictícios), com
+`E2E_BASE_URL=http://localhost:3200 npx playwright test e2e/waiter-flow.spec.ts` — 7/7 (o teste supõe banco recém-criado: inicie com `--zerar`). Saída em
+[`evidencias/ambiente-teste.txt`](evidencias/ambiente-teste.txt).
+
 ## Como reproduzir
 
 ```bash

@@ -19,6 +19,6 @@ export default tseslint.config(
   },
   {
     files: ['scripts/**/*.{js,mjs,mts}', '**/build.mjs', 'apps/web/scripts-inline.mjs'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+    languageOptions: { globals: { process: 'readonly', console: 'readonly', fetch: 'readonly', setTimeout: 'readonly' } },
   },
 );
