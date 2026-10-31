@@ -196,9 +196,14 @@ kbd { font: 600 var(--fs-xs) var(--font); padding: 1px 5px; border: 1px solid va
   .sidebar.open { transform: none; box-shadow: 0 0 0 100vmax rgba(28, 25, 23, .45); }
   .btn.menu-toggle { display: inline-flex; }
   .topbar { padding: 0 var(--s3); gap: var(--s2); min-height: 52px; }
-  .topbar h1 { font-size: var(--fs-lg); }
+  .topbar h1 { font-size: var(--fs-lg); flex: 1 1 auto; min-width: 72px; }
+  .topbar .grow { display: none; }
+  .topbar-status { flex-wrap: nowrap; }
+  .topbar-status .conn.neutral[title='Dia operacional em andamento'] { display: none; }
+  .topbar-status .conn .long { display: none; }
   .content { padding: var(--s3); }
 }
+@media (pointer: coarse) { .input-icon > kbd, .btn .kbd, .cart-empty .keys { display: none; } }
 
 /* =================== botões =================== */
 .btn {
@@ -409,13 +414,14 @@ button.conn { cursor: pointer; font-family: inherit; }
 .pos-grid .empty { grid-column: 1 / -1; }
 .prod {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3); text-align: left; cursor: pointer;
-  min-height: 104px; display: flex; flex-direction: column; gap: 2px; font: inherit; color: inherit; position: relative; box-shadow: var(--shadow-1);
+  min-height: 118px; display: flex; flex-direction: column; gap: 2px; font: inherit; color: inherit; position: relative; box-shadow: var(--shadow-1);
   transition: border-color .12s, box-shadow .12s, transform .06s; overflow: hidden;
 }
 .prod::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--cat, var(--gray-200)); }
 .prod:hover { border-color: var(--gray-300); box-shadow: var(--shadow-2); }
 .prod:active { transform: scale(.98); }
-.prod .name { font-weight: 650; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.prod > * { flex-shrink: 0; }
+.prod .name { font-weight: 650; line-height: 1.25; max-height: 2.5em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .prod .meta { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--muted); }
 .prod .code { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--muted); background: var(--sunken); border-radius: 4px; padding: 0 5px; }
 .prod .price { margin-top: auto; padding-top: var(--s2); font-weight: 750; font-size: var(--fs-lg); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 4px; }
@@ -748,7 +754,7 @@ button.kpi:hover { border-color: var(--gray-300); }
 }
 .wtile:active { transform: scale(.98); }
 .wtile .wnum { font-size: 1.6rem; font-weight: 800; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wtile .wkind { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.wtile .wkind { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 20px; }
 .wtile .wmeta { font-size: var(--fs-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: auto; }
 .wtile .wamount { font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
 .wtile .wstate { position: absolute; top: 8px; right: 8px; display: inline-flex; }
@@ -793,3 +799,9 @@ button.kpi:hover { border-color: var(--gray-300); }
 .plist .padd { width: 32px; height: 32px; border-radius: 50%; background: var(--brand-50); color: var(--brand); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .plist .pqty { min-width: 26px; height: 26px; border-radius: 13px; background: var(--brand); color: #fff; font-weight: 700; font-size: var(--fs-xs); display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
 .plist .off { opacity: .5; }
+
+/* login */
+.login-page {
+  min-height: 100%; display: grid; place-items: center; padding: var(--s4);
+  background: radial-gradient(1200px 600px at 10% -10%, var(--brand-100), transparent 60%), radial-gradient(900px 500px at 110% 110%, var(--gray-150), transparent 60%), var(--bg);
+}

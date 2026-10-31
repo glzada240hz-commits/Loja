@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatBRL, formatPhoneBR, ORDER_STATUS_LABEL } from '@guto/core';
 import { Layout } from '../components/Layout';
@@ -7,7 +8,7 @@ import { Button, Empty, Field, Loading, Modal, Tabs, useAction } from '../compon
 import { get, newIdemKey, patch, post } from '../lib/api';
 import { formatDateTime, formatTime } from '../lib/format';
 
-const STATUS_ICON: Record<string, string> = { queued: '🕓 na fila', sending: '⏳ enviando', sent: '✓ enviada', delivered: '✓✓ entregue', read: '✓✓ lida', failed: '⚠ falhou', received: '' };
+const STATUS_ICON: Record<string, string> = { queued: 'na fila', sending: 'enviando', sent: 'enviada', delivered: 'entregue', read: 'lida', failed: 'falhou', received: '' };
 
 export default function WhatsApp() {
   const [tab, setTab] = useState<'inbox' | 'monitor'>('inbox');
@@ -90,7 +91,7 @@ function Chat({ id, onBack }: { id: string; onBack: () => void }) {
     <>
       <section className="wa-chat" aria-label="Conversa">
         <div className="topbar">
-          <Button size="sm" variant="ghost" onClick={onBack} className="menu-toggle" aria-label="Voltar">←</Button>
+          <Button size="sm" variant="ghost" onClick={onBack} className="menu-toggle" aria-label="Voltar" icon={ArrowLeft} />
           <b>{customer?.name ?? contact.profileName ?? formatPhoneBR(contact.waId)}</b>
           <small className="muted">{formatPhoneBR(contact.waId)}</small>
           <span className="grow" />

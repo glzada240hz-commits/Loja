@@ -2,7 +2,8 @@
 
 Este roteiro sobe o Bar do Guto **no seu computador Windows** em modo de testes:
 
-- banco de dados **separado** (fica na pasta `.teste` do projeto; não toca em nenhum banco real);
+- banco de dados **separado**, guardado em `%LOCALAPPDATA%\BarDoGuto\teste` (fora da pasta do projeto,
+  para que baixar uma versão nova não apague seus testes; não toca em nenhum banco real);
 - **dados fictícios** (cardápio demonstrativo, usuários de teste);
 - WhatsApp em modo **demonstrativo** (nenhuma mensagem é enviada a ninguém);
 - um **link HTTPS gratuito** para abrir no celular, criado pelo *Cloudflare Quick Tunnel* (sem conta,
@@ -25,7 +26,8 @@ Nada é contratado e nenhum dado real é usado.
 1. Abra a pasta extraída e dê **dois cliques em `iniciar-teste.bat`**.
    - Se aparecer “O Windows protegeu o computador”, clique em **Mais informações → Executar assim mesmo**.
    - Se o **Firewall do Windows** perguntar, marque **Redes privadas** e clique em **Permitir acesso**.
-2. Na primeira vez ele instala as dependências e compila o sistema (alguns minutos, precisa de internet).
+2. Na primeira vez ele instala as dependências, compila o sistema e baixa o `cloudflared` (alguns
+   minutos, precisa de internet). Nas próximas vezes só recompila se o código tiver mudado.
 3. Quando terminar, a janela mostra um quadro como este:
 
 ```
@@ -36,15 +38,33 @@ Nada é contratado e nenhum dado real é usado.
       http://192.168.0.10:3000
 ```
 
-4. **Deixe essa janela aberta** enquanto testa. Fechar a janela desliga o sistema.
+4. **Deixe essa janela aberta** enquanto testa. Fechar a janela (ou `Ctrl+C`) desliga o sistema; os dados
+   ficam guardados. Se tentar abrir uma segunda vez com a primeira aberta, ele avisa e não duplica nada.
 
 O endereço `https://….trycloudflare.com` é o **link para o celular** (funciona no 4G também). Ele muda a
 cada vez que você inicia — use sempre o que aparece na janela. No computador, use o mesmo link ou
 `http://localhost:3000`.
 
 > O dia operacional e o caixa já ficam abertos (fundo de troco R$ 100,00), prontos para lançar pedidos.
-> Os dados ficam guardados entre uma execução e outra. Para começar do zero, abra o Prompt de Comando
-> na pasta e rode `node scripts\ambiente-teste.mjs --tunel --zerar`.
+> Os dados ficam guardados entre uma execução e outra.
+
+### Arquivos de dois cliques
+
+| Arquivo | Para quê |
+|---|---|
+| `iniciar-teste.bat` | Abre o sistema de testes (instala/atualiza e recompila sozinho quando precisa). |
+| `zerar-dados-teste.bat` | **Apaga** os pedidos e dados de teste e recomeça do zero. Pede para digitar `ZERAR`. Feche antes a janela do iniciar. |
+| `atualizar-teste.bat` | Explica/abre o download da versão nova (ou usa `git pull` se a pasta veio do Git). Não apaga dados. |
+
+### Atualizar para uma versão nova sem perder os dados de teste
+
+1. Feche a janela do `iniciar-teste.bat`.
+2. Baixe o ZIP novo (mesmo link do passo 1.2), extraia numa pasta nova e dê dois cliques no
+   `iniciar-teste.bat` dessa pasta nova.
+3. Ele percebe a mudança, instala o que for preciso, recompila e **usa os mesmos dados de teste**
+   (eles ficam em `%LOCALAPPDATA%\BarDoGuto\teste`). A pasta antiga pode ser apagada.
+4. No celular, se aparecer “Nova versão do sistema disponível”, toque em **Atualizar agora** (o rascunho do
+   atendente é mantido).
 
 ## 3. Usuários de teste
 
@@ -117,9 +137,11 @@ endereço fixo (ver OPERACAO.md), isso não acontece.
 | Sintoma | O que fazer |
 |---|---|
 | “O Node.js não está instalado” | Instale o Node.js LTS (passo 1) e abra o `.bat` de novo. |
-| Não aparece o link HTTPS | A internet bloqueou o download do `cloudflared` ou o túnel. O sistema funciona em `http://localhost:3000` e no Wi-Fi (endereço `http://192.168…`). Tente iniciar de novo; se persistir, baixe manualmente `cloudflared-windows-amd64.exe` em <https://github.com/cloudflare/cloudflared/releases/latest>, renomeie para `cloudflared.exe` e coloque na pasta `.teste` do projeto. |
+| Não aparece o link HTTPS | A internet bloqueou o download do `cloudflared` ou o túnel. O sistema funciona em `http://localhost:3000` e no Wi-Fi (endereço `http://192.168…`). Tente iniciar de novo; se persistir, baixe manualmente `cloudflared-windows-amd64.exe` em <https://github.com/cloudflare/cloudflared/releases/latest>, renomeie para `cloudflared.exe` e coloque em `%LOCALAPPDATA%\BarDoGuto\teste` (cole esse caminho na barra do Explorador de Arquivos). |
 | O celular no Wi-Fi não abre o `http://192.168…` | Permita o Node.js no Firewall do Windows (Redes privadas) e confirme que o celular está no mesmo Wi-Fi. Prefira o link HTTPS. |
 | Erro de porta 3000 em uso | Feche outras janelas do teste. Ou rode `set PORT=3001` e depois `node scripts\ambiente-teste.mjs --tunel` no Prompt de Comando, na pasta do projeto. |
+| “O sistema de testes já está aberto em outra janela” | Use a janela que já está aberta, ou feche-a e abra de novo. |
+| “Node.js … é antigo demais” | Instale o Node.js LTS atual em <https://nodejs.org> e abra o `.bat` de novo. |
 | Erro ao iniciar o PostgreSQL (`VCRUNTIME140.dll`) | Instale o “Microsoft Visual C++ Redistributable” x64 (gratuito, site da Microsoft) e tente de novo. |
 
 ## Limites deste modo de teste

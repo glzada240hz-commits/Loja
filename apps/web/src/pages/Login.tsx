@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROLE_HOME } from '@guto/core';
 import { useAuth } from '../lib/auth';
-import { Button, Field } from '../components/ui';
+import { Alert, Button, Field } from '../components/ui';
 import { Logo } from '../components/Logo';
 
 export function Login() {
@@ -14,10 +14,10 @@ export function Login() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', background: 'var(--ink)', padding: 16 }}>
+    <div className="login-page">
       <form
         className="card"
-        style={{ width: 'min(380px, 100%)' }}
+        style={{ width: 'min(400px, 100%)', padding: 28, boxShadow: 'var(--shadow-3)' }}
         onSubmit={async (e) => {
           e.preventDefault();
           if (busy) return;
@@ -34,18 +34,14 @@ export function Login() {
           }
         }}
       >
-        <div className="hstack" style={{ marginBottom: 14 }}>
-          <Logo size={44} />
+        <div className="hstack" style={{ marginBottom: 20, gap: 12 }}>
+          <Logo size={48} />
           <div>
             <h1 style={{ margin: 0 }}>Bar do Guto</h1>
-            <small className="muted">Sistema de gestão</small>
+            <small className="muted">Entre com seu usuário para começar o turno</small>
           </div>
         </div>
-        {err && (
-          <div className="alert error" role="alert">
-            {err}
-          </div>
-        )}
+        {err && <Alert kind="error">{err}</Alert>}
         <Field label="Usuário">
           <input autoFocus autoComplete="username" autoCapitalize="none" value={username} onChange={(e) => setU(e.target.value)} required />
         </Field>
@@ -55,7 +51,7 @@ export function Login() {
         <Button type="submit" variant="primary" size="lg" block busy={busy}>
           Entrar
         </Button>
-        <p style={{ marginTop: 12 }}>
+        <p style={{ marginTop: 16, marginBottom: 0, textAlign: 'center', fontSize: '.875rem' }}>
           <a href="/c">Ver cardápio digital (clientes)</a>
         </p>
       </form>

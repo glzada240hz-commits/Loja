@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatBRL, normalizePhoneBR } from '@guto/core';
+import { RotateCcw } from 'lucide-react';
 import { get } from '../lib/api';
 import { useNeighborhoods } from '../lib/queries';
 import { Field } from './ui';
@@ -17,7 +18,18 @@ export interface CustomerDraft {
 export const emptyCustomer: CustomerDraft = { name: '', phone: '', street: '', number: '', complement: '', reference: '', neighborhoodId: '', waOptIn: false };
 
 /** Dados do cliente com busca pelo telefone (preenche nome e último endereço). */
-export function CustomerFields({ value, onChange, delivery }: { value: CustomerDraft; onChange: (v: CustomerDraft) => void; delivery: boolean }) {
+export function CustomerFields({
+  value,
+  onChange,
+  delivery,
+  onRepeat,
+}: {
+  value: CustomerDraft;
+  onChange: (v: CustomerDraft) => void;
+  delivery: boolean;
+  /** "repetir último pedido": recebe o id do pedido anterior do cliente */
+  onRepeat?: (orderId: string, number: number) => void;
+}) {
   const nbs = useNeighborhoods();
   const [found, setFound] = useState<any>(null);
   const set = (patch: Partial<CustomerDraft>) => onChange({ ...value, ...patch });
@@ -54,8 +66,14 @@ export function CustomerFields({ value, onChange, delivery }: { value: CustomerD
   }, [value.phone]);
 
   const nb = nbs.data?.find((n) => n.id === value.neighborhoodId);
+  const last = (found?.history ?? []).find((h: any) => h.status !== 'cancelled');
   return (
     <div>
+      {onRepeat && last && (
+        <button type="button" className="btn sm" style={{ marginBottom: 10 }} onClick={() => onRepeat(last.id, last.number)}>
+          <RotateCcw className="icon" aria-hidden /> Repetir último pedido de {found.name?.split(' ')[0] ?? 'cliente'} (#{last.number} · {formatBRL(last.totalCents)})
+        </button>
+      )}
       <div className="row">
         <Field label="Telefone" hint={found ? `Cliente cadastrado · ${found.history?.length ?? 0} pedido(s)` : undefined}>
           <input inputMode="tel" autoComplete="off" value={value.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="(11) 98888-7777" />

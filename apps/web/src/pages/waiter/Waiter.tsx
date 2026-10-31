@@ -34,6 +34,7 @@ import { useConnection } from '../../lib/live';
 import { useDay, useMenu, useOrder, useSettings } from '../../lib/queries';
 import type { CartLine, MenuProduct, Order, OrderItem, OrderRow, Ticket } from '../../lib/types';
 import { moveDraft, useDraft } from './draft';
+import { lineFromItem } from '../../lib/repeat';
 
 /** App do atendente (PWA para celular/tablet). Mesmo servidor e banco do caixa e da cozinha. */
 export default function Waiter() {
@@ -155,12 +156,12 @@ function Home() {
         <span className="wstate">
           <Ico className="icon" aria-hidden />
         </span>
-        <span className="wkind">
-          {kind === 'tab' ? 'Comanda' : 'Mesa'} · {elapsedLabel(o.createdAt)}
-        </span>
+        <span className="wkind">{kind === 'tab' ? 'Comanda' : 'Mesa'}</span>
         <span className="wnum">{label}</span>
         <span className="wamount">{formatBRL(o.totalCents)}</span>
-        <span className="wmeta">{stateText(o)}</span>
+        <span className="wmeta">
+          {stateText(o)} · {elapsedLabel(o.createdAt)}
+        </span>
         <span className="wmeta muted">{shortName(o.createdByName)}</span>
       </button>
     );
@@ -266,29 +267,6 @@ const ROUND_LABEL = (t: Ticket) =>
       Enviado · aguardando cozinha
     </span>
   );
-
-/** Reconstrói um item já enviado como linha de rascunho (para "repetir"), usando o cardápio ATUAL. */
-function lineFromItem(i: OrderItem, products: MenuProduct[]): CartLine | null {
-  const p = products.find((x) => x.name === i.productName);
-  const v = p?.variants.find((x) => (i.variantName ? x.name === i.variantName : true));
-  if (!p || !v || !p.available || !v.available) return null;
-  const opts = p.groups.flatMap((g) => g.options);
-  const options = i.options.map((o) => {
-    const m = opts.find((x) => x.name === o.optionName);
-    return m && m.available ? { optionId: m.id, name: m.name, priceCents: m.priceCents, quantity: o.quantity } : null;
-  });
-  if (options.some((x) => !x)) return null;
-  return {
-    key: Math.random().toString(36).slice(2),
-    variantId: v.id,
-    productName: p.name,
-    variantName: v.name === 'Único' ? null : v.name,
-    unitPriceCents: v.priceCents,
-    options: options as CartLine['options'],
-    quantity: 1,
-    notes: i.notes ?? '',
-  };
-}
 
 function OrderScreen() {
   const params = useParams();
@@ -500,6 +478,7 @@ function OrderScreen() {
               type="button"
               className="linkish"
               disabled={locked}
+              aria-label={`Editar ${l.productName}`}
               onClick={() => {
                 const p = products.find((x) => x.variants.some((v) => v.id === l.variantId));
                 if (p) setEditing({ product: p, line: l });

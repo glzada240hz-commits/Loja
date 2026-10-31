@@ -89,7 +89,15 @@ export function StaffAlerts() {
       >
         {offline.length ? <WifiOff className="icon" aria-hidden /> : <Smartphone className="icon" aria-hidden />}
         {online}
-        {offline.length ? ` · ${offline.length} sem conexão` : <span className="sr-only"> aparelho(s) online</span>}
+        {offline.length ? (
+          <>
+            {' · '}
+            {offline.length}
+            <span className="long"> sem conexão</span>
+          </>
+        ) : (
+          <span className="sr-only"> aparelho(s) online</span>
+        )}
       </button>
       {open && (
         <Modal title="Aparelhos" onClose={() => setOpen(false)} footer={<Button onClick={() => setOpen(false)}>Fechar</Button>}>

@@ -30,7 +30,9 @@ fica no histórico e na auditoria.
 
 Dois cliques em **`iniciar-teste.bat`**: sobe um banco de testes separado com dados fictícios, abre o
 sistema e cria um link HTTPS gratuito para o celular. Passo a passo em
-[docs/TESTE-WINDOWS.md](docs/TESTE-WINDOWS.md). (Em Linux/macOS: `npm install && npm run teste`.)
+[docs/TESTE-WINDOWS.md](docs/TESTE-WINDOWS.md). Também há `zerar-dados-teste.bat` (apaga os dados de teste,
+pede confirmação) e `atualizar-teste.bat`. Os dados de teste ficam fora da pasta do projeto, então atualizar
+não os apaga. (Em Linux/macOS: `npm install && npm run teste`.)
 
 ## Executar localmente
 
@@ -65,7 +67,9 @@ Cardápio digital: `http://localhost:3000/c` · Acompanhamento: link enviado ao 
 | `npm run test:unit` | testes unitários (regras de dinheiro, preço, permissões, estados) |
 | `npm run test:integration` | testes com PostgreSQL real (`guto_test`) |
 | `npm run test:e2e` | compila, recria `guto_e2e` e roda o navegador (Playwright) |
-| `npm run teste` | ambiente de testes com PostgreSQL embutido e dados fictícios (`--tunel` cria link HTTPS se houver `cloudflared`) |
+| `npm run teste` | ambiente de testes com PostgreSQL embutido e dados fictícios (`--tunel` cria link HTTPS se houver `cloudflared`); recompila só quando o código muda |
+| `node scripts/cenario-teste.mjs <url>` | preenche o ambiente de testes com movimento fictício (mesas, comandas, cozinha, entregas) |
+| `node scripts/capturas.mjs <pasta> <url>` | capturas de tela das telas principais em celular, tablet e computador |
 | `npm run backup` / `npm run restore` | backup e restauração (ver [docs/OPERACAO.md](docs/OPERACAO.md)) |
 
 ## Estrutura

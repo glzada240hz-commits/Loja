@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatBRL } from '@guto/core';
 import { Layout } from '../components/Layout';
@@ -188,7 +189,7 @@ function ProductForm({ product, cats, onClose }: { product: MenuProduct | null; 
           <Field label="Tamanho"><input value={v.name} onChange={(e) => setF({ ...f, variants: f.variants.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} /></Field>
           <Field label="Preço de venda"><MoneyInput value={v.priceCents} onChange={(c) => setF({ ...f, variants: f.variants.map((x, j) => (j === i ? { ...x, priceCents: c } : x)) })} /></Field>
           <Field label="Custo (opcional)"><MoneyInput value={v.costCents} onChange={(c) => setF({ ...f, variants: f.variants.map((x, j) => (j === i ? { ...x, costCents: c } : x)) })} /></Field>
-          {f.variants.length > 1 && <Button className="shrink" variant="ghost" aria-label="Remover tamanho" onClick={() => setF({ ...f, variants: f.variants.filter((_, j) => j !== i) })}>✕</Button>}
+          {f.variants.length > 1 && <Button className="shrink" variant="ghost" aria-label="Remover tamanho" onClick={() => setF({ ...f, variants: f.variants.filter((_, j) => j !== i) })} icon={X} />}
         </div>
       ))}
       <Button size="sm" onClick={() => setF({ ...f, variants: [...f.variants, { id: undefined, name: '', priceCents: null, costCents: null }] })}>+ Tamanho</Button>
@@ -204,7 +205,7 @@ function ProductForm({ product, cats, onClose }: { product: MenuProduct | null; 
                 </select>
               </Field>
               <Field label="Qtd"><input type="number" min={1} max={20} value={c.quantity} onChange={(e) => setF({ ...f, combo: f.combo.map((x, j) => (j === i ? { ...x, quantity: Number(e.target.value) || 1 } : x)) })} style={{ maxWidth: 90 }} /></Field>
-              <Button className="shrink" variant="ghost" onClick={() => setF({ ...f, combo: f.combo.filter((_, j) => j !== i) })}>✕</Button>
+              <Button className="shrink" variant="ghost" aria-label="Remover" onClick={() => setF({ ...f, combo: f.combo.filter((_, j) => j !== i) })} icon={X} />
             </div>
           ))}
           <Button size="sm" disabled={!allVariants.length} onClick={() => setF({ ...f, combo: [...f.combo, { variantId: allVariants[0]!.id, quantity: 1 }] })}>+ Item do combo</Button>
@@ -285,7 +286,7 @@ function RecipeDialog({ variantId, optionId, label, onClose }: { variantId?: str
                 </select>
               </Field>
               <Field label="Quantidade"><input inputMode="decimal" value={it.quantity} onChange={(e) => setItems(list.map((x: any, j: number) => (j === i ? { ...x, quantity: e.target.value } : x)))} style={{ maxWidth: 120 }} /></Field>
-              <Button className="shrink" variant="ghost" onClick={() => setItems(list.filter((_: any, j: number) => j !== i))}>✕</Button>
+              <Button className="shrink" variant="ghost" aria-label="Remover" onClick={() => setItems(list.filter((_: any, j: number) => j !== i))} icon={X} />
             </div>
           ))}
           <Button size="sm" onClick={() => setItems([...list, { stockItemId: '', quantity: '1' }])}>+ Insumo</Button>
@@ -374,7 +375,7 @@ function GroupForm({ group, onClose }: { group: any | null; onClose: () => void 
           <Field label="Opção"><input value={o.name} onChange={(e) => setF({ ...f, options: f.options.map((x: any, j: number) => (j === i ? { ...x, name: e.target.value } : x)) })} /></Field>
           <Field label="Preço"><MoneyInput value={o.priceCents} onChange={(c) => setF({ ...f, options: f.options.map((x: any, j: number) => (j === i ? { ...x, priceCents: c } : x)) })} /></Field>
           <Field label="Custo"><MoneyInput value={o.costCents} onChange={(c) => setF({ ...f, options: f.options.map((x: any, j: number) => (j === i ? { ...x, costCents: c } : x)) })} /></Field>
-          <Button className="shrink" variant="ghost" onClick={() => setF({ ...f, options: f.options.filter((_: any, j: number) => j !== i) })}>✕</Button>
+          <Button className="shrink" variant="ghost" aria-label="Remover" onClick={() => setF({ ...f, options: f.options.filter((_: any, j: number) => j !== i) })} icon={X} />
         </div>
       ))}
       <Button size="sm" onClick={() => setF({ ...f, options: [...f.options, { name: '', priceCents: 0, costCents: null, available: true }] })}>+ Opção</Button>

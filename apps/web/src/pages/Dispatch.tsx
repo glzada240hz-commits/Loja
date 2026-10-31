@@ -4,7 +4,8 @@ import { formatBRL, formatPhoneBR, mapsLink, PAYMENT_METHOD_LABEL } from '@guto/
 import { Layout } from '../components/Layout';
 import { OrderDrawer } from '../components/OrderDrawer';
 import { DeliveryBadge, StageBadge } from '../components/status';
-import { Button, Empty, ErrorBox, Field, Loading, Modal, Money, MoneyInput, Tabs, useAction, useUi } from '../components/ui';
+import { Bike, Clock, MapPin, X } from 'lucide-react';
+import { Alert, Button, Empty, ErrorBox, Field, Loading, Modal, Money, MoneyInput, Tabs, useAction, useUi } from '../components/ui';
 import { get, newIdemKey, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { formatDateTime, formatTime, minutesSince } from '../lib/format';
@@ -43,7 +44,8 @@ function Board() {
   if (board.isLoading) return <Loading />;
   if (board.error) return <ErrorBox error={board.error} retry={() => board.refetch()} />;
   const orders = board.data!.orders.filter((o) => o.status !== 'cancelled');
-  const waiting = orders.filter((o) => o.deliveryStatus === 'waiting' && !o.courierId);
+  // prontos primeiro: são os que podem sair agora
+  const waiting = orders.filter((o) => o.deliveryStatus === 'waiting' && !o.courierId).sort((a, b) => Number(b.stage === 'ready') - Number(a.stage === 'ready'));
   const enRoute = orders.filter((o) => o.deliveryStatus === 'en_route' || o.deliveryStatus === 'issue');
   const done = orders.filter((o) => o.deliveryStatus === 'delivered');
 
@@ -72,31 +74,49 @@ function Board() {
   };
 
   const card = (o: BoardOrder, extra?: React.ReactNode) => (
-    <div key={o.id} className="card" style={{ padding: 10 }}>
-      <div className="hstack">
-        {extra}
-        <button type="button" className="btn ghost sm" onClick={() => setOpen(o.id)}>
-          <b>#{o.number}</b>
-        </button>
-        <StageBadge stage={o.stage} />
-        {o.deliveryStatus && <DeliveryBadge status={o.deliveryStatus} />}
-        <span className="spacer" />
-        <small className="muted">{minutesSince(o.createdAt)} min</small>
+    <div key={o.id} className={'dispatch-card' + (sel.has(o.id) ? ' selected' : '')}>
+      <span style={{ paddingTop: 6 }}>{extra}</span>
+      <div style={{ minWidth: 0 }}>
+        <div className="hstack">
+          <button type="button" className="btn ghost sm" style={{ paddingLeft: 4, paddingRight: 4 }} onClick={() => setOpen(o.id)}>
+            <b>#{o.number}</b>
+          </button>
+          <StageBadge stage={o.stage} />
+          {o.deliveryStatus && o.deliveryStatus !== 'waiting' && <DeliveryBadge status={o.deliveryStatus} />}
+          <span className="spacer" />
+          <small className="muted hstack" style={{ gap: 4 }}>
+            <Clock size={13} aria-hidden /> {minutesSince(o.createdAt)} min{o.etaAt ? ` · prev. ${formatTime(o.etaAt)}` : ''}
+          </small>
+        </div>
+        <div style={{ marginTop: 4, fontWeight: 600 }}>
+          <MapPin size={14} aria-hidden style={{ verticalAlign: -2, color: 'var(--muted)' }} /> {o.neighborhoodName} — {o.addrStreet}, {o.addrNumber}
+          {o.addrComplement ? ` (${o.addrComplement})` : ''}{' '}
+          <a href={mapsLink(`${o.addrStreet}, ${o.addrNumber} - ${o.neighborhoodName}`)} target="_blank" rel="noreferrer" style={{ fontWeight: 500, fontSize: '.85rem' }}>
+            mapa
+          </a>
+        </div>
+        <small className="muted" style={{ display: 'block' }}>
+          {o.customerName} · {formatPhoneBR(o.customerPhone)}
+        </small>
+        <div className="fee-split" style={{ marginTop: 6 }}>
+          <span>
+            Cobrar <b>{formatBRL(o.totalCents - o.paidCents)}</b>
+            {o.paymentIntent ? ` (${PAYMENT_METHOD_LABEL[o.paymentIntent as keyof typeof PAYMENT_METHOD_LABEL]})` : ''}
+            {o.changeForCents ? ` · troco p/ ${formatBRL(o.changeForCents)}` : ''}
+          </span>
+          <span>
+            Taxa do cliente <b>{formatBRL(o.deliveryFeeCents)}</b>
+          </span>
+          <span>
+            Repasse ao motoboy <b>{o.courierFeeCents != null ? formatBRL(o.courierFeeCents) : 'ao atribuir'}</b>
+          </span>
+        </div>
+        {o.deliveryIssue && o.deliveryStatus === 'issue' && (
+          <div style={{ marginTop: 6 }}>
+            <Alert kind="error">{o.deliveryIssue}</Alert>
+          </div>
+        )}
       </div>
-      <div style={{ marginTop: 4 }}>
-        <b>{o.neighborhoodName}</b> — {o.addrStreet}, {o.addrNumber}
-        {o.addrComplement ? ` (${o.addrComplement})` : ''}{' '}
-        <a href={mapsLink(`${o.addrStreet}, ${o.addrNumber} - ${o.neighborhoodName}`)} target="_blank" rel="noreferrer">
-          mapa
-        </a>
-      </div>
-      <small className="muted">
-        {o.customerName} · {formatPhoneBR(o.customerPhone)} · cobrar {formatBRL(o.totalCents - o.paidCents)}
-        {o.paymentIntent ? ` (${PAYMENT_METHOD_LABEL[o.paymentIntent as keyof typeof PAYMENT_METHOD_LABEL]})` : ''}
-        {o.changeForCents ? ` · troco p/ ${formatBRL(o.changeForCents)}` : ''}
-        {o.etaAt ? ` · previsão ${formatTime(o.etaAt)}` : ''}
-      </small>
-      {o.deliveryIssue && o.deliveryStatus === 'issue' && <div className="alert error" style={{ marginTop: 6 }}>{o.deliveryIssue}</div>}
     </div>
   );
 
@@ -157,16 +177,14 @@ function Board() {
                 return (
                   <div key={r.id} className="card" style={{ borderColor: 'var(--brand)' }}>
                     <div className="hstack">
-                      <b>🛵 {r.courierName}</b>
+                      <b className="hstack" style={{ gap: 6 }}><Bike size={18} aria-hidden /> {r.courierName}</b>
                       <span className="badge">{list.length} pedido(s)</span>
                     </div>
                     <div className="stack" style={{ margin: '8px 0' }}>
                       {list.map((o) =>
                         card(
                           o,
-                          <Button size="sm" variant="ghost" aria-label={`Remover pedido ${o.number} da saída`} onClick={() => go(async () => { await post(`/api/deliveries/${o.id}/unassign`, {}); await refresh(); })}>
-                            ✕
-                          </Button>,
+                          <Button size="sm" variant="ghost" aria-label={`Remover pedido ${o.number} da saída`} icon={X} onClick={() => go(async () => { await post(`/api/deliveries/${o.id}/unassign`, {}); await refresh(); })} />,
                         ),
                       )}
                     </div>
@@ -188,7 +206,7 @@ function Board() {
                 {card(o)}
                 <div className="hstack" style={{ marginTop: 4 }}>
                   <small className="muted">
-                    🛵 {o.courierName} · saiu {formatTime(o.dispatchedAt)}
+                    <Bike size={13} aria-hidden style={{ verticalAlign: -2 }} /> {o.courierName} · saiu {formatTime(o.dispatchedAt)}
                   </small>
                   <span className="spacer" />
                   <Button size="sm" variant="success" onClick={() => setStatus(o, 'delivered')}>

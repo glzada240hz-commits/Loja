@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Bike } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { formatPhoneBR, ORDER_TYPE_LABEL, type OrderType } from '@guto/core';
@@ -108,7 +109,7 @@ export default function Orders() {
                       {o.deliveryStatus && o.status === 'open' && <DeliveryBadge status={o.deliveryStatus} />}
                       {o.receivable && o.totalCents > o.paidCents && <span className="badge red">pendente</span>}
                     </div>
-                    {o.courierName && <small className="muted">🛵 {o.courierName}</small>}
+                    {o.courierName && <small className="muted"><Bike size={13} aria-hidden style={{ verticalAlign: -2 }} /> {o.courierName}</small>}
                   </td>
                   <td className="right">
                     <Money cents={o.totalCents} />

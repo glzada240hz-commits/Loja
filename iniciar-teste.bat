@@ -1,6 +1,6 @@
 @echo off
 REM Bar do Guto - ambiente de TESTES no Windows (dados ficticios, banco separado).
-REM Dois cliques neste arquivo. Para encerrar, feche a janela.
+REM Dois cliques neste arquivo. Para encerrar, feche a janela (os dados ficam guardados).
 chcp 65001 >nul
 cd /d "%~dp0"
 title Bar do Guto - ambiente de testes
@@ -15,23 +15,13 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist node_modules (
-  echo  Instalando dependencias - primeira vez, pode levar alguns minutos...
-  call npm install --no-audit --no-fund
-  if errorlevel 1 (
-    echo  [ERRO] Falha ao instalar dependencias. Verifique a internet e tente de novo.
-    pause
-    exit /b 1
-  )
-)
-
-if not exist .teste mkdir .teste
-if not exist .teste\cloudflared.exe (
-  echo  Baixando o cloudflared - gratuito, cria o link HTTPS para o celular...
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile '.teste\cloudflared.exe'"
-  if errorlevel 1 echo  [AVISO] Nao consegui baixar o cloudflared. O sistema abre neste PC e no Wi-Fi, sem link HTTPS.
-)
-
+REM O script confere a versao do Node, instala/atualiza dependencias, recompila se o codigo mudou,
+REM impede abrir duas vezes e baixa o cloudflared para o link HTTPS (gratuito).
 node scripts\ambiente-teste.mjs --tunel %*
+if errorlevel 1 (
+  echo.
+  echo  [ERRO] O ambiente de testes nao iniciou. Leia a mensagem acima.
+  echo  Ajuda: docs\TESTE-WINDOWS.md - secao "Se algo der errado".
+)
 echo.
 pause

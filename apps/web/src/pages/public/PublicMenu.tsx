@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { computeOrderTotals, formatBRL, normalizePhoneBR, PAYMENT_METHOD_LABEL, type PaymentMethod } from '@guto/core';
 import { Logo } from '../../components/Logo';
 import { lineToItemInput, lineTotal, ProductDialog } from '../../components/ProductDialog';
-import { Button, Chips, Empty, ErrorBox, Field, Loading, Modal, MoneyInput, Stepper } from '../../components/ui';
+import { Bike, Clock, CupSoda, Pizza, Salad, Sandwich, ShoppingBag, ShoppingCart, Store, UtensilsCrossed, type LucideIcon } from 'lucide-react';
+import { Alert, Button, Chips, Empty, ErrorBox, Field, Loading, Modal, MoneyInput, Segmented, Stepper } from '../../components/ui';
 import { ApiError, get, newIdemKey, post } from '../../lib/api';
 import type { CartLine, MenuCategory, MenuProduct } from '../../lib/types';
 
@@ -15,6 +16,16 @@ interface PublicData {
 }
 
 const CART_KEY = 'guto-cart-v1';
+
+/** Placeholder desenhado quando o produto não tem foto (ícone conforme a categoria). */
+function phIcon(category: string): LucideIcon {
+  const c = category.toLowerCase();
+  if (/bebida|refri|suco/.test(c)) return CupSoda;
+  if (/lanche|burg|sandu/.test(c)) return Sandwich;
+  if (/por[cç]/.test(c)) return Salad;
+  if (/pizza/.test(c)) return Pizza;
+  return UtensilsCrossed;
+}
 function loadCart(): CartLine[] {
   try {
     return JSON.parse(localStorage.getItem(CART_KEY) ?? '[]');
@@ -54,11 +65,12 @@ export default function PublicMenu() {
   return (
     <div className="public">
       <header className="public-hero">
-        <h1><Logo size={40} /> {store.name}</h1>
-        <p style={{ margin: '6px 0 0', color: '#e9e0d3' }}>
-          {store.open ? <span className="badge green">Aberto para pedidos</span> : <span className="badge red">{store.closedReason}</span>}{' '}
-          Retirada ~{store.pickupEtaMinutes} min · Entrega ~{store.deliveryEtaMinutes} min
-        </p>
+        <h1><Logo size={44} /> {store.name}</h1>
+        <div className="hero-meta">
+          {store.open ? <span className="badge green">Aberto para pedidos</span> : <span className="badge red">{store.closedReason}</span>}
+          <span><Store aria-hidden className="icon" /> Retirada ~{store.pickupEtaMinutes} min</span>
+          <span><Bike aria-hidden className="icon" /> Entrega ~{store.deliveryEtaMinutes} min</span>
+        </div>
       </header>
       <nav className="public-cats" aria-label="Categorias">
         <div className="chips">
@@ -70,24 +82,33 @@ export default function PublicMenu() {
         </div>
       </nav>
       <main style={{ padding: 12 }}>
-        {removed > 0 && <div className="alert warn">{removed} item(ns) do seu carrinho não estão mais disponíveis e foram retirados.</div>}
+        {removed > 0 && <Alert kind="warn">{removed} item(ns) do seu carrinho não estão mais disponíveis e foram retirados.</Alert>}
         {menu.map((c) => (
           <section key={c.id} id={`cat-${c.id}`} style={{ marginBottom: 18, scrollMarginTop: 60 }}>
-            <h2>{c.name}</h2>
+            <h2 className="section-title">{c.name}</h2>
             <div className="stack">
               {c.products.map((p) => {
                 const off = !p.available || p.variants.every((v) => !v.available);
                 const min = Math.min(...p.variants.map((v) => v.priceCents));
                 return (
                   <button key={p.id} type="button" className={'menu-item' + (off ? ' off' : '')} disabled={off} onClick={() => setPicking(p)}>
-                    <div>
-                      <b>{p.name}</b>
-                      {p.description && <div className="desc">{p.description}</div>}
-                      <div style={{ marginTop: 6, fontWeight: 800 }}>
-                        {off ? <span className="badge red">Indisponível</span> : <>{p.variants.length > 1 ? 'a partir de ' : ''}{formatBRL(min)}</>}
-                      </div>
+                    <div style={{ minWidth: 0 }}>
+                      <span className="mi-name">{p.name}</span>
+                      {p.description && <span className="desc">{p.description}</span>}
+                      <span className="mi-price">
+                        {off ? <span className="badge red">Indisponível</span> : <>{p.variants.length > 1 ? <small className="muted">a partir de </small> : null}{formatBRL(min)}</>}
+                      </span>
                     </div>
-                    {p.imagePath ? <img src={p.imagePath} alt="" loading="lazy" /> : <span />}
+                    {p.imagePath ? (
+                      <img src={p.imagePath} alt="" loading="lazy" />
+                    ) : (
+                      <span className="ph" aria-hidden>
+                        {(() => {
+                          const Ico = phIcon(c.name);
+                          return <Ico className="icon" />;
+                        })()}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -100,7 +121,7 @@ export default function PublicMenu() {
       </main>
       {count > 0 && (
         <div className="cart-bar">
-          <Button variant="dark" size="lg" block onClick={() => setCheckout(true)}>
+          <Button variant="primary" size="lg" block icon={ShoppingCart} onClick={() => setCheckout(true)}>
             Ver carrinho · {count} item(ns) · {formatBRL(subtotal)}
           </Button>
         </div>
@@ -212,7 +233,7 @@ function Checkout({ data, cart, setCart, onClose }: { data: PublicData; cart: Ca
         </div>
       ))}
       <div style={{ height: 12 }} />
-      <Chips label="Entrega ou retirada" value={type} onChange={setType} options={[{ id: 'delivery', label: 'Entrega' }, { id: 'takeout', label: 'Retirar no local' }]} />
+      <Segmented label="Entrega ou retirada" value={type} onChange={setType} options={[{ id: 'delivery', label: 'Entrega', icon: Bike }, { id: 'takeout', label: 'Retirar no local', icon: ShoppingBag }]} />
       <div style={{ height: 10 }} />
       <div className="row">
         <Field label="Seu nome"><input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} /></Field>
@@ -226,7 +247,7 @@ function Checkout({ data, cart, setCart, onClose }: { data: PublicData; cart: Ca
               {neighborhoods.map((n) => <option key={n.id} value={n.id}>{n.name} — entrega {formatBRL(n.feeCents)}{n.minOrderCents ? ` · mín. ${formatBRL(n.minOrderCents)}` : ''}</option>)}
             </select>
           </Field>
-          {!neighborhoods.length && <div className="alert warn">Nenhum bairro disponível para entrega no momento.</div>}
+          {!neighborhoods.length && <Alert kind="warn">Nenhum bairro disponível para entrega no momento.</Alert>}
           <div className="row">
             <Field label="Rua"><input autoComplete="address-line1" value={street} onChange={(e) => setStreet(e.target.value)} maxLength={150} /></Field>
             <Field label="Número"><input value={number} onChange={(e) => setNumber(e.target.value)} maxLength={20} style={{ maxWidth: 110 }} /></Field>
@@ -237,28 +258,33 @@ function Checkout({ data, cart, setCart, onClose }: { data: PublicData; cart: Ca
           </div>
         </>
       ) : (
-        <div className="alert info">Retirada em: {store.address || 'endereço da loja'}</div>
+        <Alert kind="info" icon={Store}>Retirada em: {store.address || 'endereço da loja'}</Alert>
       )}
       <Field label="Observações"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} /></Field>
       <Field label="Pagamento (na entrega/retirada)" group>
         <Chips label="Forma de pagamento" value={pay} onChange={setPay} options={store.paymentMethods.map((m) => ({ id: m, label: m === 'pix_manual' ? 'Pix' : PAYMENT_METHOD_LABEL[m] }))} />
       </Field>
-      {pay === 'pix_manual' && <div className="alert info">{store.pixKeyDisplay ? `Chave Pix: ${store.pixKeyDisplay}. ` : ''}O pagamento é confirmado pela loja após conferir o recebimento — o envio de comprovante não confirma automaticamente.</div>}
+      {pay === 'pix_manual' && <Alert kind="info">{store.pixKeyDisplay ? `Chave Pix: ${store.pixKeyDisplay}. ` : ''}O pagamento é confirmado pela loja após conferir o recebimento — o envio de comprovante não confirma automaticamente.</Alert>}
       {pay === 'cash' && (
         <Field label="Troco para (opcional)"><MoneyInput value={changeFor} onChange={setChangeFor} /></Field>
       )}
-      <div className="totals" style={{ margin: '10px 0' }}>
-        <span>Itens</span><span>{formatBRL(totals.subtotalCents)}</span>
-        {type === 'delivery' && (<><span>Entrega</span><span>{nb ? formatBRL(totals.deliveryFeeCents) : 'selecione o bairro'}</span></>)}
-        <span className="grand">Total</span><span className="grand">{formatBRL(totals.totalCents)}</span>
+      <div className="card" style={{ margin: '12px 0', background: 'var(--surface-2)' }}>
+        <div className="totals">
+          <span>Itens</span><span>{formatBRL(totals.subtotalCents)}</span>
+          {type === 'delivery' && (<><span>Taxa de entrega{nb ? ` (${nb.name})` : ''}</span><span>{nb ? formatBRL(totals.deliveryFeeCents) : 'escolha o bairro'}</span></>)}
+          <span className="grand">Total</span><span className="grand">{formatBRL(totals.totalCents)}</span>
+        </div>
+        <small className="muted" style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 6 }}>
+          <Clock size={13} aria-hidden /> Previsão: {type === 'delivery' ? `~${nb?.etaMinutes ?? store.deliveryEtaMinutes} min para entregar` : `~${store.pickupEtaMinutes} min para retirar`}
+        </small>
       </div>
       <label className="check"><input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} /> Quero receber atualizações deste pedido pelo WhatsApp</label>
       <label className="check" style={{ alignItems: 'flex-start' }}>
         <input type="checkbox" checked={privacy} onChange={(e) => setPrivacy(e.target.checked)} />
         <span>Concordo com o uso do meu nome, telefone e endereço para preparar, entregar e me informar sobre este pedido. Posso pedir a exclusão dos meus dados à loja.</span>
       </label>
-      {err && <div className="alert error" role="alert">{err}</div>}
-      {problems.length > 0 && cart.length > 0 && <small className="muted">Para confirmar: {problems.join(' · ')}</small>}
+      {err && <Alert kind="error">{err}</Alert>}
+      {problems.length > 0 && cart.length > 0 && <Alert kind="warn">Para confirmar: {problems.join(' · ')}</Alert>}
     </Modal>
   );
 }

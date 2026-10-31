@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Check } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { formatBRL, PAYMENT_METHOD_LABEL } from '@guto/core';
@@ -44,7 +45,7 @@ export default function Track() {
             <ol className="track-steps">
               {steps.map((s, i) => (
                 <li key={s.key} className={s.done ? 'done' : i === current ? 'current' : ''}>
-                  <span className="dot">{s.done ? '✓' : i + 1}</span>
+                  <span className="dot">{s.done ? <Check size={16} aria-hidden /> : i + 1}</span>
                   <span>{s.label}{s.done && s.at ? <small className="muted"> · {formatTime(s.at)}</small> : null}</span>
                 </li>
               ))}

@@ -9,7 +9,8 @@ import { lineToItemInput, lineTotal, ProductDialog } from '../components/Product
 import { OrderDrawer } from '../components/OrderDrawer';
 import { PaymentDialog } from '../components/PaymentDialog';
 import { Alert, Button, Empty, ErrorBox, Field, Loading, Modal, useAction, useUi } from '../components/ui';
-import { ApiError, newIdemKey, post } from '../lib/api';
+import { ApiError, get, newIdemKey, post } from '../lib/api';
+import { lineFromItem } from '../lib/repeat';
 import { useDay, useMenu, useNeighborhoods, useOrder, useSettings } from '../lib/queries';
 import type { CartLine, MenuProduct, Order } from '../lib/types';
 
@@ -99,6 +100,23 @@ export default function Pos() {
       if (same) return c.map((l) => (l === same ? { ...l, quantity: Math.min(99, l.quantity + 1) } : l));
       return [...c, { key: Math.random().toString(36).slice(2), variantId: v.id, productName: p.name, variantName: v.name === 'Único' ? null : v.name, unitPriceCents: v.priceCents, options: [], quantity: 1, notes: '' }];
     });
+  };
+
+  /** Repete um pedido anterior do cliente com preços e disponibilidade de hoje (o servidor confere ao gravar). */
+  const repeatOrder = async (id: string, number: number) => {
+    try {
+      const old = await get<Order>(`/api/orders/${id}`);
+      const lines = old.items.filter((i) => i.status === 'active').map((i) => lineFromItem(i, products, i.quantity));
+      const ok = lines.filter((l): l is CartLine => !!l);
+      setCart((c) => [...c, ...ok]);
+      const missingCount = lines.length - ok.length;
+      ui.toast(
+        missingCount ? `Pedido #${number} repetido: ${ok.length} item(ns). ${missingCount} item(ns) indisponível(is) ficou(aram) de fora.` : `Pedido #${number} repetido com os preços de hoje. Confira antes de enviar.`,
+        missingCount ? 'error' : 'ok',
+      );
+    } catch (e) {
+      ui.toast((e as Error).message, 'error');
+    }
   };
 
   const reset = () => {
@@ -365,7 +383,7 @@ export default function Pos() {
                   <ChevronDown className="chev" size={18} aria-hidden />
                 </summary>
                 <div className="cart-extra-body">
-                  <CustomerFields value={cust} onChange={setCust} delivery={delivery} />
+                  <CustomerFields value={cust} onChange={setCust} delivery={delivery} onRepeat={(id, n) => void repeatOrder(id, n)} />
                   <Field label="Observação do pedido">
                     <input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Ex.: cliente aguarda no balcão" />
                   </Field>
