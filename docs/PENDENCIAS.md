@@ -31,6 +31,15 @@
 - **Atendentes**: sem modo offline de lançamento — o rascunho fica no aparelho e só vai à cozinha com o servidor acessível. A presença de aparelhos fica em memória (reiniciar o servidor zera a lista até os aparelhos darem sinal de novo, ~15 s).
 - **Fotos**: guardadas no disco do servidor (`UPLOAD_DIR`); incluir no backup externo.
 
+## Evolução da interface (redesign) — checkpoint
+
+Ver [REDESIGN.md](REDESIGN.md). Feito: design system, PDV, mesas, atendente, cozinha, detalhe/pagamento,
+entregas, cardápio digital, login, gestão padronizada; ideias adotadas/descartadas registradas; iniciador do
+Windows com recompilação por mudança de código, instância única, dados fora da pasta e zerar separado.
+Testes: 32 unitários, 44 integração, 20 E2E. **Não validado em Windows real** (só Linux).
+Próximas sugestões: turno assistido com a equipe; executar `iniciar-teste.bat` num Windows real;
+teste automatizado do bloqueio de toque da cozinha; push nativo (se houver domínio fixo); modo escuro.
+
 ## Checkpoint (para continuidade)
 
 **Feito**: núcleo de regras (`packages/core`), esquema e migrations, API completa (auth, pedidos,

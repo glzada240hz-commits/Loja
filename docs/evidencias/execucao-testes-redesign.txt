@@ -1,0 +1,43 @@
+# Execução completa — 31/10/2026 09:13 (America/Sao_Paulo) — Linux (container de desenvolvimento), Node v22.22.0, Chromium do Playwright
+
+$ npm run typecheck
+> bar-do-guto@0.1.0 typecheck
+> tsc -p packages/core && tsc -p apps/server && tsc -p apps/web
+
+(código de saída: 0)
+
+$ npm run lint
+> bar-do-guto@0.1.0 lint
+> eslint .
+
+
+$ npm run test:unit
+ Test Files  6 passed (6)
+      Tests  32 passed (32)
+
+$ npm run test:integration
+ Test Files  7 passed (7)
+      Tests  44 passed (44)
+
+$ npm run test:e2e
+  ✓   1 [chromium] › e2e/full-flow.spec.ts:24:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › gerente abre o dia e o caixa (2.3s)
+  ✓   2 [chromium] › e2e/full-flow.spec.ts:34:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › cliente monta o pedido no celular e confirma (2.6s)
+  ✓   3 [chromium] › e2e/full-flow.spec.ts:65:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › caixa aceita o pedido online (2.5s)
+  ✓   4 [chromium] › e2e/full-flow.spec.ts:78:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › cozinha prepara e marca pronto (atualização entre dispositivos) (2.3s)
+  ✓   5 [chromium] › e2e/full-flow.spec.ts:94:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › expedição agrupa, atribui e despacha (1.5s)
+  ✓   6 [chromium] › e2e/full-flow.spec.ts:107:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › entregador vê só a própria entrega e conclui (3.3s)
+  ✓   7 [chromium] › e2e/full-flow.spec.ts:121:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › caixa recebe com troco e finaliza (1.8s)
+  ✓   8 [chromium] › e2e/full-flow.spec.ts:137:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › 9. PDV: clique duplo não duplica pedido (1.6s)
+  ✓   9 [chromium] › e2e/full-flow.spec.ts:152:3 › 16. fluxo completo: cardápio digital → cozinha → entrega → caixa › gerente fecha o caixa sem divergência (1.3s)
+  ✓  10 [chromium] › e2e/full-flow.spec.ts:164:1 › queda de conexão é sinalizada claramente (2.1s)
+  ✓  11 [chromium] › e2e/full-flow.spec.ts:175:1 › perfil cozinha não acessa telas do caixa (1.2s)
+  ✓  12 [chromium] › e2e/ui-extras.spec.ts:22:1 › PDV: busca tolerante a erro de digitação adiciona com Enter e mostra a quantidade no cartão (2.3s)
+  ✓  13 [chromium] › e2e/ui-extras.spec.ts:40:1 › atendente: bebida entra com um toque e "repetir" só vai para o rascunho (não envia sozinho) (2.9s)
+  ✓  14 [chromium] › e2e/waiter-flow.spec.ts:26:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › prepara a loja e abre as três sessões (5.7s)
+  ✓  15 [chromium] › e2e/waiter-flow.spec.ts:44:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › atendente lança o pedido no celular; caixa e cozinha recebem sem recarregar (2.9s)
+  ✓  16 [chromium] › e2e/waiter-flow.spec.ts:82:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › acréscimo vira nova rodada só com os itens novos (2.5s)
+  ✓  17 [chromium] › e2e/waiter-flow.spec.ts:103:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › cozinha atualiza o preparo; atendente entrega; todos veem (2.0s)
+  ✓  18 [chromium] › e2e/waiter-flow.spec.ts:118:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › atendente pede a conta; caixa é avisado, recebe e fecha (5.1s)
+  ✓  19 [chromium] › e2e/waiter-flow.spec.ts:140:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › queda de conexão: o pedido não aparece como enviado; reenvio sem duplicar; caixa é avisado (3.0s)
+  ✓  20 [chromium] › e2e/waiter-flow.spec.ts:168:3 › Atendente + caixa + cozinha em três aparelhos simultâneos › resposta perdida após o servidor gravar + toque repetido: nada duplicado (3.3s)
+  20 passed (1.0m)

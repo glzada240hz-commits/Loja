@@ -11,15 +11,21 @@ fs.mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch();
 const VIEW = { phone: { width: 390, height: 844 }, tablet: { width: 1024, height: 768 }, desk: { width: 1366, height: 860 } };
 
+// reaproveita a sessão de cada usuário (o servidor limita tentativas de login por minuto)
+const sessions = new Map();
 async function as(user, view, mobile = false) {
-  const ctx = await browser.newContext({ viewport: VIEW[view], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo', isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1 });
+  const ctx = await browser.newContext({ viewport: VIEW[view], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo', isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1, storageState: sessions.get(user) });
   const page = await ctx.newPage();
-  if (user) {
+  if (user && sessions.has(user)) {
+    await page.goto(BASE + '/');
+    await page.waitForURL((u) => !u.pathname.startsWith('/login') && u.pathname !== '/');
+  } else if (user) {
     await page.goto(`${BASE}/login`);
     await page.getByLabel('Usuário').fill(user);
     await page.getByLabel('Senha').fill('demo1234');
     await page.getByRole('button', { name: 'Entrar' }).click();
     await page.waitForURL((u) => !u.pathname.startsWith('/login'));
+    sessions.set(user, await ctx.storageState());
   }
   return { ctx, page };
 }

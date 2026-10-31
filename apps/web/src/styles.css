@@ -201,6 +201,7 @@ kbd { font: 600 var(--fs-xs) var(--font); padding: 1px 5px; border: 1px solid va
   .topbar-status { flex-wrap: nowrap; }
   .topbar-status .conn.neutral[title='Dia operacional em andamento'] { display: none; }
   .topbar-status .conn .long { display: none; }
+  .app.no-nav .topbar .who { display: none; }
   .content { padding: var(--s3); }
 }
 @media (pointer: coarse) { .input-icon > kbd, .btn .kbd, .cart-empty .keys { display: none; } }
@@ -455,6 +456,7 @@ button.conn { cursor: pointer; font-family: inherit; }
 .cart-extra > .cart-extra-body { padding: 0 var(--s3) var(--s1); }
 .cart-foot { padding: var(--s3) var(--s4) var(--s4); border-top: 1px solid var(--line); background: var(--surface-2); display: flex; flex-direction: column; gap: var(--s3); }
 .totals { display: grid; grid-template-columns: 1fr auto; gap: 4px var(--s3); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.totals > :nth-child(even) { text-align: right; }
 .totals .grand { font-size: var(--fs-2xl); font-weight: 750; color: var(--ink); letter-spacing: -.02em; }
 .totals .sub { font-size: var(--fs-sm); }
 .cart-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }

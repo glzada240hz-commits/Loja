@@ -1,16 +1,18 @@
 # Testes e evidências
 
-Última execução completa: ver [`evidencias/execucao-testes.txt`](evidencias/execucao-testes.txt)
-(saída real dos comandos) e as capturas de tela em [`evidencias/`](evidencias/).
+Última execução completa (após a evolução da interface): ver
+[`evidencias/execucao-testes-redesign.txt`](evidencias/execucao-testes-redesign.txt) (saída real dos comandos).
+Execução anterior: [`evidencias/execucao-testes.txt`](evidencias/execucao-testes.txt). Capturas antes/depois em
+[`evidencias/redesign/`](evidencias/redesign/) e o registro em [REDESIGN.md](REDESIGN.md).
 
 | Verificação | Resultado |
 |---|---|
 | `npm run typecheck` (core, servidor, web) | sem erros |
 | `npm run lint` (ESLint + typescript-eslint + react-hooks) | sem erros/avisos |
 | `npm run build` (Vite/PWA + esbuild do servidor) | ok |
-| Testes unitários | **24/24** passaram |
+| Testes unitários (inclui busca tolerante e “repetir item”) | **32/32** passaram |
 | Testes de integração (PostgreSQL real) | **44/44** passaram |
-| Testes de ponta a ponta (Chromium real, servidor de produção compilado) | **18/18** passaram |
+| Testes de ponta a ponta (Chromium real, servidor de produção compilado) | **20/20** passaram |
 
 ## Tipos de teste — o que é real e o que é simulado
 
@@ -83,6 +85,10 @@ mesa ao mesmo tempo, acréscimo sem versão sem apagar edição do caixa, idempo
 simultâneos e reenvio tardio, entregue/pedido de conta sem evento duplicado, presença com tempo esgotado.
 
 Capturas: `evidencias/w01…w09`.
+
+`e2e/ui-extras.spec.ts` (melhorias da interface): busca tolerante no PDV (“xbacn”, “btaata frita”, código +
+Enter) com a quantidade aparecendo no cartão e nada enviado ao servidor; no atendente, bebida com um toque,
+envio confirmado e “repetir” que só vai para o rascunho (o servidor não recebe nada até a confirmação).
 
 O mesmo fluxo também foi executado contra o **ambiente de testes** (`scripts/ambiente-teste.mjs`:
 PostgreSQL embutido, banco `guto_teste` separado, dados fictícios), com
