@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROLE_HOME } from '@guto/core';
 import { useAuth } from '../lib/auth';
+import { ChefHat, ShoppingCart, Smartphone } from 'lucide-react';
 import { Alert, Button, Field } from '../components/ui';
 import { Logo } from '../components/Logo';
 
@@ -15,9 +16,24 @@ export function Login() {
   const [busy, setBusy] = useState(false);
   return (
     <div className="login-page">
+      <aside className="login-brand">
+        <div className="hstack" style={{ gap: 12 }}>
+          <Logo size={44} />
+          <h2>Bar do Guto</h2>
+        </div>
+        <div>
+          <p>Pedidos do balcão, das mesas e do delivery num só lugar — caixa, cozinha e atendentes em tempo real.</p>
+          <ul>
+            <li><ShoppingCart className="icon" aria-hidden /> Venda rápida com atalhos de teclado</li>
+            <li><ChefHat className="icon" aria-hidden /> Cozinha recebe na hora, sem papel</li>
+            <li><Smartphone className="icon" aria-hidden /> App do atendente no celular</li>
+          </ul>
+        </div>
+        <span className="login-foot">Versão {__BUILD__.id}</span>
+      </aside>
+      <div className="login-form">
       <form
-        className="card"
-        style={{ width: 'min(400px, 100%)', padding: 28, boxShadow: 'var(--shadow-3)' }}
+
         onSubmit={async (e) => {
           e.preventDefault();
           if (busy) return;
@@ -34,13 +50,8 @@ export function Login() {
           }
         }}
       >
-        <div className="hstack" style={{ marginBottom: 20, gap: 12 }}>
-          <Logo size={48} />
-          <div>
-            <h1 style={{ margin: 0 }}>Bar do Guto</h1>
-            <small className="muted">Entre com seu usuário para começar o turno</small>
-          </div>
-        </div>
+        <h1>Entrar</h1>
+        <p className="muted" style={{ marginBottom: 20 }}>Use seu usuário e senha para começar o turno.</p>
         {err && <Alert kind="error">{err}</Alert>}
         <Field label="Usuário">
           <input autoFocus autoComplete="username" autoCapitalize="none" value={username} onChange={(e) => setU(e.target.value)} required />
@@ -55,6 +66,7 @@ export function Login() {
           <a href="/c">Ver cardápio digital (clientes)</a>
         </p>
       </form>
+      </div>
     </div>
   );
 }

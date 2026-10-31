@@ -7,7 +7,7 @@ import {
   Bike,
   ChefHat,
   ClipboardList,
-  KeyRound,
+  Info,
   LayoutGrid,
   LogOut,
   Menu,
@@ -27,6 +27,7 @@ import { useAuth } from '../lib/auth';
 import { get } from '../lib/api';
 import { useConnection } from '../lib/live';
 import { formatDate } from '../lib/format';
+import { AboutDialog } from './About';
 import { Logo } from './Logo';
 import { Button } from './ui';
 import { StaffAlerts } from './StaffAlerts';
@@ -41,7 +42,7 @@ interface NavItem {
 type NavEntry = NavItem | { group: string };
 const NAV: NavEntry[] = [
   { group: 'Operação' },
-  { to: '/pdv', label: 'Venda (PDV)', icon: ShoppingCart, perm: 'orders.create' },
+  { to: '/pdv', label: 'Venda', icon: ShoppingCart, perm: 'orders.create' },
   { to: '/mesas', label: 'Mesas e comandas', icon: LayoutGrid, perm: 'orders.view' },
   { to: '/pedidos', label: 'Pedidos', icon: ClipboardList, perm: 'orders.view' },
   { to: '/cozinha', label: 'Cozinha', icon: ChefHat, perm: 'kitchen.view' },
@@ -96,7 +97,7 @@ export function DayStatus() {
   return (
     <span className={'conn ' + (cashLabel === 'caixa fechado' ? 'wait' : 'neutral')} title="Dia operacional em andamento">
       Dia {formatDate(day.referenceDate + 'T12:00:00').slice(0, 5)}
-      {cashLabel && ` · ${cashLabel}`}
+      {cashLabel && <span className="long"> · {cashLabel}</span>}
     </span>
   );
 }
@@ -110,13 +111,17 @@ const initials = (name?: string) =>
     .map((w) => w[0]?.toUpperCase())
     .join('');
 
-export function Layout({ children, title, actions, flush }: { children: ReactNode; title?: ReactNode; actions?: ReactNode; flush?: boolean }) {
+/**
+ * Casca da aplicação: barra lateral grafite (navegação, status e usuário) + área de trabalho clara.
+ * `title` mostra a barra de título da página; telas de trabalho (PDV) usam `bare` e desenham o próprio topo.
+ */
+export function Layout({ children, title, actions, flush, bare }: { children: ReactNode; title?: ReactNode; actions?: ReactNode; flush?: boolean; bare?: boolean }) {
   const { me, can, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [about, setAbout] = useState(false);
   const loc = useLocation();
   const conn = useConnection();
   const allowed = NAV.filter((i) => 'group' in i || can(i.perm));
-  // remove títulos de grupo sem itens
   const items = allowed.filter((i, idx) => !('group' in i) || (allowed[idx + 1] && !('group' in allowed[idx + 1]!)));
   const links = items.filter((i): i is NavItem => !('group' in i));
   // perfis com uma única tela (cozinha, entregador) não precisam de barra lateral
@@ -126,33 +131,47 @@ export function Layout({ children, title, actions, flush }: { children: ReactNod
       {!noNav && (
         <aside className={'sidebar' + (open ? ' open' : '')} onClick={(e) => (e.target as HTMLElement).closest('a') && setOpen(false)}>
           <div className="brand">
-            <Logo />
+            <Logo size={30} />
             <span>
               Bar do Guto
               <small>Gestão da loja</small>
             </span>
           </div>
           <nav className="nav" aria-label="Principal">
-            {items.map((i, idx) =>
+            {items.map((i) =>
               'group' in i ? (
-                idx === 0 ? (
-                  <div key={i.group} className="nav-group">
-                    {i.group}
-                  </div>
-                ) : (
-                  <div key={i.group}>
-                    <div className="nav-sep" />
-                    <div className="nav-group">{i.group}</div>
-                  </div>
-                )
+                <div key={i.group} className="nav-group">
+                  {i.group}
+                </div>
               ) : (
                 <NavLink key={i.to} to={i.to} title={i.label} className={({ isActive }) => (isActive || loc.pathname.startsWith(i.to + '/') ? 'active' : '')}>
-                  <i.icon className="icon" size={20} aria-hidden /> <span className="label">{i.label}</span>
+                  <i.icon className="icon" size={18} aria-hidden /> <span className="label">{i.label}</span>
                 </NavLink>
               ),
             )}
           </nav>
-          <UserFoot name={me?.name} role={me ? ROLE_LABEL[me.role] : ''} onLogout={() => void logout()} />
+          <div className="side-status">
+            <ConnectionPill />
+            <DayStatus />
+            <StaffAlerts />
+          </div>
+          <div className="sidebar-foot">
+            <span className="avatar" aria-hidden>
+              {initials(me?.name)}
+            </span>
+            <span className="who">
+              <b>{me?.name}</b>
+              <small>{me ? ROLE_LABEL[me.role] : ''}</small>
+            </span>
+            <span className="foot-actions">
+              <button type="button" className="side-btn" title="Sobre e versão" aria-label="Sobre e versão" onClick={() => setAbout(true)}>
+                <Info size={16} aria-hidden />
+              </button>
+              <button type="button" className="side-btn" title="Sair" aria-label="Sair" onClick={() => void logout()}>
+                <LogOut size={16} aria-hidden />
+              </button>
+            </span>
+          </div>
         </aside>
       )}
       <div className="main">
@@ -162,53 +181,41 @@ export function Layout({ children, title, actions, flush }: { children: ReactNod
           </div>
         )}
         <UpdateBanner />
-        <header className="topbar">
-          {!noNav && <Button className="menu-toggle" size="sm" variant="ghost" icon={Menu} aria-label="Abrir menu" onClick={() => setOpen(true)} />}
-          <span className="brand-mini" aria-hidden>
-            <Logo size={28} />
-          </span>
-          {title && <h1>{title}</h1>}
-          <div className="grow" />
-          {actions}
-          <div className="topbar-status">
-            <DayStatus />
-            <StaffAlerts />
-            <ConnectionPill />
-          </div>
-          {noNav && (
-            <>
-              <span className="who" style={{ flex: '0 1 auto', textAlign: 'right' }}>
-                <b>{me?.name}</b>
-                <small className="muted">{me ? ROLE_LABEL[me.role] : ''}</small>
+        {(!bare || noNav) && (
+          <header className="topbar">
+            {!noNav && <Button className="menu-toggle" size="sm" variant="ghost" icon={Menu} aria-label="Abrir menu" onClick={() => setOpen(true)} />}
+            {noNav && (
+              <span className="brand-mini" aria-hidden>
+                <Logo size={26} />
               </span>
-              <Button size="sm" variant="ghost" icon={LogOut} onClick={() => void logout()}>
-                Sair
-              </Button>
-            </>
-          )}
-        </header>
-        <main className={'content' + (flush ? ' flush' : '')}>{children}</main>
+            )}
+            {title && <h1>{title}</h1>}
+            <div className="grow" />
+            {actions}
+            {noNav && (
+              <>
+                <div className="topbar-status">
+                  <DayStatus />
+                  <ConnectionPill />
+                </div>
+                <span className="who top-who">
+                  <b>{me?.name}</b>
+                  <small>{me ? ROLE_LABEL[me.role] : ''}</small>
+                </span>
+                <Button size="sm" variant="ghost" icon={Info} aria-label="Sobre e versão" title="Sobre e versão" onClick={() => setAbout(true)} />
+                <Button size="sm" variant="ghost" icon={LogOut} onClick={() => void logout()}>
+                  Sair
+                </Button>
+              </>
+            )}
+          </header>
+        )}
+        {bare && !noNav && (
+          <Button className="menu-toggle floating" size="sm" variant="ghost" icon={Menu} aria-label="Abrir menu" onClick={() => setOpen(true)} />
+        )}
+        <main className={'content' + (flush || bare ? ' flush' : '')}>{children}</main>
       </div>
-    </div>
-  );
-}
-
-function UserFoot({ name, role, onLogout }: { name?: string; role: string; onLogout: () => void }) {
-  return (
-    <div className="sidebar-foot">
-      <span className="avatar" aria-hidden>
-        {initials(name)}
-      </span>
-      <span className="who">
-        <b>{name}</b>
-        <small className="muted">{role}</small>
-      </span>
-      <span className="foot-actions hstack" style={{ gap: 2, flexWrap: 'nowrap' }}>
-        <NavLink to="/senha" className="btn ghost sm icon-only" title="Alterar senha" aria-label="Alterar senha">
-          <KeyRound className="icon" aria-hidden />
-        </NavLink>
-        <Button size="sm" variant="ghost" icon={LogOut} title="Sair" aria-label="Sair" onClick={onLogout} />
-      </span>
+      {about && <AboutDialog onClose={() => setAbout(false)} />}
     </div>
   );
 }

@@ -173,7 +173,17 @@ export async function buildApp(config: Config, opts: { db?: Db; wa?: WaProvider;
   // aplicação web (build do Vite) com fallback para rotas do SPA
   const webDist = config.WEB_DIST ? path.resolve(config.WEB_DIST) : path.resolve(process.cwd(), '../web/dist');
   if (fs.existsSync(path.join(webDist, 'index.html'))) {
-    await app.register(fastifyStatic, { root: webDist, prefix: '/', wildcard: false });
+    await app.register(fastifyStatic, {
+      root: webDist,
+      prefix: '/',
+      // lê do disco a cada pedido: um build novo aparece sem reiniciar o servidor
+      wildcard: true,
+      setHeaders: (res, filePath) => {
+        // arquivos com hash no nome nunca mudam; o resto (index.html, sw.js, version.json, manifest) sempre revalida
+        if (/[\\/]assets[\\/]/.test(filePath)) res.header('cache-control', 'public, max-age=31536000, immutable');
+        else res.header('cache-control', 'no-cache');
+      },
+    });
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith('/api/') || req.url.startsWith('/uploads/')) {
         return reply.status(404).send({ error: { code: 'not_found', message: 'Rota não encontrada' } });

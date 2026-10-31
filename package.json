@@ -1,7 +1,7 @@
 {
   "name": "bar-do-guto",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Sistema de gestão do Bar do Guto (PDV, cozinha, entregas, caixa, estoque, WhatsApp e cardápio digital)",
   "workspaces": [
     "packages/*",

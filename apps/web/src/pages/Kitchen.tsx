@@ -15,15 +15,13 @@ import {
   PlusCircle,
   Sparkles,
   Undo2,
-  UserRound,
   ZoomIn,
   ZoomOut,
-  type LucideIcon,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KITCHEN_STATUS_LABEL, ORDER_TYPE_LABEL, type KitchenStatus } from '@guto/core';
 import { Layout } from '../components/Layout';
-import { Button, Empty, ErrorBox, Loading, useAction, useUi } from '../components/ui';
+import { Button, ErrorBox, Loading, useAction, useUi } from '../components/ui';
 import { get, post } from '../lib/api';
 import { formatTime, minutesSince } from '../lib/format';
 
@@ -83,11 +81,6 @@ export default function Kitchen() {
   }, [q.data, sound]);
 
   const tickets = q.data?.tickets ?? [];
-  const cols: { status: KitchenStatus; title: string; icon: LucideIcon }[] = [
-    { status: 'received', title: 'Recebidos', icon: Inbox },
-    { status: 'preparing', title: 'Em preparo', icon: Flame },
-    { status: 'ready', title: 'Prontos (últimos 20 min)', icon: CheckCircle2 },
-  ];
   const pending = tickets.filter((t) => t.orderStatus !== 'cancelled' && t.status !== 'ready');
   const lateMinutes = q.data?.lateMinutes ?? 15;
   const oldest = pending.reduce((m, t) => Math.max(m, minutesSince(t.createdAt)), 0);
@@ -96,6 +89,9 @@ export default function Kitchen() {
   for (const t of pending) for (const i of t.items) if (i.status !== 'cancelled') load.set(i.productName + (i.variantName ? ` (${i.variantName})` : ''), (load.get(i.productName + (i.variantName ? ` (${i.variantName})` : '')) ?? 0) + i.quantity);
   const top = [...load.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
   const late = pending.filter((t) => minutesSince(t.createdAt) >= lateMinutes).length;
+
+  const flow = tickets.filter((t) => t.orderStatus === 'cancelled' || t.status !== 'ready');
+  const readyList = tickets.filter((t) => t.orderStatus !== 'cancelled' && t.status === 'ready');
 
   return (
     <div className={'kds' + (big ? ' big' : '')}>
@@ -141,50 +137,82 @@ export default function Kitchen() {
         ) : (
           <>
             <div className="kds-summary" aria-label="Resumo da fila">
-              <span className="badge outline">
-                <Inbox className="icon" aria-hidden /> {pending.length} na fila
+              <span className="pill">
+                <Inbox className="icon" aria-hidden /> <b>{pending.length}</b> na fila
+              </span>
+              <span className="pill">
+                <Flame className="icon" aria-hidden /> <b>{pending.filter((t) => t.status === 'preparing').length}</b> em preparo
               </span>
               {pending.length > 0 && (
-                <span className={'badge ' + (oldest >= lateMinutes ? 'red' : 'outline')}>
-                  <Clock className="icon" aria-hidden /> mais antigo: {oldest} min
+                <span className={'pill' + (oldest >= lateMinutes ? ' bad' : '')}>
+                  <Clock className="icon" aria-hidden /> mais antigo <b>{oldest} min</b>
                 </span>
               )}
               {late > 0 && (
-                <span className="badge red">
-                  <AlertTriangle className="icon" aria-hidden /> {late} atrasado(s) (≥ {lateMinutes} min)
+                <span className="pill bad">
+                  <AlertTriangle className="icon" aria-hidden /> <b>{late}</b> atrasado(s)
                 </span>
               )}
               {top.length > 0 && (
                 <span className="load">
-                  <b>A fazer:</b>
+                  A fazer:
                   {top.map(([name, n]) => (
-                    <span key={name} className="badge">
-                      {n}× {name}
+                    <span key={name}>
+                      <b>{n}×</b> {name}
                     </span>
                   ))}
                 </span>
               )}
             </div>
-            <div className="kds-cols">
-              {cols.map((c) => {
-                const list = tickets.filter((t) => (t.orderStatus === 'cancelled' ? c.status === 'received' : t.status === c.status));
-                return (
-                  <section key={c.status} className="kds-col" aria-label={c.title}>
-                    <h2>
-                      <c.icon className="icon" aria-hidden /> {c.title} <span className="badge">{list.length}</span>
-                    </h2>
-                    {list.length === 0 && <Empty compact title={c.status === 'ready' ? 'Nenhum pronto recente' : 'Nada aqui'} />}
-                    {list.map((t) => (
-                      <TicketCard key={t.id} t={t} lateMinutes={lateMinutes} />
-                    ))}
-                  </section>
-                );
-              })}
+            <div className="kds-board">
+              <section className="kds-flow" aria-label="Fila de produção">
+                {flow.length === 0 && <div className="kds-empty">Nenhum pedido na fila</div>}
+                {flow.map((t) => (
+                  <TicketCard key={t.id} t={t} lateMinutes={lateMinutes} />
+                ))}
+              </section>
+              <section className="kds-ready" aria-label="Prontos (últimos 20 min)">
+                <h2>
+                  <CheckCircle2 className="icon" aria-hidden /> Prontos · {readyList.length}
+                </h2>
+                {readyList.length === 0 && <div className="none">Nenhum pronto nos últimos 20 minutos.</div>}
+                {readyList.map((t) => (
+                  <ReadyRow key={t.id} t={t} />
+                ))}
+              </section>
             </div>
           </>
         )}
       </Layout>
     </div>
+  );
+}
+
+function ReadyRow({ t }: { t: KTicket }) {
+  const qc = useQueryClient();
+  const { busy, go } = useAction();
+  const label = t.orderType === 'table' ? t.place : ORDER_TYPE_LABEL[t.orderType];
+  return (
+    <article className="rd" aria-label={`Pedido ${t.orderNumber}`}>
+      <b>{label}</b>
+      <small>
+        #{t.orderNumber} · pronto {formatTime(t.readyAt)} · {t.items.reduce((a, i) => a + (i.status === 'cancelled' ? 0 : i.quantity), 0)} item(ns)
+      </small>
+      <Button
+        size="sm"
+        icon={Undo2}
+        busy={busy}
+        aria-label={`Desfazer pronto do pedido ${t.orderNumber}`}
+        title="Desfazer “pronto”"
+        onClick={() =>
+          go(async () => {
+            await post(`/api/kitchen/tickets/${t.id}/status`, { status: 'preparing' });
+            await qc.invalidateQueries({ queryKey: ['kitchen'] });
+          })
+        }
+      />
+      <span className="sr-only">Pronto</span>
+    </article>
   );
 }
 
@@ -219,62 +247,50 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
     });
   };
   const label = t.orderType === 'table' ? t.place : ORDER_TYPE_LABEL[t.orderType];
+  const bandText = cancelled ? 'Cancelado — não preparar' : late ? 'Atrasado' : t.status === 'preparing' ? 'Em preparo' : fresh ? 'Novo' : 'Na fila';
+  const BandIcon = cancelled ? Ban : late ? AlertTriangle : t.status === 'preparing' ? Flame : fresh ? Sparkles : Inbox;
   return (
     <article
       ref={ref}
-      className={`ticket st-${t.status}` + (late ? ' late' : '') + (changed ? ' changed' : '') + (cancelled ? ' cancelled' : '')}
+      className={`tk st-${t.status}` + (late ? ' late' : '') + (changed ? ' changed' : '') + (cancelled ? ' cancelled' : '') + (fresh ? ' fresh' : '')}
       aria-label={`Pedido ${t.orderNumber}`}
     >
-      <div className="ticket-head">
+      <div className="tk-band">
+        <span>
+          <BandIcon className="icon" aria-hidden /> {bandText}
+        </span>
+        <span>#{t.orderNumber}{t.round > 1 ? ` · rodada ${t.round}` : ''}</span>
+      </div>
+      <div className="tk-head">
         <span style={{ minWidth: 0 }}>
-          <span className="tplace">{label}</span>
-          <span className="tn">
-            Pedido #{t.orderNumber}
-            {t.round > 1 && ` · rodada ${t.round}`}
+          <span className="tk-place">{label}</span>
+          <span className="tk-sub">
+            {formatTime(t.createdAt)} · {t.createdByName ? `por ${t.createdByName}` : 'cardápio digital'}
+            {t.customerName ? ` · ${t.customerName}` : ''}
           </span>
         </span>
-        <span className="timer" title={`Recebido às ${formatTime(t.createdAt)}`}>
-          {late ? <AlertTriangle className="icon" aria-hidden /> : <Clock className="icon" aria-hidden />}
-          {waiting} min
+        <span className="tk-timer" title={`Recebido às ${formatTime(t.createdAt)}`}>
+          {waiting}
+          <small>min</small>
         </span>
       </div>
-      {cancelled && (
-        <div className="ticket-flag cancel">
-          <Ban className="icon" aria-hidden /> PEDIDO CANCELADO — NÃO PREPARAR
-        </div>
-      )}
       {!cancelled && t.round > 1 && (
-        <div className="ticket-flag extra">
+        <div className="tk-flag extra">
           <PlusCircle className="icon" aria-hidden /> ACRÉSCIMO — só os itens abaixo (rodada {t.round})
         </div>
       )}
-      {fresh && t.round === 1 && (
-        <div className="ticket-flag new">
-          <Sparkles className="icon" aria-hidden /> NOVO
-        </div>
-      )}
       {changed && (
-        <div className="ticket-flag changed">
+        <div className="tk-flag changed">
           <Pencil className="icon" aria-hidden /> ALTERADO às {formatTime(t.changedAt)}: {t.changeNote}
         </div>
       )}
-      {late && (
-        <div className="ticket-flag late">
-          <AlertTriangle className="icon" aria-hidden /> ATRASADO — esperando há {waiting} min
-        </div>
-      )}
-      <div className="ticket-body">
-        <div className="ticket-who">
-          <Clock className="icon" aria-hidden /> {formatTime(t.createdAt)}
-          <UserRound className="icon" aria-hidden /> {t.createdByName ? `por ${t.createdByName}` : 'cardápio digital'}
-          {t.customerName ? ` · ${t.customerName}` : ''}
-        </div>
-        {t.orderNotes && <div className="ticket-note">Obs. do pedido: {t.orderNotes}</div>}
+      {t.orderNotes && <div className="tk-note">Obs. do pedido: {t.orderNotes}</div>}
+      <ul className="tk-items">
         {t.items.map((i) => {
           const removes = i.options.filter((o) => /^sem /i.test(o.name));
           const adds = i.options.filter((o) => !/^sem /i.test(o.name));
           return (
-            <div key={i.id} className={'ticket-item' + (i.status === 'cancelled' ? ' void' : '')}>
+            <li key={i.id} className={'tk-item' + (i.status === 'cancelled' ? ' void' : '')}>
               <span className="q">{i.quantity}</span>
               {i.productName}
               {i.variantName ? ` (${i.variantName})` : ''}
@@ -302,18 +318,18 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
                   <MessageSquareText className="icon" aria-hidden />“{i.notes}”
                 </div>
               )}
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
       {!cancelled && (
-        <div className="ticket-actions">
+        <div className="tk-actions">
           {t.status === 'received' && (
             <>
               <Button variant="primary" className="act-main" busy={busy} icon={Flame} onClick={() => move('preparing')}>
                 Iniciar preparo
               </Button>
-              <Button variant="ghost" className="act-side" busy={busy} onClick={() => move('ready')} title="Marcar pronto sem passar por “em preparo”">
+              <Button className="act-side" busy={busy} onClick={() => move('ready')} title="Marcar pronto sem passar por “em preparo”">
                 Pronto
               </Button>
             </>
@@ -325,11 +341,6 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
                 Pronto
               </Button>
             </>
-          )}
-          {t.status === 'ready' && (
-            <Button variant="ghost" size="sm" className="act-main" busy={busy} icon={Undo2} onClick={() => move('preparing')}>
-              Desfazer “pronto”
-            </Button>
           )}
         </div>
       )}

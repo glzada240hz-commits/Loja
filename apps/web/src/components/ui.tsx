@@ -142,12 +142,17 @@ export function Modal({
   children,
   footer,
   wide,
+  className,
+  bare,
 }: {
   title: ReactNode;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  className?: string;
+  /** conteúdo desenha o próprio corpo e rodapé (ex.: tela de pagamento) */
+  bare?: boolean;
 }) {
   const id = useId();
   const ref = useRef<HTMLDivElement>(null);
@@ -169,14 +174,14 @@ export function Modal({
   }, [onClose]);
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={'modal' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-labelledby={id} ref={ref} tabIndex={-1} style={{ outline: 'none' }}>
+      <div className={['modal', wide && 'wide', className].filter(Boolean).join(' ')} role="dialog" aria-modal="true" aria-labelledby={id} ref={ref} tabIndex={-1} style={{ outline: 'none' }}>
         <div className="modal-head">
           <h2 id={id}>{title}</h2>
           <button type="button" className="btn ghost sm icon-only" onClick={onClose} aria-label="Fechar" data-close>
             <X className="icon" aria-hidden />
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        {bare ? children : <div className="modal-body">{children}</div>}
         {footer && <div className="modal-foot">{footer}</div>}
       </div>
     </div>

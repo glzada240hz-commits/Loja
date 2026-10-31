@@ -45,20 +45,12 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
       { success: 'Pagamento registrado' },
     );
 
+  const quick = [applied, 2000, 5000, 10000, 20000].filter((v, i, a) => v >= applied && a.indexOf(v) === i).slice(0, 5);
+  const registered = cashShort ? (tendered ?? 0) : applied;
+
   return (
-    <Modal
-      title={`Receber — pedido #${order.number}`}
-      onClose={onClose}
-      footer={
-        <>
-          <Button onClick={onClose}>Fechar</Button>
-          <Button variant="success" size="lg" busy={busy} disabled={invalid} onClick={submit}>
-            Registrar {amount ? formatBRL(Math.min(amount, balance)) : ''}
-          </Button>
-        </>
-      }
-    >
-      <div className="summary-strip card" style={{ marginBottom: 14 }}>
+    <Modal title={`Receber — pedido #${order.number}`} onClose={onClose} className="pay-modal" bare>
+      <div className="pay-band" aria-label="Resumo do pedido">
         <div>
           <div className="k">Total do pedido</div>
           <div className="v">{formatBRL(order.totalCents)}</div>
@@ -72,87 +64,113 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
           <div className="v due">{formatBRL(balance)}</div>
         </div>
       </div>
-      <Field label="Forma de pagamento" group>
-        <div className="segmented" role="group" aria-label="Forma de pagamento" style={{ gridAutoColumns: 'minmax(0, 1fr)' }}>
-          {METHODS.map((m) => {
-            const Ico = METHOD_ICON[m];
-            return (
-              <button key={m} type="button" aria-pressed={method === m} onClick={() => setMethod(m)} style={{ flexDirection: 'column', minHeight: 56, whiteSpace: 'normal', lineHeight: 1.1, gap: 4 }}>
-                {Ico && <Ico className="icon" aria-hidden />}
-                {PAYMENT_METHOD_LABEL[m]}
-              </button>
-            );
-          })}
-        </div>
-      </Field>
-      {method === 'pix_manual' && (
-        <Alert kind="warn">
-          Confirme o crédito no extrato/app do banco <b>antes</b> de registrar. Comprovante enviado pelo cliente não garante o recebimento.
-        </Alert>
-      )}
-      <div className="row">
-        <Field label="Valor a abater">
-          <MoneyInput value={amount} onChange={setAmount} />
-        </Field>
-        <Field label="Dividir conta">
-          <select value={ways} onChange={(e) => setWays(Number(e.target.value))}>
-            {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
-              <option key={n} value={n}>
-                {n === 1 ? 'Não dividir' : `${n} pessoas`}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-      {parts.length > 0 && (
-        <div className="hstack" style={{ marginBottom: 10 }}>
-          <small className="muted">Partes:</small>
-          {parts.map((p, i) => (
-            <Button key={i} size="sm" onClick={() => setAmount(p)}>
-              {formatBRL(p)}
-            </Button>
-          ))}
-        </div>
-      )}
-      {method === 'cash' && (
-        <>
-          <Field label="Valor recebido em dinheiro" hint="Para calcular o troco">
-            <MoneyInput value={tendered} onChange={setTendered} />
-          </Field>
-          <div className="hstack" style={{ marginBottom: 10 }}>
-            {[applied, 2000, 5000, 10000, 20000]
-              .filter((v, i, a) => v >= applied && a.indexOf(v) === i)
-              .map((v) => (
-                <Button key={v} size="sm" onClick={() => setTendered(v)}>
-                  {v === applied ? 'Exato' : formatBRL(v)}
+      <div className="pay">
+        <div className="pay-col">
+          <div role="group" aria-labelledby="pay-m">
+            <span className="pay-label" id="pay-m">
+              Forma de pagamento
+            </span>
+            <div className="pay-methods">
+              {METHODS.map((m) => {
+                const Ico = METHOD_ICON[m];
+                return (
+                  <button key={m} type="button" aria-pressed={method === m} onClick={() => setMethod(m)}>
+                    {Ico && <Ico className="icon" aria-hidden />}
+                    {PAYMENT_METHOD_LABEL[m]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {method === 'pix_manual' && (
+            <Alert kind="warn">
+              Confirme o crédito no extrato/app do banco <b>antes</b> de registrar. Comprovante enviado pelo cliente não garante o recebimento.
+            </Alert>
+          )}
+          <div className="pay-amount">
+            <Field label="Valor deste pagamento">
+              <MoneyInput value={amount} onChange={setAmount} />
+            </Field>
+            <Field label="Dividir conta">
+              <select value={ways} onChange={(e) => setWays(Number(e.target.value))}>
+                {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
+                  <option key={n} value={n}>
+                    {n === 1 ? 'Não dividir' : `${n} pessoas`}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          {parts.length > 0 && (
+            <div className="pay-quick" style={{ marginTop: -6 }}>
+              <small className="muted" style={{ alignSelf: 'center' }}>Partes:</small>
+              {parts.map((p, i) => (
+                <Button key={i} size="sm" onClick={() => setAmount(p)}>
+                  {formatBRL(p)}
                 </Button>
               ))}
-          </div>
-          {cashShort && <Alert kind="info">Recebido menor que o valor: será registrado pagamento parcial de {formatBRL(tendered ?? 0)}.</Alert>}
-        </>
-      )}
-      <Field label="Identificação (opcional)" hint="Ex.: Pessoa 1, João">
-        <input value={payer} onChange={(e) => setPayer(e.target.value)} maxLength={60} />
-      </Field>
-      {!invalid && (
-        <div className="card" aria-live="polite" style={{ background: 'var(--surface-2)' }}>
-          <b style={{ display: 'block', marginBottom: 6 }}>Será registrado</b>
-          <dl className="dl" style={{ margin: 0 }}>
-            <dt>{PAYMENT_METHOD_LABEL[method]}</dt>
-            <dd>{formatBRL(cashShort ? (tendered ?? 0) : applied)}</dd>
-            {method === 'cash' && tendered != null && !cashShort && (
-              <>
-                <dt>Recebido em dinheiro</dt>
-                <dd>{formatBRL(tendered)}</dd>
-                <dt style={{ fontWeight: 700, color: 'var(--ink)' }}>Troco a devolver</dt>
-                <dd data-testid="troco" style={{ fontSize: '1.4rem', fontWeight: 800 }}>{formatBRL(change)}</dd>
-              </>
-            )}
-            <dt>Restará a receber</dt>
-            <dd>{formatBRL(Math.max(0, balance - (cashShort ? (tendered ?? 0) : applied)))}</dd>
-          </dl>
+            </div>
+          )}
+          <Field label="Identificação (opcional)" hint="Ex.: Pessoa 1, João">
+            <input value={payer} onChange={(e) => setPayer(e.target.value)} maxLength={60} />
+          </Field>
         </div>
-      )}
+        <div className="pay-col">
+          {method === 'cash' ? (
+            <>
+              <div className="pay-big-input">
+                <Field label="Valor recebido em dinheiro" hint="Para calcular o troco">
+                  <MoneyInput value={tendered} onChange={setTendered} />
+                </Field>
+              </div>
+              <div className="pay-quick">
+                {quick.map((v) => (
+                  <Button key={v} size="sm" onClick={() => setTendered(v)}>
+                    {v === applied ? 'Exato' : formatBRL(v)}
+                  </Button>
+                ))}
+              </div>
+              {cashShort ? (
+                <Alert kind="info">Recebido menor que o valor: será registrado pagamento parcial de {formatBRL(tendered ?? 0)}.</Alert>
+              ) : (
+                <div className="pay-change" aria-live="polite">
+                  <span className="k">Troco a devolver</span>
+                  <span className="v" data-testid="troco">
+                    {formatBRL(change)}
+                  </span>
+                </div>
+              )}
+            </>
+          ) : (
+            <Alert kind="info">Sem troco nesta forma de pagamento. Confira a maquininha ou o extrato antes de registrar.</Alert>
+          )}
+          <div className="pay-summary" aria-live="polite">
+            <b>Será registrado</b>
+            {invalid ? (
+              <small className="muted">Informe um valor entre R$ 0,01 e {formatBRL(balance)}.</small>
+            ) : (
+              <dl className="dl">
+                <dt>{PAYMENT_METHOD_LABEL[method]}</dt>
+                <dd>{formatBRL(registered)}</dd>
+                {method === 'cash' && tendered != null && !cashShort && (
+                  <>
+                    <dt>Recebido em dinheiro</dt>
+                    <dd>{formatBRL(tendered)}</dd>
+                  </>
+                )}
+                <dt>Restará a receber</dt>
+                <dd>{formatBRL(Math.max(0, balance - registered))}</dd>
+              </dl>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="pay-foot">
+        <Button onClick={onClose}>Fechar</Button>
+        <Button variant="success" size="lg" busy={busy} disabled={invalid} onClick={submit}>
+          Registrar {amount ? formatBRL(Math.min(amount, balance)) : ''}
+        </Button>
+      </div>
     </Modal>
   );
 }

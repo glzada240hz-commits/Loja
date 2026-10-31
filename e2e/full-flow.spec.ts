@@ -84,7 +84,8 @@ test.describe.serial('16. fluxo completo: cardápio digital → cozinha → entr
     await expect(ticket.getByText('SEM CEBOLA')).toBeVisible();
     await shot(k, '05-cozinha');
     await ticket.getByRole('button', { name: 'Iniciar preparo' }).click();
-    await expect(k.getByRole('region', { name: 'Em preparo' }).getByRole('article', { name: 'Pedido 1' })).toBeVisible();
+    // painel em ordem de chegada: o estado aparece na faixa do cartão
+    await expect(k.getByRole('region', { name: 'Fila de produção' }).getByRole('article', { name: 'Pedido 1' })).toContainText('Em preparo');
     await k.getByRole('article', { name: 'Pedido 1' }).getByRole('button', { name: 'Pronto' }).click();
     await expect(k.getByRole('region', { name: /Prontos/ }).getByRole('article', { name: 'Pedido 1' })).toBeVisible();
     await cliente.goto(trackUrl);
@@ -139,7 +140,7 @@ test.describe.serial('16. fluxo completo: cardápio digital → cozinha → entr
     await caixa.getByRole('button', { name: /^X-Burguer, R\$ 13,50/ }).click();
     await caixa.getByRole('button', { name: /^X-Burguer, R\$ 13,50/ }).click();
     await caixa.getByRole('button', { name: /^Refrigerante lata/ }).click();
-    await expect(caixa.locator('.cart-foot .grand').last()).toHaveText('R$ 33,00');
+    await expect(caixa.locator('.order-sum dd.grand')).toHaveText('R$ 33,00');
     await shot(caixa, '10-pdv-carrinho');
     await caixa.getByRole('button', { name: 'Enviar pedido' }).dblclick();
     await expect(caixa.getByRole('heading', { name: 'Pedido #2 registrado' })).toBeVisible();

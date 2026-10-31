@@ -11,6 +11,7 @@ import {
   CloudOff,
   Flame,
   Hash,
+  LayoutGrid,
   LogOut,
   Plus,
   ReceiptText,
@@ -26,7 +27,7 @@ import { formatBRL, placeLabel, searchFilter, unitTotal } from '@guto/core';
 import { ConnectionPill } from '../../components/Layout';
 import { Logo } from '../../components/Logo';
 import { lineToItemInput, lineTotal, ProductDialog } from '../../components/ProductDialog';
-import { Alert, Button, Empty, ErrorBox, Loading, Modal, Segmented, Stepper, useAction, useUi } from '../../components/ui';
+import { Alert, Button, Empty, ErrorBox, Loading, Modal, Stepper, useAction, useUi } from '../../components/ui';
 import { ApiError, get, newIdemKey, post, qs } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { elapsedLabel, formatTime, shortName } from '../../lib/format';
@@ -47,7 +48,7 @@ export default function Waiter() {
   );
 }
 
-function Shell({ title, subtitle, back, children, foot }: { title: ReactNode; subtitle?: ReactNode; back?: string; children: ReactNode; foot?: ReactNode }) {
+function Shell({ title, subtitle, back, children, foot, nav, action }: { title: ReactNode; subtitle?: ReactNode; back?: string; children: ReactNode; foot?: ReactNode; nav?: ReactNode; action?: ReactNode }) {
   const { me, logout } = useAuth();
   const conn = useConnection();
   return (
@@ -65,6 +66,7 @@ function Shell({ title, subtitle, back, children, foot }: { title: ReactNode; su
           <small>{subtitle ?? me?.name}</small>
         </div>
         <ConnectionPill />
+        {action}
         {!back && (
           <button type="button" className="waiter-logout" onClick={() => void logout()} aria-label="Sair" title="Sair">
             <LogOut size={20} aria-hidden />
@@ -78,6 +80,7 @@ function Shell({ title, subtitle, back, children, foot }: { title: ReactNode; su
       )}
       <main className="waiter-body">{children}</main>
       {foot && <footer className="waiter-foot">{foot}</footer>}
+      {nav}
     </div>
   );
 }
@@ -137,10 +140,14 @@ function Home() {
     const name = `${kind === 'tab' ? 'Comanda' : 'Mesa'} ${label}`;
     if (!o)
       return (
-        <button key={name} type="button" className="wtile free" onClick={onClick} aria-label={`${name}, livre`}>
-          <span className="wkind">{kind === 'tab' ? 'Comanda' : 'Mesa'}</span>
-          <span className="wnum">{label}</span>
-          <span className="wmeta muted">Livre</span>
+        <button key={name} type="button" className="tbl free" onClick={onClick} aria-label={`${name}, livre`}>
+          <span className="tbl-band">
+            <span>Livre</span>
+            <Plus className="icon" aria-hidden />
+          </span>
+          <span className="tbl-body">
+            <span className="tbl-num">{label}</span>
+          </span>
         </button>
       );
     const st = tileState(o);
@@ -149,39 +156,51 @@ function Home() {
       <button
         key={name + o.id}
         type="button"
-        className={`wtile ${st}${o.createdByName === me?.name ? ' mine' : ''}`}
+        className={`tbl ${st}`}
         onClick={onClick}
         aria-label={`${name}, ${stateText(o)}, ${formatBRL(o.totalCents)}, ${o.createdByName ?? ''}`}
       >
-        <span className="wstate">
-          <Ico className="icon" aria-hidden />
+        <span className="tbl-band">
+          <span>
+            <Ico className="icon" aria-hidden /> {st === 'busy' ? stateText(o) : st === 'ready' ? 'Servir' : 'Conta'}
+          </span>
         </span>
-        <span className="wkind">{kind === 'tab' ? 'Comanda' : 'Mesa'}</span>
-        <span className="wnum">{label}</span>
-        <span className="wamount">{formatBRL(o.totalCents)}</span>
-        <span className="wmeta">
-          {stateText(o)} · {elapsedLabel(o.createdAt)}
+        <span className="tbl-body">
+          <span className="tbl-num">
+            {kind === 'tab' && <small>#</small>}
+            {label}
+          </span>
+          <span className="tbl-amount" style={{ fontSize: '.875rem' }}>{formatBRL(o.totalCents)}</span>
+          <span className="tbl-who">
+            {o.createdByName === me?.name ? 'você' : shortName(o.createdByName)} · {elapsedLabel(o.createdAt)}
+          </span>
         </span>
-        <span className="wmeta muted">{shortName(o.createdByName)}</span>
       </button>
     );
   };
   const goOrder = (o: OrderRow) => nav(`/atendente/pedido/${o.id}`);
+  const bottomNav = (
+    <nav className="waiter-nav" aria-label="Mostrar">
+      {(
+        [
+          ['table', 'Mesas', LayoutGrid, `${busyTables}/${tables.length}`],
+          ['tab', 'Comandas', Hash, String(tabs.length)],
+          ['mine', 'Minhas', UserRound, String(mine.length)],
+        ] as const
+      ).map(([id, label, Ico, n]) => (
+        <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}>
+          <Ico className="icon" aria-hidden />
+          {label}
+          <span className="n" aria-label={`${n} ${label}`}>
+            {n}
+          </span>
+        </button>
+      ))}
+    </nav>
+  );
 
   return (
-    <Shell title="Atendimento">
-      <div className="waiter-tabs">
-        <Segmented
-          label="Mostrar"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { id: 'table', label: `Mesas ${busyTables}/${tables.length}` },
-            { id: 'tab', label: `Comandas ${tabs.length}` },
-            { id: 'mine', label: `Minhas ${mine.length}` },
-          ]}
-        />
-      </div>
+    <Shell title={tab === 'table' ? 'Mesas' : tab === 'tab' ? 'Comandas' : 'Minhas mesas'} nav={bottomNav}>
       {list.error && <ErrorBox error={list.error} retry={() => list.refetch()} />}
       {readyMine.length > 0 && (
         <Alert kind="ok" icon={ChefHat} role="status">
@@ -196,7 +215,7 @@ function Home() {
         </Alert>
       )}
       {tab === 'table' && (
-        <div className="waiter-grid">
+        <div className="wgrid">
           {tables.map((t) => {
             const o = open.find((x) => x.tabKind === 'table' && x.tableLabel === t);
             return tile(o, 'table', t, () => (o ? goOrder(o) : nav(`/atendente/nova/table/${encodeURIComponent(t)}`)));
@@ -229,7 +248,7 @@ function Home() {
               <span>Digite o número da comanda e toque em Abrir.</span>
             </Empty>
           ) : (
-            <div className="waiter-grid">{tabs.map((o) => tile(o, 'tab', o.tableLabel ?? '?', () => goOrder(o)))}</div>
+            <div className="wgrid">{tabs.map((o) => tile(o, 'tab', o.tableLabel ?? '?', () => goOrder(o)))}</div>
           )}
         </>
       )}
@@ -237,7 +256,7 @@ function Home() {
         (mine.length === 0 ? (
           <Empty compact icon={UserRound} title="Você ainda não abriu mesas hoje" />
         ) : (
-          <div className="waiter-grid">{mine.map((o) => tile(o, o.tabKind, o.tableLabel ?? '?', () => goOrder(o)))}</div>
+          <div className="wgrid">{mine.map((o) => tile(o, o.tabKind, o.tableLabel ?? '?', () => goOrder(o)))}</div>
         ))}
     </Shell>
   );
@@ -386,38 +405,53 @@ function OrderScreen() {
       title={title}
       subtitle={subtitle}
       back="/atendente"
+      action={
+        o && o.status === 'open' ? (
+          <Button size="sm" icon={ReceiptText} onClick={requestBill} disabled={!!o.billRequestedAt || action.busy} aria-label={o.billRequestedAt ? 'Conta pedida' : 'Pedir a conta'}>
+            {o.billRequestedAt ? 'Pedida' : 'Conta'}
+          </Button>
+        ) : null
+      }
       foot={
         !closed && (
           <>
-            {o && o.status === 'open' && (
-              <Button icon={ReceiptText} onClick={requestBill} disabled={!!o.billRequestedAt || action.busy}>
-                {o.billRequestedAt ? 'Conta pedida' : 'Pedir a conta'}
+            <div className="wsum">
+              <span>
+                {o ? (
+                  <>
+                    Mesa: <b>{formatBRL(o.totalCents)}</b>
+                  </>
+                ) : (
+                  'Mesa ainda sem pedido'
+                )}
+              </span>
+              {draft.lines.length > 0 ? (
+                <span className="draft">
+                  Rascunho: {draftCount} {draftCount === 1 ? 'item' : 'itens'} · {formatBRL(draftTotal)}
+                </span>
+              ) : (
+                <span>Nada no rascunho</span>
+              )}
+            </div>
+            <div className="wactions">
+              <Button size="lg" icon={Plus} disabled={locked} onClick={() => setPicking(true)} aria-label="Adicionar produtos">
+                Produtos
               </Button>
-            )}
-            <Button
-              variant={draft.state === 'unconfirmed' ? 'danger' : 'primary'}
-              className={draft.state === 'unconfirmed' ? 'solid' : undefined}
-              size="lg"
-              icon={draft.state === 'unconfirmed' ? CloudOff : Send}
-              style={{ flex: 1 }}
-              disabled={!draft.lines.length || draft.state === 'sending'}
-              onClick={() => setReview(true)}
-            >
-              {draft.state === 'unconfirmed' ? 'Reenviar pedido' : `Conferir e enviar${draftCount ? ` (${draftCount})` : ''}`}
-            </Button>
+              <Button
+                variant={draft.state === 'unconfirmed' ? 'danger' : 'primary'}
+                className={draft.state === 'unconfirmed' ? 'solid' : undefined}
+                size="lg"
+                icon={draft.state === 'unconfirmed' ? CloudOff : Send}
+                disabled={!draft.lines.length || draft.state === 'sending'}
+                onClick={() => setReview(true)}
+              >
+                {draft.state === 'unconfirmed' ? 'Reenviar pedido' : `Conferir e enviar${draftCount ? ` (${draftCount})` : ''}`}
+              </Button>
+            </div>
           </>
         )
       }
     >
-      {o && (
-        <div className="hstack" style={{ marginBottom: 10, justifyContent: 'space-between' }}>
-          <small className="muted">Aberta às {formatTime(o.createdAt)}</small>
-          <span>
-            <small className="muted">Total </small>
-            <b className="money" style={{ fontSize: '1.15rem' }}>{formatBRL(o.totalCents)}</b>
-          </span>
-        </div>
-      )}
       {closed && <Alert kind="info">Este pedido está {o!.status === 'closed' ? 'finalizado' : 'cancelado'}.</Alert>}
       {o?.billRequestedAt && (
         <Alert kind="bill" icon={ReceiptText}>
@@ -462,54 +496,55 @@ function OrderScreen() {
         </div>
       )}
 
-      <section aria-label="Novo pedido" className={'card draft-card' + (draft.lines.length ? ' has-items' : '')}>
-        <div className="hstack" style={{ marginBottom: 4 }}>
-          <h2 style={{ margin: 0 }}>Novo pedido</h2>
-          {draft.lines.length > 0 && <span className="badge orange">rascunho · ainda não enviado</span>}
+      <section aria-label="Novo pedido" className={'wsec draft' + (draft.lines.length ? '' : ' empty-draft')}>
+        <div className="wsec-head">
+          <b>Novo pedido</b>
+          {draft.lines.length > 0 ? <span className="badge orange">rascunho · ainda não enviado</span> : <small className="muted">vazio</small>}
           <span className="spacer" />
           {draft.lines.length > 0 && <b className="money">{formatBRL(draftTotal)}</b>}
         </div>
-        {draft.lines.length === 0 && <p className="muted" style={{ margin: '4px 0 0' }}>Os itens ficam guardados neste aparelho até você enviar.</p>}
-        {locked && draft.state === 'unconfirmed' && <p className="muted">Rascunho travado até a confirmação do envio, para evitar pedido duplicado.</p>}
-        {draft.lines.map((l) => (
-          <div key={l.key} className="cart-item">
-            <Stepper label={l.productName} value={l.quantity} min={0} max={99} onChange={(v) => editLines((ls) => (v === 0 ? ls.filter((x) => x.key !== l.key) : ls.map((x) => (x.key === l.key ? { ...x, quantity: v } : x))))} />
-            <button
-              type="button"
-              className="linkish"
-              disabled={locked}
-              aria-label={`Editar ${l.productName}`}
-              onClick={() => {
-                const p = products.find((x) => x.variants.some((v) => v.id === l.variantId));
-                if (p) setEditing({ product: p, line: l });
-              }}
-            >
-              <span className="item-name">
-                {l.productName}
-                {l.variantName ? ` (${l.variantName})` : ''}
-              </span>
-              {l.options.length > 0 && <div className="opts">{l.options.map((x) => (x.quantity > 1 ? `${x.quantity}x ` : '') + x.name).join(', ')}</div>}
-              {l.notes && <div className="note">“{l.notes}”</div>}
-            </button>
-            <span className="money" style={{ paddingTop: 10 }}>{formatBRL(lineTotal(l))}</span>
-          </div>
-        ))}
-        {!closed && (
-          <Button block icon={Plus} style={{ marginTop: 12 }} variant={draft.lines.length ? undefined : 'primary'} disabled={locked} onClick={() => setPicking(true)}>
-            Adicionar produtos
-          </Button>
-        )}
+        <div className="wsec-body">
+          {draft.lines.length === 0 && (
+            <p className="muted" style={{ margin: '10px 0' }}>
+              Toque em <b>Adicionar produtos</b> (embaixo). Os itens ficam guardados neste aparelho até você enviar.
+            </p>
+          )}
+          {locked && draft.state === 'unconfirmed' && <p className="muted" style={{ margin: '10px 0 0' }}>Rascunho travado até a confirmação do envio, para evitar pedido duplicado.</p>}
+          {draft.lines.map((l) => (
+            <div key={l.key} className="cart-item">
+              <Stepper label={l.productName} value={l.quantity} min={0} max={99} onChange={(v) => editLines((ls) => (v === 0 ? ls.filter((x) => x.key !== l.key) : ls.map((x) => (x.key === l.key ? { ...x, quantity: v } : x))))} />
+              <button
+                type="button"
+                className="linkish"
+                disabled={locked}
+                aria-label={`Editar ${l.productName}`}
+                onClick={() => {
+                  const p = products.find((x) => x.variants.some((v) => v.id === l.variantId));
+                  if (p) setEditing({ product: p, line: l });
+                }}
+              >
+                <span className="item-name">
+                  {l.productName}
+                  {l.variantName ? ` (${l.variantName})` : ''}
+                </span>
+                {l.options.length > 0 && <div className="opts">{l.options.map((x) => (x.quantity > 1 ? `${x.quantity}x ` : '') + x.name).join(', ')}</div>}
+                {l.notes && <div className="note">“{l.notes}”</div>}
+              </button>
+              <span className="money" style={{ paddingTop: 10 }}>{formatBRL(lineTotal(l))}</span>
+            </div>
+          ))}
+        </div>
       </section>
 
       {o && o.tickets.length + noKitchen.length > 0 && (
-        <section aria-label="Já enviado" style={{ marginTop: 16 }}>
+        <section aria-label="Já enviado" style={{ marginTop: 4 }}>
           <h2 className="section-title">Já enviado</h2>
-          <div className="stack" style={{ gap: 10 }}>
+          <div>
             {[...o.tickets].reverse().map((t) => {
               const its = o.items.filter((i) => i.ticketId === t.id);
               return (
-                <div key={t.id} className={'card round-card' + (t.status === 'ready' && !t.servedAt ? ' ready' : '')}>
-                  <div className="round-head">
+                <div key={t.id} className={'wsec' + (t.status === 'ready' && !t.servedAt ? ' ready' : '')}>
+                  <div className="wsec-head">
                     <b>Rodada {t.round}</b>
                     <small className="muted">
                       {formatTime(t.createdAt)} · {shortName(t.createdByName)}
@@ -517,6 +552,7 @@ function OrderScreen() {
                     <span className="spacer" />
                     {ROUND_LABEL(t)}
                   </div>
+                  <div className="wsec-body">
                   {t.changeNote && <Alert kind="warn">Alteração: {t.changeNote}</Alert>}
                   {its.map((i) => (
                     <div key={i.id} className={'order-line' + (i.status === 'cancelled' ? ' cancelled' : '')}>
@@ -542,19 +578,21 @@ function OrderScreen() {
                     </div>
                   ))}
                   {t.status === 'ready' && !t.servedAt && (
-                    <Button variant="success" block size="lg" icon={Check} busy={action.busy} onClick={() => served(t)} style={{ marginTop: 8 }}>
+                    <Button variant="success" block size="lg" icon={Check} busy={action.busy} onClick={() => served(t)} style={{ margin: '4px 0 12px' }}>
                       Entregue na mesa
                     </Button>
                   )}
+                  </div>
                 </div>
               );
             })}
             {noKitchen.length > 0 && (
-              <div className="card round-card">
-                <div className="round-head">
+              <div className="wsec">
+                <div className="wsec-head">
                   <b>Sem preparo</b>
                   <small className="muted">bebidas e outros · entregues direto</small>
                 </div>
+                <div className="wsec-body">
                 {noKitchen.map((i) => (
                   <div key={i.id} className={'order-line' + (i.status === 'cancelled' ? ' cancelled' : '')}>
                     <span className="name">
@@ -566,6 +604,7 @@ function OrderScreen() {
                     <RepeatBtn i={i} />
                   </div>
                 ))}
+                </div>
               </div>
             )}
           </div>

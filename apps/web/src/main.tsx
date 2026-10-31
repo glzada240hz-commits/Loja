@@ -31,11 +31,20 @@ createRoot(document.getElementById('root')!).render(
 
 // PWA: registra o service worker (só cacheia a interface; dados sempre do servidor)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  const loadedAt = Date.now();
   void import('virtual:pwa-register').then(({ registerSW }) => {
     const update = registerSW({
       onNeedRefresh() {
-        // aviso discreto (UpdateBanner); não interrompe quem está lançando um pedido
+        // logo ao abrir o app nada está em andamento: aplica a versão nova na hora
+        if (Date.now() - loadedAt < 15000) return void update(true);
+        // depois disso, aviso discreto (UpdateBanner); não interrompe quem está lançando um pedido
         window.dispatchEvent(new CustomEvent('guto:update', { detail: () => void update(true) }));
+      },
+      onRegisteredSW(_url, reg) {
+        // procura versão nova a cada 10 minutos e quando o aparelho volta a ficar visível
+        if (!reg) return;
+        setInterval(() => void reg.update().catch(() => undefined), 10 * 60 * 1000);
+        document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && void reg.update().catch(() => undefined));
       },
     });
   });

@@ -94,14 +94,18 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
     await expect(extra).toContainText('Batata frita');
     await expect(extra).toContainText('“bem crocante”');
     await expect(extra).not.toContainText('X-Bacon'); // itens antigos não são reenviados
-    const r1 = cozinha.getByRole('region', { name: 'Em preparo' }).locator('article', { hasText: 'Mesa 8' });
+    const r1 = cozinha.getByRole('region', { name: 'Fila de produção' }).locator('article', { hasText: 'Mesa 8' }).filter({ hasText: 'Em preparo' });
     await expect(r1).toContainText('X-Bacon'); // histórico mantido no estado em que estava
     await expect(caixa.getByRole('button', { name: /^Mesa 8, pedido/ })).toContainText('R$ 51,80');
     await shot(cozinha, 'w04-cozinha-acrescimo');
   });
 
   test('cozinha atualiza o preparo; atendente entrega; todos veem', async () => {
-    await cozinha.getByRole('region', { name: 'Em preparo' }).locator('article', { hasText: 'Mesa 8' }).getByRole('button', { name: 'Pronto' }).click();
+    await cozinha.getByRole('region', { name: 'Fila de produção' }).locator('article', { hasText: 'Mesa 8' }).filter({ hasText: 'Em preparo' }).getByRole('button', { name: 'Pronto' }).click();
+    // o cartão do acréscimo sobe para o lugar do anterior; toques logo após a mudança de lugar são
+    // bloqueados de propósito (evita marcar o pedido errado) — espera assentar, como o cozinheiro faria
+    await expect(cozinha.getByRole('region', { name: 'Fila de produção' }).locator('article', { hasText: 'Mesa 8' })).toHaveCount(1);
+    await cozinha.waitForTimeout(800);
     await cozinha.locator('article', { hasText: 'ACRÉSCIMO' }).getByRole('button', { name: 'Pronto' }).click();
     await expect(atendente.getByRole('button', { name: 'Entregue na mesa' })).toHaveCount(2);
     await expect(caixa.getByRole('button', { name: /^Mesa 8, pedido/ })).toContainText('2 pronto');
