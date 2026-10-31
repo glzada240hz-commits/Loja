@@ -17,3 +17,17 @@ export function daysAgoISO(n: number) {
 export function addressLine(o: { addrStreet?: string | null; addrNumber?: string | null; addrComplement?: string | null; neighborhoodName?: string | null }) {
   return [o.addrStreet && `${o.addrStreet}, ${o.addrNumber ?? 's/n'}`, o.addrComplement, o.neighborhoodName].filter(Boolean).join(' — ');
 }
+
+/** "8 min", "1 h 05" — tempo de mesa aberta ou de espera, curto para caber em cartões. */
+export function elapsedLabel(d: string | Date | null | undefined, now = Date.now()) {
+  const m = minutesSince(d, now);
+  if (m < 60) return `${m} min`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;
+}
+
+/** Nome sem o sufixo "(demo)" e só o primeiro nome + inicial, para cartões estreitos. */
+export function shortName(name: string | null | undefined) {
+  if (!name) return '—';
+  const words = name.replace(/\s*\(.*?\)\s*/g, ' ').trim().split(/\s+/);
+  return words.length > 2 ? `${words[0]} ${words[1]}` : words.join(' ');
+}

@@ -1,18 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { computeOrderTotals, formatBRL, ORDER_TYPE_LABEL, type OrderType } from '@guto/core';
+import { ArrowLeft, Bike, CheckCircle2, ChevronDown, LayoutGrid, MapPin, Minus, Pencil, Plus, Printer, Search, SearchX, ShoppingBag, ShoppingCart, Store, Trash2, UserRound } from 'lucide-react';
+import { computeOrderTotals, formatBRL, ORDER_TYPE_LABEL, searchFilter, searchScore, type OrderType } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { CustomerFields, customerPayload, emptyCustomer, type CustomerDraft } from '../components/CustomerFields';
 import { lineToItemInput, lineTotal, ProductDialog } from '../components/ProductDialog';
 import { OrderDrawer } from '../components/OrderDrawer';
 import { PaymentDialog } from '../components/PaymentDialog';
-import { Button, Empty, ErrorBox, Field, Loading, Modal, useAction, useUi } from '../components/ui';
+import { Alert, Button, Empty, ErrorBox, Field, Loading, Modal, useAction, useUi } from '../components/ui';
 import { ApiError, newIdemKey, post } from '../lib/api';
 import { useDay, useMenu, useNeighborhoods, useOrder, useSettings } from '../lib/queries';
 import type { CartLine, MenuProduct, Order } from '../lib/types';
 
 const TYPES: OrderType[] = ['counter', 'takeout', 'delivery', 'table'];
+const TYPE_ICON = { counter: Store, takeout: ShoppingBag, delivery: Bike, table: LayoutGrid } as const;
+const CAT_COLORS = ['#ea580c', '#2563eb', '#16a34a', '#9333ea', '#db2777', '#0891b2', '#ca8a04', '#4f46e5'];
+const catIndex = new Map<string, number>();
+/** cor estável por categoria (faixa à esquerda do cartão), ajuda a localizar sem ler */
+function catColor(id: string) {
+  if (!catIndex.has(id)) catIndex.set(id, catIndex.size);
+  return CAT_COLORS[catIndex.get(id)! % CAT_COLORS.length]!;
+}
 
 export default function Pos() {
   const menu = useMenu();
@@ -55,14 +64,19 @@ export default function Pos() {
         e.preventDefault();
         void submit(false);
       }
+      if (e.key === 'F9' && !targetId) {
+        e.preventDefault();
+        void submit(true);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
 
   const products = useMemo(() => (menu.data ?? []).flatMap((c) => c.products.map((p) => ({ ...p, catName: c.name }))), [menu.data]);
-  const term = search.trim().toLowerCase();
-  const visible = products.filter((p) => (cat === 'all' || p.categoryId === cat) && (!term || p.name.toLowerCase().includes(term) || p.code === term));
+  const term = search.trim();
+  // com busca digitada, procura em todas as categorias (evita "não achei" por estar no filtro errado)
+  const visible = term ? searchFilter(products, term, (p) => p) : products.filter((p) => cat === 'all' || p.categoryId === cat);
 
   const delivery = type === 'delivery';
   const nb = nbs.data?.find((n) => n.id === cust.neighborhoodId);
@@ -153,68 +167,102 @@ export default function Pos() {
     if (delivery && (!cust.name || !cust.phone || !cust.street || !cust.number || !cust.neighborhoodId)) missing.push('dados de entrega');
   }
 
+  const inCart = new Map<string, number>();
+  for (const l of cart) {
+    const p = products.find((x) => x.variants.some((v) => v.id === l.variantId));
+    if (p) inCart.set(p.id, (inCart.get(p.id) ?? 0) + l.quantity);
+  }
+  const itemsCount = cart.reduce((a, l) => a + l.quantity, 0);
+  const canSend = cart.length > 0 && missing.length === 0 && !dayClosed;
+
   return (
     <Layout title={targetId && target.data ? `Adicionar à comanda #${target.data.number}` : 'Venda'} flush>
       {dayClosed && (
-        <div className="alert warn" style={{ margin: 12 }}>
-          O dia operacional está fechado. <a href="/caixa">Abra o dia</a> para registrar pedidos.
+        <div style={{ padding: '12px 16px 0' }}>
+          <Alert kind="warn" action={<a className="btn sm" href="/caixa">Abrir o dia</a>}>
+            O dia operacional está fechado. Abra o dia para registrar pedidos.
+          </Alert>
         </div>
       )}
       <div className="pos">
         <section className="pos-catalog" aria-label="Produtos">
-          <div className="pos-search">
-            <input
-              ref={searchRef}
-              type="search"
-              placeholder="Buscar produto ou código (F2)"
-              value={search}
-              aria-label="Buscar produto"
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && visible.length === 1) {
-                  add(visible[0]!);
-                  setSearch('');
-                }
-                if (e.key === 'Escape') setSearch('');
-              }}
-            />
-          </div>
-          <div className="pos-cats">
-            <div className="chips">
+          <div className="pos-toolbar">
+            <div className="input-icon">
+              <Search className="icon" aria-hidden />
+              <input
+                ref={searchRef}
+                type="search"
+                placeholder="Buscar por nome ou código"
+                value={search}
+                aria-label="Buscar produto"
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && visible.length >= 1 && (visible.length === 1 || searchScore(search, visible[0]!.name, visible[0]!.code) >= 50)) {
+                    add(visible[0]!);
+                    setSearch('');
+                  }
+                  if (e.key === 'Escape') setSearch('');
+                }}
+              />
+              {!search && <kbd>F2</kbd>}
+            </div>
+            <div className="chips scroll" role="group" aria-label="Categorias">
               <button type="button" className="chip" aria-pressed={cat === 'all'} onClick={() => setCat('all')}>
-                Todos
+                Todos <span className="count">{products.length}</span>
               </button>
               {menu.data!.map((c) => (
                 <button key={c.id} type="button" className="chip" aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>
-                  {c.name}
+                  <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: catColor(c.id) }} />
+                  {c.name} <span className="count">{c.products.length}</span>
                 </button>
               ))}
             </div>
           </div>
           <div className="pos-grid">
-            {visible.length === 0 && <Empty title="Nenhum produto encontrado" />}
+            {visible.length === 0 && (
+              <Empty icon={SearchX} title="Nenhum produto encontrado">
+                {term ? <span>Confira a grafia ou busque pelo código.</span> : null}
+              </Empty>
+            )}
             {visible.map((p) => {
               const off = !p.available || p.variants.every((v) => !v.available);
               const min = Math.min(...p.variants.map((v) => v.priceCents));
+              const qty = inCart.get(p.id);
               return (
-                <button key={p.id} type="button" className={'prod' + (off ? ' off' : '')} onClick={() => add(p)} aria-label={`${p.name}, ${formatBRL(min)}${off ? ', indisponível' : ''}`}>
-                  {p.code && <span className="code">{p.code}</span>}
-                  <span className="name">{p.name}</span>
-                  <small className="muted">{p.catName}</small>
+                <button
+                  key={p.id}
+                  type="button"
+                  className={'prod' + (off ? ' off' : '')}
+                  style={{ ['--cat' as string]: catColor(p.categoryId) }}
+                  onClick={() => add(p)}
+                  aria-label={`${p.name}, ${formatBRL(min)}${off ? ', indisponível' : ''}${qty ? `, ${qty} no pedido` : ''}`}
+                >
+                  {qty ? <span className="in-cart" aria-hidden>{qty}</span> : null}
+                  <span className="name" style={qty ? { paddingRight: 28 } : undefined}>{p.name}</span>
+                  <span className="meta">
+                    {p.code && <span className="code">{p.code}</span>}
+                    <span className="ellipsis">{p.catName}</span>
+                  </span>
                   <span className="price">
-                    {p.variants.length > 1 ? 'a partir de ' : ''}
-                    {formatBRL(min)}
+                    {off ? (
+                      'Indisponível'
+                    ) : (
+                      <>
+                        {p.variants.length > 1 && <small>a partir de</small>}
+                        {formatBRL(min)}
+                      </>
+                    )}
                   </span>
                 </button>
               );
             })}
           </div>
           <div className="pos-mobile-bar">
-            <span>
-              {cart.reduce((a, l) => a + l.quantity, 0)} itens · <b>{formatBRL(preview.totalCents)}</b>
+            <span className="hstack" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 0, flex: '0 0 auto' }}>
+              <small className="muted">{itemsCount} {itemsCount === 1 ? 'item' : 'itens'}</small>
+              <b className="money" style={{ fontSize: '1.15rem' }}>{formatBRL(preview.totalCents)}</b>
             </span>
-            <span className="spacer" />
-            <Button variant="primary" onClick={() => setShowCart(true)}>
+            <Button variant="primary" icon={ShoppingCart} onClick={() => setShowCart(true)}>
               Ver pedido
             </Button>
           </div>
@@ -222,39 +270,39 @@ export default function Pos() {
 
         <section className={'pos-cart' + (showCart ? ' show' : '')} aria-label="Pedido atual">
           <div className="cart-head">
-            {showCart && (
-              <Button size="sm" variant="ghost" onClick={() => setShowCart(false)} style={{ marginBottom: 6 }}>
-                ← Voltar aos produtos
+            <div className="cart-title">
+              {showCart && <Button size="sm" variant="ghost" icon={ArrowLeft} aria-label="Voltar aos produtos" onClick={() => setShowCart(false)} />}
+              <h2>{targetId ? `Comanda #${target.data?.number ?? '…'}` : 'Pedido'}</h2>
+              {itemsCount > 0 && <span className="badge">{itemsCount} {itemsCount === 1 ? 'item' : 'itens'}</span>}
+              <Button size="sm" variant="ghost" icon={Trash2} onClick={reset} disabled={!cart.length} title="Limpar pedido">
+                Limpar
               </Button>
-            )}
+            </div>
             {targetId ? (
-              <div className="alert info" style={{ margin: 0 }}>
-                Adicionando itens ao pedido #{target.data?.number ?? '…'}.{' '}
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setParams({});
-                  }}
-                >
-                  Novo pedido
-                </a>
-              </div>
+              <Alert kind="info" action={<button type="button" className="link-btn" onClick={() => setParams({})}>Novo pedido</button>}>
+                Adicionando itens ao pedido #{target.data?.number ?? '…'} {target.data ? `(${target.data.place})` : ''}.
+              </Alert>
             ) : (
               <>
                 <div className="type-switch" role="group" aria-label="Tipo de pedido">
-                  {TYPES.map((t) => (
-                    <button key={t} type="button" aria-pressed={type === t} onClick={() => setType(t)}>
-                      {ORDER_TYPE_LABEL[t]}
-                    </button>
-                  ))}
+                  {TYPES.map((t) => {
+                    const Ico = TYPE_ICON[t];
+                    return (
+                      <button key={t} type="button" aria-pressed={type === t} onClick={() => setType(t)}>
+                        <Ico className="icon" aria-hidden />
+                        {ORDER_TYPE_LABEL[t]}
+                      </button>
+                    );
+                  })}
                 </div>
                 {type === 'table' && (
                   <Field label="Mesa">
-                    <select value={table} onChange={(e) => setTable(e.target.value)}>
-                      <option value="">Selecione…</option>
+                    <select value={table} onChange={(e) => setTable(e.target.value)} aria-invalid={cart.length > 0 && !table ? true : undefined}>
+                      <option value="">Selecione a mesa…</option>
                       {(settings.data?.tables ?? []).map((t: string) => (
-                        <option key={t}>{t}</option>
+                        <option key={t} value={t}>
+                          Mesa {t}
+                        </option>
                       ))}
                     </select>
                   </Field>
@@ -263,79 +311,99 @@ export default function Pos() {
             )}
           </div>
           <div className="cart-items">
-            {cart.length === 0 && <Empty title="Pedido vazio">Toque nos produtos para adicionar.</Empty>}
+            {cart.length === 0 && (
+              <div className="cart-empty">
+                <ShoppingCart className="icon" aria-hidden />
+                <b style={{ color: 'var(--ink-2)' }}>Nenhum item ainda</b>
+                <span>Toque nos produtos ou digite o código e Enter.</span>
+                <span className="keys">
+                  <span><kbd>F2</kbd> buscar</span>
+                  <span><kbd>F4</kbd> enviar</span>
+                  <span><kbd>F9</kbd> enviar e cobrar</span>
+                </span>
+              </div>
+            )}
             {cart.map((l) => (
               <div key={l.key} className="cart-item">
                 <div className="qty">
                   <button type="button" aria-label={`Menos ${l.productName}`} onClick={() => setCart((c) => c.flatMap((x) => (x.key === l.key ? (x.quantity > 1 ? [{ ...x, quantity: x.quantity - 1 }] : []) : [x])))}>
-                    −
+                    {l.quantity > 1 ? <Minus size={16} aria-hidden /> : <Trash2 size={15} aria-hidden />}
                   </button>
-                  <b className="num" style={{ minWidth: 20, textAlign: 'center' }}>
-                    {l.quantity}
-                  </b>
+                  <b>{l.quantity}</b>
                   <button type="button" aria-label={`Mais ${l.productName}`} onClick={() => setCart((c) => c.map((x) => (x.key === l.key ? { ...x, quantity: Math.min(99, x.quantity + 1) } : x)))}>
-                    +
+                    <Plus size={16} aria-hidden />
                   </button>
                 </div>
                 <button
                   type="button"
-                  style={{ background: 'none', border: 0, textAlign: 'left', padding: 0, font: 'inherit', cursor: 'pointer', color: 'inherit' }}
+                  className="linkish"
+                  aria-label={`Editar ${l.productName}`}
                   onClick={() => {
                     const p = products.find((x) => x.variants.some((v) => v.id === l.variantId));
                     if (p) setPicking({ product: p, line: l });
                   }}
                 >
-                  <b>
+                  <span className="item-name">
                     {l.productName}
                     {l.variantName ? ` (${l.variantName})` : ''}
-                  </b>
+                  </span>
                   {l.options.length > 0 && <div className="opts">{l.options.map((o) => (o.quantity > 1 ? `${o.quantity}x ` : '') + o.name).join(', ')}</div>}
                   {l.notes && <div className="note">“{l.notes}”</div>}
-                  <small className="muted">toque para editar</small>
+                  <span className="edit-hint">
+                    <Pencil size={12} aria-hidden /> editar
+                  </span>
                 </button>
-                <span className="num right">{formatBRL(lineTotal(l))}</span>
+                <span className="money right">{formatBRL(lineTotal(l))}</span>
               </div>
             ))}
             {!targetId && (
-              <details style={{ marginTop: 10 }} open={delivery || undefined}>
-                <summary style={{ cursor: 'pointer', fontWeight: 700, minHeight: 36 }}>{delivery ? 'Cliente e entrega' : 'Cliente e observações (opcional)'}</summary>
-                <CustomerFields value={cust} onChange={setCust} delivery={delivery} />
-                <Field label="Observação do pedido">
-                  <input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} />
-                </Field>
+              <details className="cart-extra" open={delivery || undefined}>
+                <summary>
+                  {delivery ? <MapPin size={18} aria-hidden /> : <UserRound size={18} aria-hidden />}
+                  {delivery ? 'Cliente e endereço de entrega' : 'Cliente e observação'}
+                  {!delivery && <small className="muted">(opcional)</small>}
+                  <ChevronDown className="chev" size={18} aria-hidden />
+                </summary>
+                <div className="cart-extra-body">
+                  <CustomerFields value={cust} onChange={setCust} delivery={delivery} />
+                  <Field label="Observação do pedido">
+                    <input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Ex.: cliente aguarda no balcão" />
+                  </Field>
+                </div>
               </details>
             )}
           </div>
           <div className="cart-foot">
-            <div className="totals" style={{ marginBottom: 8 }}>
-              <span>Itens</span>
-              <span>{formatBRL(preview.subtotalCents)}</span>
+            <div className="totals">
+              <span className="sub">Itens</span>
+              <span className="sub">{formatBRL(preview.subtotalCents)}</span>
               {delivery && !targetId && (
                 <>
-                  <span>Taxa de entrega {nb ? `(${nb.name})` : ''}</span>
-                  <span>{formatBRL(preview.deliveryFeeCents)}</span>
+                  <span className="sub">Taxa de entrega {nb ? `· ${nb.name}` : ''}</span>
+                  <span className="sub">{nb ? formatBRL(preview.deliveryFeeCents) : '—'}</span>
                 </>
               )}
               <span className="grand">Total</span>
               <span className="grand">{formatBRL(preview.totalCents)}</span>
             </div>
-            <small className="muted" style={{ display: 'block', marginBottom: 6 }}>
-              Prévia. O total oficial é calculado pelo servidor; descontos são aplicados no pedido.
-            </small>
-            {missing.length > 0 && cart.length > 0 && <div className="alert warn">Falta: {missing.join(', ')}</div>}
-            <div className="hstack">
-              <Button onClick={reset} disabled={!cart.length}>
-                Limpar
-              </Button>
-              <Button variant="dark" size="lg" style={{ flex: 1 }} busy={busy} disabled={!cart.length || missing.length > 0 || !!dayClosed} onClick={() => void submit(false)}>
-                {targetId ? 'Adicionar e enviar' : 'Enviar pedido (F4)'}
+            {missing.length > 0 && cart.length > 0 && (
+              <Alert kind="warn">
+                Para enviar, informe: <b>{missing.join(', ')}</b>.
+              </Alert>
+            )}
+            <div className="cart-actions" style={targetId ? { gridTemplateColumns: '1fr' } : undefined}>
+              <Button variant="primary" size="lg" busy={busy} disabled={!canSend} onClick={() => void submit(false)} kbd="F4">
+                {targetId ? 'Adicionar e enviar' : 'Enviar pedido'}
               </Button>
               {!targetId && (
-                <Button variant="success" size="lg" busy={busy} disabled={!cart.length || missing.length > 0 || !!dayClosed} onClick={() => void submit(true)}>
+                <Button variant="success" size="lg" busy={busy} disabled={!canSend} onClick={() => void submit(true)} kbd="F9">
                   Enviar e cobrar
                 </Button>
               )}
             </div>
+            <small className="muted" style={{ textAlign: 'center' }}>
+              Valores conferidos pelo servidor ao enviar. Descontos são aplicados no pedido.
+            </small>
           </div>
         </section>
       </div>
@@ -358,7 +426,7 @@ export default function Pos() {
           footer={
             <>
               <a className="btn" href={`/imprimir/${created.order.id}?via=cozinha&w=${settings.data?.printWidth ?? 80}`} target="_blank" rel="noreferrer">
-                Imprimir comanda
+                <Printer className="icon" aria-hidden /> Imprimir
               </a>
               <Button onClick={() => { setDrawer(created.order.id); setCreated(null); }}>Ver pedido</Button>
               <Button variant="success" onClick={() => setCreated({ ...created, pay: true })}>
@@ -370,12 +438,14 @@ export default function Pos() {
             </>
           }
         >
-          <p className="big" style={{ fontSize: '2.4rem', fontWeight: 800, textAlign: 'center', margin: 0 }}>
-            #{created.order.number}
-          </p>
-          <p style={{ textAlign: 'center' }}>
-            Total {formatBRL(created.order.totalCents)} · {created.order.tickets.length ? 'enviado à cozinha' : 'sem itens de cozinha'}
-          </p>
+          <div style={{ textAlign: 'center' }}>
+            <CheckCircle2 size={40} color="var(--ok)" aria-hidden />
+            <p style={{ fontSize: '2.6rem', fontWeight: 800, margin: '4px 0 0', letterSpacing: '-.02em' }}>#{created.order.number}</p>
+            <p className="muted">
+              {created.order.place} · Total <b className="money" style={{ color: 'var(--ink)' }}>{formatBRL(created.order.totalCents)}</b> ·{' '}
+              {created.order.tickets.length ? 'enviado à cozinha' : 'sem itens de cozinha'}
+            </p>
+          </div>
         </Modal>
       )}
       {created?.pay && (

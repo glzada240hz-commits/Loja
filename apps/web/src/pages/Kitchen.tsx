@@ -1,8 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  Ban,
+  Bell,
+  BellOff,
+  Check,
+  CheckCircle2,
+  Clock,
+  Flame,
+  Inbox,
+  Maximize,
+  MessageSquareText,
+  Pencil,
+  PlusCircle,
+  Sparkles,
+  Undo2,
+  UserRound,
+  ZoomIn,
+  ZoomOut,
+  type LucideIcon,
+} from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KITCHEN_STATUS_LABEL, ORDER_TYPE_LABEL, type KitchenStatus } from '@guto/core';
 import { Layout } from '../components/Layout';
-import { Button, Empty, ErrorBox, Loading, useAction } from '../components/ui';
+import { Button, Empty, ErrorBox, Loading, useAction, useUi } from '../components/ui';
 import { get, post } from '../lib/api';
 import { formatTime, minutesSince } from '../lib/format';
 
@@ -48,6 +69,7 @@ export default function Kitchen() {
   const q = useQuery({ queryKey: ['kitchen'], queryFn: () => get<{ lateMinutes: number; tickets: KTicket[] }>('/api/kitchen'), refetchInterval: 20000 });
   const [, tick] = useState(0);
   const [sound, setSound] = useState(() => localStorageGet('kds-sound') !== '0');
+  const [big, setBig] = useState(() => localStorageGet('kds-big') === '1');
   const known = useRef<Set<string> | null>(null);
   useEffect(() => {
     const t = setInterval(() => tick((x) => x + 1), 15000);
@@ -61,24 +83,52 @@ export default function Kitchen() {
   }, [q.data, sound]);
 
   const tickets = q.data?.tickets ?? [];
-  const cols: { status: KitchenStatus; title: string }[] = [
-    { status: 'received', title: 'Recebidos' },
-    { status: 'preparing', title: 'Em preparo' },
-    { status: 'ready', title: 'Prontos (últimos 20 min)' },
+  const cols: { status: KitchenStatus; title: string; icon: LucideIcon }[] = [
+    { status: 'received', title: 'Recebidos', icon: Inbox },
+    { status: 'preparing', title: 'Em preparo', icon: Flame },
+    { status: 'ready', title: 'Prontos (últimos 20 min)', icon: CheckCircle2 },
   ];
+  const pending = tickets.filter((t) => t.orderStatus !== 'cancelled' && t.status !== 'ready');
+  const lateMinutes = q.data?.lateMinutes ?? 15;
+  const oldest = pending.reduce((m, t) => Math.max(m, minutesSince(t.createdAt)), 0);
+  // gargalo: quantidades por produto ainda não prontas (o que mais tem para fazer agora)
+  const load = new Map<string, number>();
+  for (const t of pending) for (const i of t.items) if (i.status !== 'cancelled') load.set(i.productName + (i.variantName ? ` (${i.variantName})` : ''), (load.get(i.productName + (i.variantName ? ` (${i.variantName})` : '')) ?? 0) + i.quantity);
+  const top = [...load.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const late = pending.filter((t) => minutesSince(t.createdAt) >= lateMinutes).length;
+
   return (
-    <div className="kds">
+    <div className={'kds' + (big ? ' big' : '')}>
       <Layout
         title="Cozinha"
         actions={
-          <>
-            <Button size="sm" onClick={() => { const v = !sound; setSound(v); localStorageSet('kds-sound', v ? '1' : '0'); if (v) beep(); }}>
-              {sound ? '🔔 Som ligado' : '🔕 Som desligado'}
+          <span className="kds-tools">
+            <Button
+              size="sm"
+              icon={big ? ZoomOut : ZoomIn}
+              aria-pressed={big}
+              onClick={() => {
+                setBig(!big);
+                localStorageSet('kds-big', big ? '0' : '1');
+              }}
+            >
+              {big ? 'Letra normal' : 'Letra grande'}
             </Button>
-            <Button size="sm" onClick={() => document.documentElement.requestFullscreen?.().catch(() => undefined)}>
-              Tela cheia
+            <Button
+              size="sm"
+              icon={sound ? Bell : BellOff}
+              aria-pressed={sound}
+              onClick={() => {
+                const v = !sound;
+                setSound(v);
+                localStorageSet('kds-sound', v ? '1' : '0');
+                if (v) beep();
+              }}
+            >
+              {sound ? 'Som ligado' : 'Som desligado'}
             </Button>
-          </>
+            <Button size="sm" icon={Maximize} aria-label="Tela cheia" title="Tela cheia" onClick={() => document.documentElement.requestFullscreen?.().catch(() => undefined)} />
+          </span>
         }
         flush
       >
@@ -89,68 +139,143 @@ export default function Kitchen() {
             <ErrorBox error={q.error} retry={() => q.refetch()} />
           </div>
         ) : (
-          <div className="kds-cols">
-            {cols.map((c) => {
-              const list = tickets.filter((t) => (t.orderStatus === 'cancelled' ? c.status === 'received' : t.status === c.status));
-              return (
-                <section key={c.status} className="kds-col" aria-label={c.title}>
-                  <h2>
-                    {c.title} <span className="badge">{list.length}</span>
-                  </h2>
-                  {list.length === 0 && <Empty title="Nada aqui" />}
-                  {list.map((t) => (
-                    <TicketCard key={t.id} t={t} lateMinutes={q.data!.lateMinutes} />
+          <>
+            <div className="kds-summary" aria-label="Resumo da fila">
+              <span className="badge outline">
+                <Inbox className="icon" aria-hidden /> {pending.length} na fila
+              </span>
+              {pending.length > 0 && (
+                <span className={'badge ' + (oldest >= lateMinutes ? 'red' : 'outline')}>
+                  <Clock className="icon" aria-hidden /> mais antigo: {oldest} min
+                </span>
+              )}
+              {late > 0 && (
+                <span className="badge red">
+                  <AlertTriangle className="icon" aria-hidden /> {late} atrasado(s) (≥ {lateMinutes} min)
+                </span>
+              )}
+              {top.length > 0 && (
+                <span className="load">
+                  <b>A fazer:</b>
+                  {top.map(([name, n]) => (
+                    <span key={name} className="badge">
+                      {n}× {name}
+                    </span>
                   ))}
-                </section>
-              );
-            })}
-          </div>
+                </span>
+              )}
+            </div>
+            <div className="kds-cols">
+              {cols.map((c) => {
+                const list = tickets.filter((t) => (t.orderStatus === 'cancelled' ? c.status === 'received' : t.status === c.status));
+                return (
+                  <section key={c.status} className="kds-col" aria-label={c.title}>
+                    <h2>
+                      <c.icon className="icon" aria-hidden /> {c.title} <span className="badge">{list.length}</span>
+                    </h2>
+                    {list.length === 0 && <Empty compact title={c.status === 'ready' ? 'Nenhum pronto recente' : 'Nada aqui'} />}
+                    {list.map((t) => (
+                      <TicketCard key={t.id} t={t} lateMinutes={lateMinutes} />
+                    ))}
+                  </section>
+                );
+              })}
+            </div>
+          </>
         )}
       </Layout>
     </div>
   );
 }
 
+/** Tempo mínimo sem mudar de lugar para aceitar um toque (evita acertar o pedido errado quando a lista se move). */
+const MOVE_GUARD_MS = 600;
+
 function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
   const qc = useQueryClient();
+  const ui = useUi();
   const { busy, go } = useAction();
+  const ref = useRef<HTMLElement>(null);
+  const lastTop = useRef<number | null>(null);
+  const movedAt = useRef(0);
+  useLayoutEffect(() => {
+    const top = ref.current?.offsetTop ?? 0;
+    if (lastTop.current != null && Math.abs(top - lastTop.current) > 4) movedAt.current = Date.now();
+    lastTop.current = top;
+  });
   const cancelled = t.orderStatus === 'cancelled';
   const waiting = minutesSince(t.createdAt, t.readyAt ? new Date(t.readyAt).getTime() : Date.now());
   const late = !cancelled && t.status !== 'ready' && waiting >= lateMinutes;
   const changed = !!t.changedAt && !cancelled;
-  const move = (status: KitchenStatus) =>
-    go(async () => {
+  const fresh = !cancelled && t.status === 'received' && minutesSince(t.createdAt) < 2;
+  const move = (status: KitchenStatus) => {
+    if (Date.now() - movedAt.current < MOVE_GUARD_MS) {
+      ui.toast('Os pedidos mudaram de lugar. Confira o cartão e toque de novo.', 'info');
+      return;
+    }
+    void go(async () => {
       await post(`/api/kitchen/tickets/${t.id}/status`, { status });
       await qc.invalidateQueries({ queryKey: ['kitchen'] });
     });
+  };
   const label = t.orderType === 'table' ? t.place : ORDER_TYPE_LABEL[t.orderType];
   return (
-    <article className={'ticket' + (late ? ' late' : '') + (changed ? ' changed' : '') + (cancelled ? ' cancelled' : '')} aria-label={`Pedido ${t.orderNumber}`}>
+    <article
+      ref={ref}
+      className={`ticket st-${t.status}` + (late ? ' late' : '') + (changed ? ' changed' : '') + (cancelled ? ' cancelled' : '')}
+      aria-label={`Pedido ${t.orderNumber}`}
+    >
       <div className="ticket-head">
-        <span className="tn">#{t.orderNumber}</span>
-        <span>
-          {label}
-          {t.round > 1 && <> · <b>rodada {t.round}</b></>}
+        <span style={{ minWidth: 0 }}>
+          <span className="tplace">{label}</span>
+          <span className="tn">
+            Pedido #{t.orderNumber}
+            {t.round > 1 && ` · rodada ${t.round}`}
+          </span>
         </span>
         <span className="timer" title={`Recebido às ${formatTime(t.createdAt)}`}>
+          {late ? <AlertTriangle className="icon" aria-hidden /> : <Clock className="icon" aria-hidden />}
           {waiting} min
         </span>
       </div>
-      {t.round > 1 && !cancelled && <div className="ticket-extra">ACRÉSCIMO — só os itens abaixo (rodada {t.round})</div>}
-      {cancelled && <div className="ticket-change" style={{ background: '#ff5b3d', color: '#fff' }}>PEDIDO CANCELADO — NÃO PREPARAR</div>}
-      {changed && <div className="ticket-change">ALTERADO às {formatTime(t.changedAt)}: {t.changeNote}</div>}
+      {cancelled && (
+        <div className="ticket-flag cancel">
+          <Ban className="icon" aria-hidden /> PEDIDO CANCELADO — NÃO PREPARAR
+        </div>
+      )}
+      {!cancelled && t.round > 1 && (
+        <div className="ticket-flag extra">
+          <PlusCircle className="icon" aria-hidden /> ACRÉSCIMO — só os itens abaixo (rodada {t.round})
+        </div>
+      )}
+      {fresh && t.round === 1 && (
+        <div className="ticket-flag new">
+          <Sparkles className="icon" aria-hidden /> NOVO
+        </div>
+      )}
+      {changed && (
+        <div className="ticket-flag changed">
+          <Pencil className="icon" aria-hidden /> ALTERADO às {formatTime(t.changedAt)}: {t.changeNote}
+        </div>
+      )}
+      {late && (
+        <div className="ticket-flag late">
+          <AlertTriangle className="icon" aria-hidden /> ATRASADO — esperando há {waiting} min
+        </div>
+      )}
       <div className="ticket-body">
         <div className="ticket-who">
-          {formatTime(t.createdAt)} · {t.createdByName ? `por ${t.createdByName}` : 'cardápio digital'}
+          <Clock className="icon" aria-hidden /> {formatTime(t.createdAt)}
+          <UserRound className="icon" aria-hidden /> {t.createdByName ? `por ${t.createdByName}` : 'cardápio digital'}
           {t.customerName ? ` · ${t.customerName}` : ''}
         </div>
-        {t.orderNotes && <div className="ticket-note">Obs.: {t.orderNotes}</div>}
+        {t.orderNotes && <div className="ticket-note">Obs. do pedido: {t.orderNotes}</div>}
         {t.items.map((i) => {
           const removes = i.options.filter((o) => /^sem /i.test(o.name));
           const adds = i.options.filter((o) => !/^sem /i.test(o.name));
           return (
             <div key={i.id} className={'ticket-item' + (i.status === 'cancelled' ? ' void' : '')}>
-              <span className="q">{i.quantity}x</span>
+              <span className="q">{i.quantity}</span>
               {i.productName}
               {i.variantName ? ` (${i.variantName})` : ''}
               {i.status === 'cancelled' && ' — CANCELADO'}
@@ -159,11 +284,24 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
               )}
               {(adds.length > 0 || removes.length > 0) && (
                 <div className="mods">
-                  {adds.map((o) => `+ ${o.quantity > 1 ? o.quantity + 'x ' : ''}${o.name}`).join('  ')}
-                  {removes.length > 0 && <span className="rm"> {removes.map((o) => o.name.toUpperCase()).join('  ')}</span>}
+                  {adds.map((o) => (
+                    <span key={o.name} className="add">
+                      + {o.quantity > 1 ? o.quantity + 'x ' : ''}
+                      {o.name}
+                    </span>
+                  ))}
+                  {removes.map((o) => (
+                    <span key={o.name} className="rm">
+                      {o.name.toUpperCase()}
+                    </span>
+                  ))}
                 </div>
               )}
-              {i.notes && <div className="obs">“{i.notes}”</div>}
+              {i.notes && (
+                <div className="obs">
+                  <MessageSquareText className="icon" aria-hidden />“{i.notes}”
+                </div>
+              )}
             </div>
           );
         })}
@@ -172,26 +310,24 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
         <div className="ticket-actions">
           {t.status === 'received' && (
             <>
-              <Button variant="primary" busy={busy} onClick={() => move('preparing')}>
+              <Button variant="primary" className="act-main" busy={busy} icon={Flame} onClick={() => move('preparing')}>
                 Iniciar preparo
               </Button>
-              <Button variant="success" busy={busy} onClick={() => move('ready')}>
+              <Button variant="ghost" className="act-side" busy={busy} onClick={() => move('ready')} title="Marcar pronto sem passar por “em preparo”">
                 Pronto
               </Button>
             </>
           )}
           {t.status === 'preparing' && (
             <>
-              <Button busy={busy} onClick={() => move('received')} aria-label="Voltar para recebido">
-                ↩
-              </Button>
-              <Button variant="success" busy={busy} onClick={() => move('ready')}>
+              <Button className="act-side" busy={busy} icon={Undo2} onClick={() => move('received')} aria-label="Voltar para recebido" title="Voltar para recebido" />
+              <Button variant="success" className="act-main" busy={busy} icon={Check} onClick={() => move('ready')}>
                 Pronto
               </Button>
             </>
           )}
           {t.status === 'ready' && (
-            <Button busy={busy} onClick={() => move('preparing')}>
+            <Button variant="ghost" size="sm" className="act-main" busy={busy} icon={Undo2} onClick={() => move('preparing')}>
               Desfazer “pronto”
             </Button>
           )}

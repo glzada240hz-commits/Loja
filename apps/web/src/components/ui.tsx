@@ -10,8 +10,11 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react';
+import { AlertTriangle, CheckCircle2, Info, Inbox, Minus, Plus, X, XCircle, type LucideIcon } from 'lucide-react';
 import { formatBRL, parseBRL } from '@guto/core';
 import { ApiError } from '../lib/api';
+
+export type { LucideIcon };
 
 // ---------------- Botão ----------------
 
@@ -20,14 +23,36 @@ type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: 'sm' | 'lg';
   block?: boolean;
   busy?: boolean;
+  /** ícone à esquerda do texto (ou sozinho, com aria-label) */
+  icon?: LucideIcon;
+  /** atalho de teclado exibido no botão (ex.: "F4") */
+  kbd?: string;
 };
-export function Button({ variant, size, block, busy, className, children, disabled, ...rest }: BtnProps) {
-  const cls = ['btn', variant, size, block && 'block', className].filter(Boolean).join(' ');
+export function Button({ variant, size, block, busy, className, children, disabled, icon: Ico, kbd, ...rest }: BtnProps) {
+  const iconOnly = !!Ico && (children == null || children === false);
+  const cls = ['btn', variant, size, block && 'block', iconOnly && 'icon-only', className].filter(Boolean).join(' ');
   return (
     <button type="button" className={cls} disabled={disabled || busy} aria-busy={busy || undefined} {...rest}>
-      {busy && <span className="spin" aria-hidden />}
+      {busy ? <span className="spin" aria-hidden /> : Ico && <Ico className="icon" aria-hidden />}
       {children}
+      {kbd && (
+        <span className="kbd" aria-hidden>
+          {kbd}
+        </span>
+      )}
     </button>
+  );
+}
+
+/** Aviso dentro da página, sempre com ícone + texto (não depende só de cor). */
+export function Alert({ kind = 'info', icon, children, action, role }: { kind?: 'info' | 'warn' | 'error' | 'ok' | 'bill'; icon?: LucideIcon; children: ReactNode; action?: ReactNode; role?: string }) {
+  const Ico = icon ?? (kind === 'ok' ? CheckCircle2 : kind === 'error' ? XCircle : kind === 'warn' ? AlertTriangle : Info);
+  return (
+    <div className={'alert ' + kind} role={role ?? (kind === 'error' ? 'alert' : undefined)}>
+      <Ico className="icon" aria-hidden />
+      <div className="alert-body">{children}</div>
+      {action}
+    </div>
   );
 }
 
@@ -95,11 +120,11 @@ export function Stepper({ value, min = 0, max = 99, onChange, label }: { value: 
   return (
     <span className="stepper" role="group" aria-label={label}>
       <button type="button" aria-label={`Diminuir ${label}`} disabled={value <= min} onClick={() => onChange(value - 1)}>
-        −
+        <Minus size={18} aria-hidden />
       </button>
       <output aria-live="polite">{value}</output>
       <button type="button" aria-label={`Aumentar ${label}`} disabled={value >= max} onClick={() => onChange(value + 1)}>
-        +
+        <Plus size={18} aria-hidden />
       </button>
     </span>
   );
@@ -128,8 +153,11 @@ export function Modal({
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    const first = ref.current?.querySelector<HTMLElement>('input, select, textarea, button:not([data-close])');
-    first?.focus();
+    // no celular/tablet não foca campo de texto ao abrir: o teclado cobriria o conteúdo e os botões
+    const touch = window.matchMedia?.('(pointer: coarse)').matches;
+    const first = touch ? null : ref.current?.querySelector<HTMLElement>('input, select, textarea, button:not([data-close])');
+    if (first) first.focus();
+    else ref.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -141,11 +169,11 @@ export function Modal({
   }, [onClose]);
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={'modal' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-labelledby={id} ref={ref}>
+      <div className={'modal' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-labelledby={id} ref={ref} tabIndex={-1} style={{ outline: 'none' }}>
         <div className="modal-head">
           <h2 id={id}>{title}</h2>
-          <button type="button" className="btn ghost sm" onClick={onClose} aria-label="Fechar" data-close>
-            ✕
+          <button type="button" className="btn ghost sm icon-only" onClick={onClose} aria-label="Fechar" data-close>
+            <X className="icon" aria-hidden />
           </button>
         </div>
         <div className="modal-body">{children}</div>
@@ -201,9 +229,10 @@ export function UiProvider({ children }: { children: ReactNode }) {
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={'toast ' + t.kind}>
+            {t.kind === 'ok' ? <CheckCircle2 className="icon" aria-hidden /> : t.kind === 'error' ? <XCircle className="icon" aria-hidden /> : <Info className="icon" aria-hidden />}
             <span>{t.text}</span>
             <button type="button" aria-label="Fechar aviso" onClick={() => setToasts((x) => x.filter((y) => y.id !== t.id))}>
-              ×
+              <X size={16} aria-hidden />
             </button>
           </div>
         ))}
@@ -246,7 +275,7 @@ function ConfirmDialog({ title, message, confirmLabel, danger, reasonLabel, onDo
       footer={
         <>
           <Button onClick={() => onDone(null)}>Voltar</Button>
-          <Button variant={danger ? 'danger' : 'primary'} disabled={!ok} onClick={() => onDone(reasonLabel ? reason.trim() : true)}>
+          <Button variant={danger ? 'danger' : 'primary'} className={danger ? 'solid' : undefined} disabled={!ok} onClick={() => onDone(reasonLabel ? reason.trim() : true)}>
             {confirmLabel ?? 'Confirmar'}
           </Button>
         </>
@@ -285,7 +314,7 @@ function SupervisorDialog({ message, onDone }: { message: string; onDone: (v: { 
           if (username && password) onDone({ username, password });
         }}
       >
-        <div className="alert warn">{message}</div>
+        <Alert kind="warn">{message}</Alert>
         <Field label="Usuário do gerente">
           <input value={username} onChange={(e) => setU(e.target.value)} autoComplete="off" autoCapitalize="none" />
         </Field>
@@ -359,20 +388,25 @@ export function Loading({ text = 'Carregando…' }: { text?: string }) {
 
 export function ErrorBox({ error, retry }: { error: unknown; retry?: () => void }) {
   return (
-    <div className="alert error" role="alert">
-      {error instanceof Error ? error.message : 'Não foi possível carregar.'}{' '}
-      {retry && (
-        <Button size="sm" onClick={retry}>
-          Tentar de novo
-        </Button>
-      )}
-    </div>
+    <Alert
+      kind="error"
+      action={
+        retry && (
+          <Button size="sm" onClick={retry}>
+            Tentar de novo
+          </Button>
+        )
+      }
+    >
+      <b>Não foi possível carregar.</b> {error instanceof Error ? error.message : ''}
+    </Alert>
   );
 }
 
-export function Empty({ title, children }: { title: string; children?: ReactNode }) {
+export function Empty({ title, children, icon: Ico = Inbox, compact }: { title: string; children?: ReactNode; icon?: LucideIcon; compact?: boolean }) {
   return (
-    <div className="empty">
+    <div className={'empty' + (compact ? ' compact' : '')}>
+      <Ico className="icon" aria-hidden />
       <strong>{title}</strong>
       {children}
     </div>
@@ -391,14 +425,57 @@ export function Tabs<T extends string>({ value, onChange, tabs }: { value: T; on
   );
 }
 
-export function Chips<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: { id: T; label: ReactNode }[]; label: string }) {
+export function Chips<T extends string>({ value, onChange, options, label, scroll }: { value: T; onChange: (v: T) => void; options: { id: T; label: ReactNode }[]; label: string; scroll?: boolean }) {
   return (
-    <div className="chips" role="group" aria-label={label}>
+    <div className={'chips' + (scroll ? ' scroll' : '')} role="group" aria-label={label}>
       {options.map((o) => (
         <button key={o.id} type="button" className="chip" aria-pressed={value === o.id} onClick={() => onChange(o.id)}>
           {o.label}
         </button>
       ))}
     </div>
+  );
+}
+
+/** Grupo de opções exclusivas com aparência de controle segmentado. */
+export function Segmented<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: { id: T; label: ReactNode; icon?: LucideIcon }[]; label: string }) {
+  return (
+    <div className="segmented" role="group" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.id} type="button" aria-pressed={value === o.id} onClick={() => onChange(o.id)}>
+          {o.icon && <o.icon className="icon" aria-hidden />}
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Menu "mais ações": tira do caminho ações raras ou destrutivas sem escondê-las. */
+export function MoreMenu({ label = 'Mais ações', children, up = true }: { label?: string; children: ReactNode; up?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <span className="menu-pop" ref={ref}>
+      <Button aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {label}
+      </Button>
+      {open && (
+        <span className={'menu-list' + (up ? '' : ' down')} role="menu" onClick={() => setOpen(false)}>
+          {children}
+        </span>
+      )}
+    </span>
   );
 }

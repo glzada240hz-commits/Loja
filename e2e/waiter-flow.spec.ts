@@ -44,15 +44,16 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
   test('atendente lança o pedido no celular; caixa e cozinha recebem sem recarregar', async () => {
     await atendente.getByRole('button', { name: /^Mesa 8/ }).click();
     await expect(atendente.getByText('Novo pedido')).toBeVisible();
-    await atendente.getByRole('button', { name: '+ Adicionar produtos' }).click();
+    await atendente.getByRole('button', { name: 'Adicionar produtos' }).click();
     await atendente.getByRole('button', { name: 'X-Bacon', exact: true }).click();
     await atendente.getByRole('button', { name: 'Aumentar Cheddar' }).click();
     await atendente.getByLabel('Sem cebola').check();
     await atendente.getByLabel('Observação do item').fill('bem passado');
     await atendente.getByRole('button', { name: /^Adicionar · R\$ 22,90/ }).click();
-    await atendente.getByRole('button', { name: '+ Adicionar produtos' }).click();
+    await atendente.getByRole('button', { name: 'Adicionar produtos' }).click();
+    // bebida sem adicionais entra no rascunho com um toque; o seletor continua aberto
     await atendente.getByRole('button', { name: 'Refrigerante lata', exact: true }).click();
-    await atendente.getByRole('button', { name: /^Adicionar/ }).click();
+    await atendente.getByRole('button', { name: /^Concluir · 2 no rascunho/ }).click();
     await expect(atendente.getByText('“bem passado”')).toBeVisible();
     await atendente.getByRole('button', { name: 'Conferir e enviar (2)' }).click();
     await shot(atendente, 'w01-atendente-conferir');
@@ -65,7 +66,7 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
     // caixa: chega sozinho, com responsável, valor e andamento
     const tile = caixa.getByRole('button', { name: /^Mesa 8, pedido/ });
     await expect(tile).toBeVisible();
-    await expect(tile).toContainText('Atendente Ana (demo)');
+    await expect(tile).toContainText('Atendente Ana');
     await expect(tile).toContainText('R$ 28,90');
     await expect(tile).toContainText('1 enviado');
     // cozinha: mesa, atendente, adicionais e observação em destaque
@@ -80,10 +81,10 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
 
   test('acréscimo vira nova rodada só com os itens novos', async () => {
     await cozinha.locator('article', { hasText: 'Mesa 8' }).getByRole('button', { name: 'Iniciar preparo' }).click();
-    await atendente.getByRole('button', { name: '+ Adicionar produtos' }).click();
+    await atendente.getByRole('button', { name: 'Adicionar produtos' }).click();
     await atendente.getByRole('button', { name: 'Batata frita', exact: true }).click();
     await atendente.getByLabel('Observação do item').fill('bem crocante');
-    await atendente.getByRole('button', { name: /^Adicionar/ }).click();
+    await atendente.getByRole('button', { name: /^Adicionar · / }).click();
     await atendente.getByRole('button', { name: 'Conferir e enviar (1)' }).click();
     await atendente.getByRole('button', { name: 'Enviar para a cozinha' }).click();
     await expect(atendente.getByText(/rodada 2/)).toBeVisible();
@@ -139,9 +140,9 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
   test('queda de conexão: o pedido não aparece como enviado; reenvio sem duplicar; caixa é avisado', async () => {
     await atendente.goto('/atendente');
     await atendente.getByRole('button', { name: /^Mesa 9/ }).click();
-    await atendente.getByRole('button', { name: '+ Adicionar produtos' }).click();
+    await atendente.getByRole('button', { name: 'Adicionar produtos' }).click();
     await atendente.getByRole('button', { name: 'X-Burguer', exact: true }).click();
-    await atendente.getByRole('button', { name: /^Adicionar/ }).click();
+    await atendente.getByRole('button', { name: /^Adicionar · / }).click();
     await atendenteCtx.setOffline(true);
     await expect(atendente.getByRole('alert').filter({ hasText: 'Sem conexão' })).toBeVisible();
     await atendente.getByRole('button', { name: 'Conferir e enviar (1)' }).click();
@@ -174,9 +175,9 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
       await route.fetch();
       await route.abort('connectionreset');
     });
-    await atendente.getByRole('button', { name: '+ Adicionar produtos' }).click();
+    await atendente.getByRole('button', { name: 'Adicionar produtos' }).click();
     await atendente.getByRole('button', { name: 'X-Tudo', exact: true }).click();
-    await atendente.getByRole('button', { name: /^Adicionar/ }).click();
+    await atendente.getByRole('button', { name: /^Adicionar · / }).click();
     await atendente.getByRole('button', { name: 'Conferir e enviar (1)' }).click();
     await atendente.getByRole('button', { name: 'Enviar para a cozinha' }).click();
     await expect(atendente.getByRole('dialog').getByText(/não recebemos a confirmação/)).toBeVisible();
@@ -190,9 +191,9 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
     await expect(cozinha.locator('article', { hasText: 'Mesa 9' })).toHaveCount(2);
 
     // toque repetido no envio normal
-    await atendente.getByRole('button', { name: '+ Adicionar produtos' }).click();
+    await atendente.getByRole('button', { name: 'Adicionar produtos' }).click();
     await atendente.getByRole('button', { name: 'X-Egg Burguer', exact: true }).click();
-    await atendente.getByRole('button', { name: /^Adicionar/ }).click();
+    await atendente.getByRole('button', { name: /^Adicionar · / }).click();
     await atendente.getByRole('button', { name: 'Conferir e enviar (1)' }).click();
     const send = atendente.getByRole('button', { name: 'Enviar para a cozinha' });
     await send.dblclick();

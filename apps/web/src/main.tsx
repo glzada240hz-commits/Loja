@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { AuthProvider } from './lib/auth';
 import { UiProvider } from './components/ui';
+import '@fontsource-variable/inter';
 import './styles.css';
 
 const qc = new QueryClient({
@@ -33,7 +34,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   void import('virtual:pwa-register').then(({ registerSW }) => {
     const update = registerSW({
       onNeedRefresh() {
-        if (confirm('Nova versão do sistema disponível. Atualizar agora?')) void update(true);
+        // aviso discreto (UpdateBanner); não interrompe quem está lançando um pedido
+        window.dispatchEvent(new CustomEvent('guto:update', { detail: () => void update(true) }));
       },
     });
   });

@@ -1,17 +1,38 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatBRL, placeLabel, unitTotal } from '@guto/core';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  ChefHat,
+  Clock,
+  CloudOff,
+  Flame,
+  Hash,
+  LogOut,
+  Plus,
+  ReceiptText,
+  RotateCcw,
+  Search,
+  Send,
+  UserRound,
+  Utensils,
+  WifiOff,
+  X,
+} from 'lucide-react';
+import { formatBRL, placeLabel, searchFilter, unitTotal } from '@guto/core';
 import { ConnectionPill } from '../../components/Layout';
 import { Logo } from '../../components/Logo';
 import { lineToItemInput, lineTotal, ProductDialog } from '../../components/ProductDialog';
-import { Button, Chips, Empty, ErrorBox, Field, Loading, Modal, Stepper, useAction, useUi } from '../../components/ui';
+import { Alert, Button, Empty, ErrorBox, Loading, Modal, Segmented, Stepper, useAction, useUi } from '../../components/ui';
 import { ApiError, get, newIdemKey, post, qs } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { formatTime, minutesSince } from '../../lib/format';
+import { elapsedLabel, formatTime, shortName } from '../../lib/format';
 import { useConnection } from '../../lib/live';
 import { useDay, useMenu, useOrder, useSettings } from '../../lib/queries';
-import type { CartLine, MenuProduct, Order, OrderRow, Ticket } from '../../lib/types';
+import type { CartLine, MenuProduct, Order, OrderItem, OrderRow, Ticket } from '../../lib/types';
 import { moveDraft, useDraft } from './draft';
 
 /** App do atendente (PWA para celular/tablet). Mesmo servidor e banco do caixa e da cozinha. */
@@ -25,7 +46,7 @@ export default function Waiter() {
   );
 }
 
-function Shell({ title, back, children, foot }: { title: ReactNode; back?: string; children: ReactNode; foot?: ReactNode }) {
+function Shell({ title, subtitle, back, children, foot }: { title: ReactNode; subtitle?: ReactNode; back?: string; children: ReactNode; foot?: ReactNode }) {
   const { me, logout } = useAuth();
   const conn = useConnection();
   return (
@@ -33,25 +54,25 @@ function Shell({ title, back, children, foot }: { title: ReactNode; back?: strin
       <header className="waiter-head">
         {back ? (
           <Link to={back} className="waiter-back" aria-label="Voltar">
-            ←
+            <ArrowLeft size={24} aria-hidden />
           </Link>
         ) : (
-          <Logo size={28} />
+          <Logo size={30} />
         )}
         <div className="waiter-title">
           <b>{title}</b>
-          <small>{me?.name}</small>
+          <small>{subtitle ?? me?.name}</small>
         </div>
         <ConnectionPill />
         {!back && (
-          <button type="button" className="waiter-logout" onClick={() => void logout()}>
-            Sair
+          <button type="button" className="waiter-logout" onClick={() => void logout()} aria-label="Sair" title="Sair">
+            <LogOut size={20} aria-hidden />
           </button>
         )}
       </header>
       {conn === 'offline' && (
         <div className="offline-banner" role="alert">
-          Sem conexão. Nada é enviado à cozinha até a conexão voltar. Seu rascunho fica guardado neste aparelho.
+          <WifiOff size={18} aria-hidden /> Sem conexão. Nada é enviado à cozinha até a conexão voltar. Seu rascunho fica guardado neste aparelho.
         </div>
       )}
       <main className="waiter-body">{children}</main>
@@ -62,14 +83,17 @@ function Shell({ title, back, children, foot }: { title: ReactNode; back?: strin
 
 // ---------------------------------------------------------------- mesas e comandas
 
-function roundState(r: OrderRow['rounds']) {
-  if (!r) return null;
-  if (r.ready > 0) return <span className="badge green pulse">Pronto p/ servir</span>;
-  if (r.preparing > 0) return <span className="badge yellow">Em preparo</span>;
-  if (r.received > 0) return <span className="badge blue">Enviado</span>;
-  if (r.served > 0) return <span className="badge dark">Entregue</span>;
-  return null;
-}
+const tileState = (o: OrderRow) => (o.billRequestedAt ? 'bill' : o.rounds?.ready ? 'ready' : 'busy');
+const stateText = (o: OrderRow) => {
+  const r = o.rounds;
+  if (o.billRequestedAt) return 'Conta pedida';
+  if (!r) return 'Aberta';
+  if (r.ready > 0) return 'Pronto p/ servir';
+  if (r.preparing > 0) return 'Em preparo';
+  if (r.received > 0) return 'Enviado';
+  if (r.served > 0) return 'Entregue';
+  return 'Aberta';
+};
 
 function Home() {
   const { me } = useAuth();
@@ -84,58 +108,105 @@ function Home() {
     enabled: !!day.data?.day,
     refetchInterval: 30000,
   });
-  if (day.isLoading || settings.isLoading) return <Shell title="Atendimento"><Loading /></Shell>;
-  if (!day.data?.day) return <Shell title="Atendimento"><Empty title="O dia operacional ainda não foi aberto">Peça ao caixa para abrir o dia.</Empty></Shell>;
   const open = list.data ?? [];
+  const mine = open.filter((o) => o.createdByName === me?.name);
+  const readyMine = mine.filter((o) => (o.rounds?.ready ?? 0) > 0);
+  // aviso discreto: vibra quando surge item pronto numa mesa minha
+  const lastReady = useRef<number | null>(null);
+  useEffect(() => {
+    const n = readyMine.reduce((a, o) => a + (o.rounds?.ready ?? 0), 0);
+    if (lastReady.current != null && n > lastReady.current) navigator.vibrate?.([80, 60, 80]);
+    lastReady.current = n;
+  }, [readyMine]);
+
+  if (day.isLoading || settings.isLoading) return <Shell title="Atendimento"><Loading /></Shell>;
+  if (!day.data?.day)
+    return (
+      <Shell title="Atendimento">
+        <Empty icon={Clock} title="O dia operacional ainda não foi aberto">
+          <span>Peça ao caixa para abrir o dia.</span>
+        </Empty>
+      </Shell>
+    );
   const tables: string[] = settings.data?.tables ?? [];
   const tabs = open.filter((o) => o.tabKind === 'tab');
-  const mine = open.filter((o) => o.createdByName === me?.name);
-  const tile = (o: OrderRow | undefined, label: string, onClick: () => void) => (
-    <button key={label} type="button" className={'table-tile' + (o ? (o.rounds?.ready ? ' ready' : ' busy') : '')} onClick={onClick}>
-      <span className="tnum">{label}</span>
-      {o ? (
-        <>
-          <span>
-            #{o.number} · {minutesSince(o.createdAt)} min
-          </span>
-          <b>{formatBRL(o.totalCents)}</b>
-          <small>{o.createdByName ?? '—'}</small>
-          <span className="hstack">
-            {roundState(o.rounds)}
-            {o.billRequestedAt && <span className="badge red">Conta pedida</span>}
-          </span>
-        </>
-      ) : (
-        <span className="muted">Livre</span>
-      )}
-    </button>
-  );
+  const busyTables = open.filter((o) => o.tabKind === 'table').length;
+
+  const tile = (o: OrderRow | undefined, kind: 'table' | 'tab', label: string, onClick: () => void) => {
+    const name = `${kind === 'tab' ? 'Comanda' : 'Mesa'} ${label}`;
+    if (!o)
+      return (
+        <button key={name} type="button" className="wtile free" onClick={onClick} aria-label={`${name}, livre`}>
+          <span className="wkind">{kind === 'tab' ? 'Comanda' : 'Mesa'}</span>
+          <span className="wnum">{label}</span>
+          <span className="wmeta muted">Livre</span>
+        </button>
+      );
+    const st = tileState(o);
+    const Ico = st === 'bill' ? ReceiptText : st === 'ready' ? CheckCircle2 : Utensils;
+    return (
+      <button
+        key={name + o.id}
+        type="button"
+        className={`wtile ${st}${o.createdByName === me?.name ? ' mine' : ''}`}
+        onClick={onClick}
+        aria-label={`${name}, ${stateText(o)}, ${formatBRL(o.totalCents)}, ${o.createdByName ?? ''}`}
+      >
+        <span className="wstate">
+          <Ico className="icon" aria-hidden />
+        </span>
+        <span className="wkind">
+          {kind === 'tab' ? 'Comanda' : 'Mesa'} · {elapsedLabel(o.createdAt)}
+        </span>
+        <span className="wnum">{label}</span>
+        <span className="wamount">{formatBRL(o.totalCents)}</span>
+        <span className="wmeta">{stateText(o)}</span>
+        <span className="wmeta muted">{shortName(o.createdByName)}</span>
+      </button>
+    );
+  };
+  const goOrder = (o: OrderRow) => nav(`/atendente/pedido/${o.id}`);
+
   return (
     <Shell title="Atendimento">
-      <Chips
-        label="Mostrar"
-        value={tab}
-        onChange={setTab}
-        options={[
-          { id: 'table', label: `Mesas (${open.filter((o) => o.tabKind === 'table').length}/${tables.length})` },
-          { id: 'tab', label: `Comandas (${tabs.length})` },
-          { id: 'mine', label: `Meus (${mine.length})` },
-        ]}
-      />
-      <div style={{ height: 12 }} />
+      <div className="waiter-tabs">
+        <Segmented
+          label="Mostrar"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { id: 'table', label: `Mesas ${busyTables}/${tables.length}` },
+            { id: 'tab', label: `Comandas ${tabs.length}` },
+            { id: 'mine', label: `Minhas ${mine.length}` },
+          ]}
+        />
+      </div>
       {list.error && <ErrorBox error={list.error} retry={() => list.refetch()} />}
+      {readyMine.length > 0 && (
+        <Alert kind="ok" icon={ChefHat} role="status">
+          <b>Pronto para servir:</b>{' '}
+          <span className="hstack" style={{ display: 'inline-flex', marginTop: 4 }}>
+            {readyMine.map((o) => (
+              <Button key={o.id} size="sm" onClick={() => goOrder(o)}>
+                {placeLabel(o)}
+              </Button>
+            ))}
+          </span>
+        </Alert>
+      )}
       {tab === 'table' && (
-        <div className="tables-grid">
+        <div className="waiter-grid">
           {tables.map((t) => {
             const o = open.find((x) => x.tabKind === 'table' && x.tableLabel === t);
-            return tile(o, `Mesa ${t}`, () => nav(o ? `/atendente/pedido/${o.id}` : `/atendente/nova/table/${encodeURIComponent(t)}`));
+            return tile(o, 'table', t, () => (o ? goOrder(o) : nav(`/atendente/nova/table/${encodeURIComponent(t)}`)));
           })}
         </div>
       )}
       {tab === 'tab' && (
         <>
           <form
-            className="row"
+            className="hstack"
+            style={{ marginBottom: 12, flexWrap: 'nowrap', alignItems: 'flex-end' }}
             onSubmit={(e) => {
               e.preventDefault();
               const label = newTab.trim();
@@ -144,23 +215,29 @@ function Home() {
               nav(o ? `/atendente/pedido/${o.id}` : `/atendente/nova/tab/${encodeURIComponent(label)}`);
             }}
           >
-            <Field label="Número da comanda">
-              <input inputMode="numeric" value={newTab} onChange={(e) => setNewTab(e.target.value.slice(0, 20))} placeholder="ex.: 15" />
-            </Field>
-            <Button className="shrink" type="submit" variant="primary" disabled={!newTab.trim()}>
+            <label className="field" style={{ flex: 1, margin: 0 }}>
+              <span>Número da comanda</span>
+              <input inputMode="numeric" enterKeyHint="go" value={newTab} onChange={(e) => setNewTab(e.target.value.slice(0, 20))} placeholder="ex.: 15" />
+            </label>
+            <Button type="submit" variant="primary" icon={Hash} disabled={!newTab.trim()}>
               Abrir
             </Button>
           </form>
-          {tabs.length === 0 && <Empty title="Nenhuma comanda aberta" />}
-          <div className="tables-grid">{tabs.map((o) => tile(o, `Comanda ${o.tableLabel}`, () => nav(`/atendente/pedido/${o.id}`)))}</div>
+          {tabs.length === 0 ? (
+            <Empty compact icon={Hash} title="Nenhuma comanda aberta">
+              <span>Digite o número da comanda e toque em Abrir.</span>
+            </Empty>
+          ) : (
+            <div className="waiter-grid">{tabs.map((o) => tile(o, 'tab', o.tableLabel ?? '?', () => goOrder(o)))}</div>
+          )}
         </>
       )}
-      {tab === 'mine' && (
-        <>
-          {mine.length === 0 && <Empty title="Você ainda não abriu mesas hoje" />}
-          <div className="tables-grid">{mine.map((o) => tile(o, placeLabel(o), () => nav(`/atendente/pedido/${o.id}`)))}</div>
-        </>
-      )}
+      {tab === 'mine' &&
+        (mine.length === 0 ? (
+          <Empty compact icon={UserRound} title="Você ainda não abriu mesas hoje" />
+        ) : (
+          <div className="waiter-grid">{mine.map((o) => tile(o, o.tabKind, o.tableLabel ?? '?', () => goOrder(o)))}</div>
+        ))}
     </Shell>
   );
 }
@@ -169,14 +246,49 @@ function Home() {
 
 const ROUND_LABEL = (t: Ticket) =>
   t.servedAt ? (
-    <span className="badge dark">Entregue {formatTime(t.servedAt)}</span>
+    <span className="badge">
+      <Check className="icon" aria-hidden />
+      Entregue {formatTime(t.servedAt)}
+    </span>
   ) : t.status === 'ready' ? (
-    <span className="badge green pulse">Pronto</span>
+    <span className="badge green pulse">
+      <CheckCircle2 className="icon" aria-hidden />
+      Pronto
+    </span>
   ) : t.status === 'preparing' ? (
-    <span className="badge yellow">Em preparo</span>
+    <span className="badge yellow">
+      <Flame className="icon" aria-hidden />
+      Em preparo
+    </span>
   ) : (
-    <span className="badge blue">Enviado · aguardando cozinha</span>
+    <span className="badge blue">
+      <Send className="icon" aria-hidden />
+      Enviado · aguardando cozinha
+    </span>
   );
+
+/** Reconstrói um item já enviado como linha de rascunho (para "repetir"), usando o cardápio ATUAL. */
+function lineFromItem(i: OrderItem, products: MenuProduct[]): CartLine | null {
+  const p = products.find((x) => x.name === i.productName);
+  const v = p?.variants.find((x) => (i.variantName ? x.name === i.variantName : true));
+  if (!p || !v || !p.available || !v.available) return null;
+  const opts = p.groups.flatMap((g) => g.options);
+  const options = i.options.map((o) => {
+    const m = opts.find((x) => x.name === o.optionName);
+    return m && m.available ? { optionId: m.id, name: m.name, priceCents: m.priceCents, quantity: o.quantity } : null;
+  });
+  if (options.some((x) => !x)) return null;
+  return {
+    key: Math.random().toString(36).slice(2),
+    variantId: v.id,
+    productName: p.name,
+    variantName: v.name === 'Único' ? null : v.name,
+    unitPriceCents: v.priceCents,
+    options: options as CartLine['options'],
+    quantity: 1,
+    notes: i.notes ?? '',
+  };
+}
 
 function OrderScreen() {
   const params = useParams();
@@ -199,10 +311,17 @@ function OrderScreen() {
 
   const products = useMemo(() => (menu.data ?? []).flatMap((c) => c.products), [menu.data]);
   const o = order.data;
-  const title = o ? `${o.place} · #${o.number}` : placeLabel({ type: 'table', tabKind: kind, tableLabel: label });
+  const title = o ? o.place : placeLabel({ type: 'table', tabKind: kind, tableLabel: label });
+  const subtitle = o ? `Pedido #${o.number} · ${shortName(o.createdByName)} · ${elapsedLabel(o.createdAt)}` : 'Novo atendimento';
   const draftTotal = draft.lines.reduce((a, l) => a + lineTotal(l), 0);
   const draftCount = draft.lines.reduce((a, l) => a + l.quantity, 0);
   const locked = draft.state !== 'editing';
+
+  const addLine = (line: CartLine) =>
+    editLines((ls) => {
+      const same = ls.find((x) => x.variantId === line.variantId && !x.notes && !line.notes && x.options.length === 0 && line.options.length === 0);
+      return same ? ls.map((x) => (x === same ? { ...x, quantity: Math.min(99, x.quantity + line.quantity) } : x)) : [...ls, line];
+    });
 
   async function send() {
     if (draft.state === 'sending' || !draft.lines.length) return;
@@ -220,6 +339,7 @@ function OrderScreen() {
       setReview(false);
       const conf = { at: new Date().toISOString(), round, count: draftCount };
       setConfirmed(conf);
+      navigator.vibrate?.(40);
       qc.setQueryData(['order', fresh.id], fresh);
       void qc.invalidateQueries({ queryKey: ['tables'] });
       if (!orderId) nav(`/atendente/pedido/${fresh.id}`, { replace: true, state: { confirmed: conf } });
@@ -265,24 +385,46 @@ function OrderScreen() {
     await action.go(async (sup) => qc.setQueryData(['order', o.id], await post(`/api/orders/${o.id}/items/${itemId}/cancel`, { version: o.version, reason, supervisor: sup })), { success: 'Item cancelado' });
   };
 
+  const repeat = (i: OrderItem) => {
+    const line = lineFromItem(i, products);
+    if (!line) return ui.toast(`${i.productName} não está disponível agora no cardápio.`, 'error');
+    addLine(line);
+    ui.toast(`+1 ${i.productName} no rascunho`, 'ok');
+  };
+
   if (orderId && order.isLoading) return <Shell title="Carregando…" back="/atendente"><Loading /></Shell>;
   if (orderId && order.error) return <Shell title="Pedido" back="/atendente"><ErrorBox error={order.error} retry={() => order.refetch()} /></Shell>;
   const closed = o && o.status !== 'open' && o.status !== 'pending';
   const noKitchen = o?.items.filter((i) => i.sentAt && !i.ticketId) ?? [];
+  const canRepeat = !closed && !locked;
+
+  const RepeatBtn = ({ i }: { i: OrderItem }) =>
+    canRepeat && i.status === 'active' ? (
+      <Button size="sm" variant="ghost" icon={RotateCcw} aria-label={`Repetir ${i.productName}`} title="Adicionar mais um ao rascunho" onClick={() => repeat(i)} />
+    ) : null;
 
   return (
     <Shell
       title={title}
+      subtitle={subtitle}
       back="/atendente"
       foot={
         !closed && (
           <>
             {o && o.status === 'open' && (
-              <Button onClick={requestBill} disabled={!!o.billRequestedAt || action.busy}>
+              <Button icon={ReceiptText} onClick={requestBill} disabled={!!o.billRequestedAt || action.busy}>
                 {o.billRequestedAt ? 'Conta pedida' : 'Pedir a conta'}
               </Button>
             )}
-            <Button variant="primary" size="lg" style={{ flex: 1 }} disabled={!draft.lines.length || draft.state === 'sending'} onClick={() => setReview(true)}>
+            <Button
+              variant={draft.state === 'unconfirmed' ? 'danger' : 'primary'}
+              className={draft.state === 'unconfirmed' ? 'solid' : undefined}
+              size="lg"
+              icon={draft.state === 'unconfirmed' ? CloudOff : Send}
+              style={{ flex: 1 }}
+              disabled={!draft.lines.length || draft.state === 'sending'}
+              onClick={() => setReview(true)}
+            >
               {draft.state === 'unconfirmed' ? 'Reenviar pedido' : `Conferir e enviar${draftCount ? ` (${draftCount})` : ''}`}
             </Button>
           </>
@@ -290,51 +432,66 @@ function OrderScreen() {
       }
     >
       {o && (
-        <div className="hstack" style={{ marginBottom: 8 }}>
-          <small className="muted">
-            Aberta por <b>{o.createdByName}</b> às {formatTime(o.createdAt)}
-          </small>
-          <span className="spacer" />
-          <b>Total {formatBRL(o.totalCents)}</b>
+        <div className="hstack" style={{ marginBottom: 10, justifyContent: 'space-between' }}>
+          <small className="muted">Aberta às {formatTime(o.createdAt)}</small>
+          <span>
+            <small className="muted">Total </small>
+            <b className="money" style={{ fontSize: '1.15rem' }}>{formatBRL(o.totalCents)}</b>
+          </span>
         </div>
       )}
-      {closed && <div className="alert info">Este pedido está {o!.status === 'closed' ? 'finalizado' : 'cancelado'}.</div>}
-      {o?.billRequestedAt && <div className="alert warn">Conta pedida ao caixa às {formatTime(o.billRequestedAt)}{o.billRequestedByName ? ` por ${o.billRequestedByName}` : ''}.</div>}
+      {closed && <Alert kind="info">Este pedido está {o!.status === 'closed' ? 'finalizado' : 'cancelado'}.</Alert>}
+      {o?.billRequestedAt && (
+        <Alert kind="bill" icon={ReceiptText}>
+          Conta pedida ao caixa às {formatTime(o.billRequestedAt)}
+          {o.billRequestedByName ? ` por ${o.billRequestedByName}` : ''}.
+        </Alert>
+      )}
 
       {draft.state === 'sending' && (
         <div className="send-banner sending" role="status">
-          <span className="spin" aria-hidden /> Enviando para o servidor… não feche o app.
+          <span className="spin" aria-hidden /> <div>Enviando para o servidor… não feche o app.</div>
         </div>
       )}
       {draft.state === 'unconfirmed' && (
         <div className="send-banner fail" role="alert">
-          <b>Envio não confirmado.</b> {draft.error}
-          <div style={{ marginTop: 8 }}>
-            <Button variant="danger" onClick={send}>
-              Reenviar agora
-            </Button>
+          <AlertTriangle className="icon" aria-hidden />
+          <div>
+            <b>Envio não confirmado.</b> {draft.error}
+            <div style={{ marginTop: 10 }}>
+              <Button variant="danger" className="solid" icon={RotateCcw} onClick={send}>
+                Reenviar agora
+              </Button>
+            </div>
           </div>
         </div>
       )}
       {draft.state === 'editing' && draft.error && (
         <div className="send-banner fail" role="alert">
-          <b>Não enviado:</b> {draft.error}
+          <AlertTriangle className="icon" aria-hidden />
+          <div>
+            <b>Não enviado:</b> {draft.error}
+          </div>
         </div>
       )}
       {confirmed && draft.state === 'editing' && !draft.error && (
         <div className="send-banner ok" role="status">
-          ✓ Recebido pelo servidor às {formatTime(confirmed.at)} — {confirmed.count} item(ns){confirmed.round ? ` na rodada ${confirmed.round}` : ''}. Já aparece no caixa
-          {confirmed.round ? ' e na cozinha' : ''}.
+          <CheckCircle2 className="icon" aria-hidden />
+          <div>
+            Recebido pelo servidor às {formatTime(confirmed.at)} — {confirmed.count} item(ns){confirmed.round ? ` na rodada ${confirmed.round}` : ''}. Já aparece no caixa
+            {confirmed.round ? ' e na cozinha' : ''}.
+          </div>
         </div>
       )}
 
-      <section aria-label="Novo pedido" className="card">
-        <div className="hstack">
+      <section aria-label="Novo pedido" className={'card draft-card' + (draft.lines.length ? ' has-items' : '')}>
+        <div className="hstack" style={{ marginBottom: 4 }}>
           <h2 style={{ margin: 0 }}>Novo pedido</h2>
+          {draft.lines.length > 0 && <span className="badge orange">rascunho · ainda não enviado</span>}
           <span className="spacer" />
-          {draft.lines.length > 0 && <b>{formatBRL(draftTotal)}</b>}
+          {draft.lines.length > 0 && <b className="money">{formatBRL(draftTotal)}</b>}
         </div>
-        {draft.lines.length === 0 && <p className="muted">Toque em “Adicionar produtos”. Os itens ficam guardados aqui até você enviar.</p>}
+        {draft.lines.length === 0 && <p className="muted" style={{ margin: '4px 0 0' }}>Os itens ficam guardados neste aparelho até você enviar.</p>}
         {locked && draft.state === 'unconfirmed' && <p className="muted">Rascunho travado até a confirmação do envio, para evitar pedido duplicado.</p>}
         {draft.lines.map((l) => (
           <div key={l.key} className="cart-item">
@@ -348,85 +505,100 @@ function OrderScreen() {
                 if (p) setEditing({ product: p, line: l });
               }}
             >
-              <b>
+              <span className="item-name">
                 {l.productName}
                 {l.variantName ? ` (${l.variantName})` : ''}
-              </b>
+              </span>
               {l.options.length > 0 && <div className="opts">{l.options.map((x) => (x.quantity > 1 ? `${x.quantity}x ` : '') + x.name).join(', ')}</div>}
               {l.notes && <div className="note">“{l.notes}”</div>}
             </button>
-            <span className="num">{formatBRL(lineTotal(l))}</span>
+            <span className="money" style={{ paddingTop: 10 }}>{formatBRL(lineTotal(l))}</span>
           </div>
         ))}
         {!closed && (
-          <Button block style={{ marginTop: 10 }} disabled={locked} onClick={() => setPicking(true)}>
-            + Adicionar produtos
+          <Button block icon={Plus} style={{ marginTop: 12 }} variant={draft.lines.length ? undefined : 'primary'} disabled={locked} onClick={() => setPicking(true)}>
+            Adicionar produtos
           </Button>
         )}
       </section>
 
       {o && o.tickets.length + noKitchen.length > 0 && (
-        <section aria-label="Já enviado" style={{ marginTop: 12 }}>
-          <h2>Já enviado</h2>
-          {o.tickets.map((t) => {
-            const its = o.items.filter((i) => i.ticketId === t.id);
-            return (
-              <div key={t.id} className={'card round-card' + (t.status === 'ready' && !t.servedAt ? ' ready' : '')}>
-                <div className="hstack">
-                  <b>Rodada {t.round}</b>
-                  <small className="muted">
-                    {formatTime(t.createdAt)} · {t.createdByName ?? '—'}
-                  </small>
-                  <span className="spacer" />
-                  {ROUND_LABEL(t)}
-                </div>
-                {t.changeNote && <div className="alert warn" style={{ margin: '6px 0' }}>Alteração: {t.changeNote}</div>}
-                {its.map((i) => (
-                  <div key={i.id} className={'order-line' + (i.status === 'cancelled' ? ' cancelled' : '')}>
-                    <div>
-                      <span className="name">
-                        <b>{i.quantity}x</b> {i.productName}
-                        {i.variantName ? ` (${i.variantName})` : ''}
+        <section aria-label="Já enviado" style={{ marginTop: 16 }}>
+          <h2 className="section-title">Já enviado</h2>
+          <div className="stack" style={{ gap: 10 }}>
+            {[...o.tickets].reverse().map((t) => {
+              const its = o.items.filter((i) => i.ticketId === t.id);
+              return (
+                <div key={t.id} className={'card round-card' + (t.status === 'ready' && !t.servedAt ? ' ready' : '')}>
+                  <div className="round-head">
+                    <b>Rodada {t.round}</b>
+                    <small className="muted">
+                      {formatTime(t.createdAt)} · {shortName(t.createdByName)}
+                    </small>
+                    <span className="spacer" />
+                    {ROUND_LABEL(t)}
+                  </div>
+                  {t.changeNote && <Alert kind="warn">Alteração: {t.changeNote}</Alert>}
+                  {its.map((i) => (
+                    <div key={i.id} className={'order-line' + (i.status === 'cancelled' ? ' cancelled' : '')}>
+                      <div>
+                        <span className="name">
+                          <b>{i.quantity}x</b> {i.productName}
+                          {i.variantName ? ` (${i.variantName})` : ''}
+                        </span>
+                        {i.options.length > 0 && (
+                          <div>
+                            <small className="muted">{i.options.map((x) => x.optionName).join(', ')}</small>
+                          </div>
+                        )}
+                        {i.notes && <div className="note-text">“{i.notes}”</div>}
+                        {i.status === 'cancelled' && <small className="muted">Cancelado: {i.cancelReason}</small>}
+                      </div>
+                      <span className="hstack" style={{ gap: 0, flexWrap: 'nowrap' }}>
+                        <RepeatBtn i={i} />
+                        {i.status === 'active' && !closed && !t.servedAt && (
+                          <Button size="sm" variant="ghost" icon={X} aria-label={`Cancelar ${i.productName}`} title="Cancelar item (exige gerente)" onClick={() => cancelSent(i.id, i.productName)} />
+                        )}
                       </span>
-                      {i.options.length > 0 && <div><small className="muted">{i.options.map((x) => x.optionName).join(', ')}</small></div>}
-                      {i.notes && <div style={{ color: 'var(--orange)', fontSize: '.85rem' }}>“{i.notes}”</div>}
-                      {i.status === 'cancelled' && <small className="muted">Cancelado: {i.cancelReason}</small>}
                     </div>
-                    {i.status === 'active' && !closed && !t.servedAt && (
-                      <button type="button" className="btn ghost sm" onClick={() => cancelSent(i.id, i.productName)}>
-                        Cancelar
-                      </button>
-                    )}
+                  ))}
+                  {t.status === 'ready' && !t.servedAt && (
+                    <Button variant="success" block size="lg" icon={Check} busy={action.busy} onClick={() => served(t)} style={{ marginTop: 8 }}>
+                      Entregue na mesa
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+            {noKitchen.length > 0 && (
+              <div className="card round-card">
+                <div className="round-head">
+                  <b>Sem preparo</b>
+                  <small className="muted">bebidas e outros · entregues direto</small>
+                </div>
+                {noKitchen.map((i) => (
+                  <div key={i.id} className={'order-line' + (i.status === 'cancelled' ? ' cancelled' : '')}>
+                    <span className="name">
+                      <b>{i.quantity}x</b> {i.productName}
+                      <div>
+                        <small className="muted">{shortName(i.createdByName)}</small>
+                      </div>
+                    </span>
+                    <RepeatBtn i={i} />
                   </div>
                 ))}
-                {t.status === 'ready' && !t.servedAt && (
-                  <Button variant="success" block busy={action.busy} onClick={() => served(t)} style={{ marginTop: 8 }}>
-                    Entregue na mesa
-                  </Button>
-                )}
               </div>
-            );
-          })}
-          {noKitchen.length > 0 && (
-            <div className="card round-card">
-              <b>Sem preparo (bebidas e outros)</b>
-              {noKitchen.map((i) => (
-                <div key={i.id} className={'order-line' + (i.status === 'cancelled' ? ' cancelled' : '')}>
-                  <span className="name">
-                    <b>{i.quantity}x</b> {i.productName}
-                  </span>
-                  <small className="muted">{i.createdByName}</small>
-                </div>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
         </section>
       )}
 
       {picking && (
         <ProductPicker
           products={products}
+          draftLines={draft.lines}
           onClose={() => setPicking(false)}
+          onQuickAdd={(line) => addLine(line)}
           onPick={(p) => {
             setPicking(false);
             setEditing({ product: p });
@@ -453,7 +625,7 @@ function OrderScreen() {
               <Button onClick={() => setReview(false)} disabled={draft.state === 'sending'}>
                 Voltar
               </Button>
-              <Button variant="success" size="lg" busy={draft.state === 'sending'} onClick={send}>
+              <Button variant="success" size="lg" icon={Send} busy={draft.state === 'sending'} onClick={send}>
                 {draft.state === 'sending' ? 'Enviando…' : draft.state === 'unconfirmed' ? 'Reenviar para a cozinha' : 'Enviar para a cozinha'}
               </Button>
             </>
@@ -464,55 +636,113 @@ function OrderScreen() {
               <div>
                 <b>{l.quantity}x</b> {l.productName}
                 {l.variantName ? ` (${l.variantName})` : ''}
-                {l.options.length > 0 && <div><small className="muted">{l.options.map((x) => x.name).join(', ')}</small></div>}
-                {l.notes && <div style={{ color: 'var(--orange)' }}>“{l.notes}”</div>}
+                {l.options.length > 0 && (
+                  <div>
+                    <small className="muted">{l.options.map((x) => x.name).join(', ')}</small>
+                  </div>
+                )}
+                {l.notes && <div className="note-text">“{l.notes}”</div>}
               </div>
-              <span className="num">{formatBRL(unitTotal({ unitPriceCents: l.unitPriceCents, options: l.options }) * l.quantity)}</span>
+              <span className="money">{formatBRL(unitTotal({ unitPriceCents: l.unitPriceCents, options: l.options }) * l.quantity)}</span>
             </div>
           ))}
-          <div className="totals" style={{ marginTop: 10 }}>
+          <div className="totals" style={{ marginTop: 12 }}>
             <b>Total deste envio</b>
-            <b className="num">{formatBRL(draftTotal)}</b>
+            <b className="money">{formatBRL(draftTotal)}</b>
           </div>
-          <small className="muted">O valor oficial é calculado pelo servidor. Só os itens acima serão enviados; o que já foi pedido não é reenviado.</small>
-          {draft.state === 'unconfirmed' && <div className="alert error" style={{ marginTop: 8 }}>{draft.error}</div>}
+          <small className="muted">Só os itens acima serão enviados; o que já foi pedido não é reenviado. O valor oficial é conferido pelo servidor.</small>
+          {draft.state === 'unconfirmed' && (
+            <div style={{ marginTop: 8 }}>
+              <Alert kind="error">{draft.error}</Alert>
+            </div>
+          )}
         </Modal>
       )}
     </Shell>
   );
 }
 
-function ProductPicker({ products, onPick, onClose }: { products: MenuProduct[]; onPick: (p: MenuProduct) => void; onClose: () => void }) {
+/** Escolha de produtos: busca tolerante, categorias e lista de um toque. Produto sem adicionais entra direto. */
+function ProductPicker({
+  products,
+  draftLines,
+  onPick,
+  onQuickAdd,
+  onClose,
+}: {
+  products: MenuProduct[];
+  draftLines: CartLine[];
+  onPick: (p: MenuProduct) => void;
+  onQuickAdd: (l: CartLine) => void;
+  onClose: () => void;
+}) {
   const menu = useMenu();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('all');
-  const term = q.trim().toLowerCase();
-  const list = products.filter((p) => (cat === 'all' || p.categoryId === cat) && (!term || p.name.toLowerCase().includes(term) || p.code === term));
+  const list = q.trim() ? searchFilter(products, q, (p) => p) : products.filter((p) => cat === 'all' || p.categoryId === cat);
+  const count = draftLines.reduce((a, l) => a + l.quantity, 0);
+  const qtyOf = (p: MenuProduct) => draftLines.filter((l) => p.variants.some((v) => v.id === l.variantId)).reduce((a, l) => a + l.quantity, 0);
+  const tap = (p: MenuProduct) => {
+    const simple = p.groups.length === 0 && p.variants.length === 1;
+    if (!simple) return onPick(p);
+    const v = p.variants[0]!;
+    onQuickAdd({ key: Math.random().toString(36).slice(2), variantId: v.id, productName: p.name, variantName: null, unitPriceCents: v.priceCents, options: [], quantity: 1, notes: '' });
+  };
   return (
-    <Modal wide title="Adicionar produtos" onClose={onClose}>
-      <input type="search" placeholder="Buscar produto ou código" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar produto" />
-      <div className="chips" style={{ margin: '10px 0' }}>
-        <button type="button" className="chip" aria-pressed={cat === 'all'} onClick={() => setCat('all')}>
+    <Modal
+      wide
+      title="Adicionar produtos"
+      onClose={onClose}
+      footer={
+        <Button variant="primary" block size="lg" icon={Check} onClick={onClose}>
+          {count ? `Concluir · ${count} no rascunho` : 'Fechar'}
+        </Button>
+      }
+    >
+      <div className="input-icon">
+        <Search className="icon" aria-hidden />
+        <input type="search" placeholder="Buscar produto ou código" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar produto" enterKeyHint="search" />
+      </div>
+      <div className="chips scroll" style={{ margin: '10px 0' }} role="group" aria-label="Categorias">
+        <button type="button" className="chip" aria-pressed={cat === 'all' && !q} onClick={() => { setCat('all'); setQ(''); }}>
           Todos
         </button>
         {menu.data?.map((c) => (
-          <button key={c.id} type="button" className="chip" aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>
+          <button key={c.id} type="button" className="chip" aria-pressed={cat === c.id && !q} onClick={() => { setCat(c.id); setQ(''); }}>
             {c.name}
           </button>
         ))}
       </div>
-      <div className="pos-grid" style={{ padding: 0 }}>
-        {list.map((p) => {
-          const off = !p.available || p.variants.every((v) => !v.available);
-          return (
-            <button key={p.id} type="button" className={'prod' + (off ? ' off' : '')} disabled={off} onClick={() => onPick(p)} aria-label={`${p.name}${off ? ', indisponível' : ''}`}>
-              <span className="name">{p.name}</span>
-              <span className="price">{formatBRL(Math.min(...p.variants.map((v) => v.priceCents)))}</span>
-            </button>
-          );
-        })}
-      </div>
-      {list.length === 0 && <Empty title="Nenhum produto encontrado" />}
+      {list.length === 0 ? (
+        <Empty compact title="Nenhum produto encontrado">
+          <span>Confira a grafia ou busque pelo código.</span>
+        </Empty>
+      ) : (
+        <div className="plist">
+          {list.map((p) => {
+            const off = !p.available || p.variants.every((v) => !v.available);
+            const n = qtyOf(p);
+            return (
+              <button key={p.id} type="button" className={off ? 'off' : undefined} disabled={off} onClick={() => tap(p)} aria-label={`${p.name}${off ? ', indisponível' : ''}`}>
+                <span className="pname">
+                  {p.name}
+                  <small className="muted">{off ? 'Indisponível' : p.groups.length ? 'toque para escolher adicionais' : 'toque para adicionar'}</small>
+                </span>
+                <span className="pprice">{formatBRL(Math.min(...p.variants.map((v) => v.priceCents)))}</span>
+                {n > 0 ? (
+                  <span className="pqty" aria-label={`${n} no rascunho`}>
+                    {n}
+                  </span>
+                ) : (
+                  <span className="padd" aria-hidden>
+                    <Plus size={18} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </Modal>
   );
 }

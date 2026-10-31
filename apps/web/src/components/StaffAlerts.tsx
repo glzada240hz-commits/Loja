@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Smartphone, WifiOff } from 'lucide-react';
 import { ROLE_LABEL } from '@guto/core';
 import { get } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -15,6 +16,8 @@ interface Device {
   lastSeen: string;
   since: string;
 }
+
+const RECENT_MS = 30 * 60 * 1000;
 
 function beep(freq = 660) {
   try {
@@ -73,15 +76,24 @@ export function StaffAlerts() {
 
   if (!enabled || !devices.data) return null;
   const online = devices.data.filter((d) => d.online).length;
-  const offline = devices.data.filter((d) => !d.online);
+  // só alerta quedas recentes: sessões encerradas há muito tempo não são "aparelho sem conexão"
+  const offline = devices.data.filter((d) => !d.online && Date.now() - new Date(d.since).getTime() < RECENT_MS);
   return (
     <>
-      <button type="button" className={'conn ' + (offline.length ? 'bad' : 'ok')} style={{ border: 0, cursor: 'pointer', font: 'inherit' }} onClick={() => setOpen(true)} aria-label="Aparelhos conectados">
-        <i /> {online} aparelho(s){offline.length ? ` · ${offline.length} sem conexão` : ''}
+      <button
+        type="button"
+        className={'conn ' + (offline.length ? 'bad' : 'neutral')}
+        onClick={() => setOpen(true)}
+        aria-label="Aparelhos conectados"
+        title="Aparelhos conectados"
+      >
+        {offline.length ? <WifiOff className="icon" aria-hidden /> : <Smartphone className="icon" aria-hidden />}
+        {online}
+        {offline.length ? ` · ${offline.length} sem conexão` : <span className="sr-only"> aparelho(s) online</span>}
       </button>
       {open && (
         <Modal title="Aparelhos" onClose={() => setOpen(false)} footer={<Button onClick={() => setOpen(false)}>Fechar</Button>}>
-          <p className="muted">Aparelhos que usaram o sistema nas últimas horas. “Sem conexão” = sem sinal há mais de 45 segundos.</p>
+          <p className="muted">Aparelhos que usaram o sistema nas últimas horas. “Sem conexão” = sem sinal há mais de 45 segundos; depois de 30 minutos o aparelho passa a “inativo” e deixa de gerar alerta.</p>
           <table className="table">
             <tbody>
               {devices.data.map((d) => (
@@ -92,7 +104,15 @@ export function StaffAlerts() {
                       <small className="muted">{ROLE_LABEL[d.role]}</small>
                     </div>
                   </td>
-                  <td>{d.online ? <span className="badge green">online</span> : <span className="badge red">sem conexão desde {formatTime(d.since)}</span>}</td>
+                  <td className="right">
+                    {d.online ? (
+                      <span className="badge green">online</span>
+                    ) : Date.now() - new Date(d.since).getTime() < RECENT_MS ? (
+                      <span className="badge red">sem conexão desde {formatTime(d.since)}</span>
+                    ) : (
+                      <span className="badge">inativo desde {formatTime(d.since)}</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

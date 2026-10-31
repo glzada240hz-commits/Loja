@@ -2,9 +2,11 @@ import { useMemo, useRef, useState } from 'react';
 import { formatBRL, PAYMENT_METHOD_LABEL, splitEvenly, type PaymentMethod } from '@guto/core';
 import { newIdemKey, post } from '../lib/api';
 import type { Order } from '../lib/types';
-import { Button, Chips, Field, Modal, MoneyInput, useAction } from './ui';
+import { Banknote, CreditCard, QrCode, Ticket, Wallet, type LucideIcon } from 'lucide-react';
+import { Alert, Button, Field, Modal, MoneyInput, useAction } from './ui';
 
 const METHODS: PaymentMethod[] = ['cash', 'pix_manual', 'debit', 'credit', 'voucher'];
+const METHOD_ICON: Partial<Record<PaymentMethod, LucideIcon>> = { cash: Banknote, pix_manual: QrCode, debit: CreditCard, credit: Wallet, voucher: Ticket };
 
 /** Registro de pagamento (total, parcial ou dividido) com cálculo de troco. O servidor confere tudo. */
 export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClose: () => void; onPaid: (o: Order) => void }) {
@@ -56,21 +58,37 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
         </>
       }
     >
-      <div className="totals" style={{ marginBottom: 12 }}>
-        <span>Total do pedido</span>
-        <b className="num">{formatBRL(order.totalCents)}</b>
-        <span>Já pago</span>
-        <span className="num">{formatBRL(order.paidCents)}</span>
-        <span className="grand">Saldo</span>
-        <span className="grand num">{formatBRL(balance)}</span>
+      <div className="summary-strip card" style={{ marginBottom: 14 }}>
+        <div>
+          <div className="k">Total do pedido</div>
+          <div className="v">{formatBRL(order.totalCents)}</div>
+        </div>
+        <div>
+          <div className="k">Já pago</div>
+          <div className="v">{formatBRL(order.paidCents)}</div>
+        </div>
+        <div>
+          <div className="k">Falta receber</div>
+          <div className="v due">{formatBRL(balance)}</div>
+        </div>
       </div>
       <Field label="Forma de pagamento" group>
-        <Chips label="Forma de pagamento" value={method} onChange={setMethod} options={METHODS.map((m) => ({ id: m, label: PAYMENT_METHOD_LABEL[m] }))} />
+        <div className="segmented" role="group" aria-label="Forma de pagamento" style={{ gridAutoColumns: 'minmax(0, 1fr)' }}>
+          {METHODS.map((m) => {
+            const Ico = METHOD_ICON[m];
+            return (
+              <button key={m} type="button" aria-pressed={method === m} onClick={() => setMethod(m)} style={{ flexDirection: 'column', minHeight: 56, whiteSpace: 'normal', lineHeight: 1.1, gap: 4 }}>
+                {Ico && <Ico className="icon" aria-hidden />}
+                {PAYMENT_METHOD_LABEL[m]}
+              </button>
+            );
+          })}
+        </div>
       </Field>
       {method === 'pix_manual' && (
-        <div className="alert warn">
+        <Alert kind="warn">
           Confirme o crédito no extrato/app do banco <b>antes</b> de registrar. Comprovante enviado pelo cliente não garante o recebimento.
-        </div>
+        </Alert>
       )}
       <div className="row">
         <Field label="Valor a abater">
@@ -110,19 +128,31 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
                 </Button>
               ))}
           </div>
-          {cashShort ? (
-            <div className="alert info">Recebido menor que o valor: será registrado pagamento parcial de {formatBRL(tendered ?? 0)}.</div>
-          ) : (
-            <div className="stat" aria-live="polite">
-              <div className="label">Troco</div>
-              <div className="value">{formatBRL(change)}</div>
-            </div>
-          )}
+          {cashShort && <Alert kind="info">Recebido menor que o valor: será registrado pagamento parcial de {formatBRL(tendered ?? 0)}.</Alert>}
         </>
       )}
       <Field label="Identificação (opcional)" hint="Ex.: Pessoa 1, João">
         <input value={payer} onChange={(e) => setPayer(e.target.value)} maxLength={60} />
       </Field>
+      {!invalid && (
+        <div className="card" aria-live="polite" style={{ background: 'var(--surface-2)' }}>
+          <b style={{ display: 'block', marginBottom: 6 }}>Será registrado</b>
+          <dl className="dl" style={{ margin: 0 }}>
+            <dt>{PAYMENT_METHOD_LABEL[method]}</dt>
+            <dd>{formatBRL(cashShort ? (tendered ?? 0) : applied)}</dd>
+            {method === 'cash' && tendered != null && !cashShort && (
+              <>
+                <dt>Recebido em dinheiro</dt>
+                <dd>{formatBRL(tendered)}</dd>
+                <dt style={{ fontWeight: 700, color: 'var(--ink)' }}>Troco a devolver</dt>
+                <dd data-testid="troco" style={{ fontSize: '1.4rem', fontWeight: 800 }}>{formatBRL(change)}</dd>
+              </>
+            )}
+            <dt>Restará a receber</dt>
+            <dd>{formatBRL(Math.max(0, balance - (cashShort ? (tendered ?? 0) : applied)))}</dd>
+          </dl>
+        </div>
+      )}
     </Modal>
   );
 }

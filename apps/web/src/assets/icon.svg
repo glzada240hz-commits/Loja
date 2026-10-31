@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#1f1a17"/>
-  <path d="M112 236c0-70 64-124 144-124s144 54 144 124z" fill="#f2b705"/>
-  <circle cx="200" cy="180" r="9" fill="#1f1a17" opacity=".55"/><circle cx="256" cy="160" r="9" fill="#1f1a17" opacity=".55"/><circle cx="312" cy="182" r="9" fill="#1f1a17" opacity=".55"/>
-  <rect x="98" y="252" width="316" height="30" rx="15" fill="#5cb85c"/>
-  <rect x="104" y="290" width="304" height="44" rx="22" fill="#d9412b"/>
-  <path d="M112 346h288c0 30-24 54-54 54H166c-30 0-54-24-54-54z" fill="#f2b705"/>
+  <rect width="512" height="512" rx="112" fill="#1c1917"/>
+  <path d="M120 232c0-66 61-116 136-116s136 50 136 116c0 9-7 16-16 16H136c-9 0-16-7-16-16z" fill="#ea580c"/>
+  <g fill="#1c1917" opacity=".35"><ellipse cx="206" cy="176" rx="10" ry="6"/><ellipse cx="258" cy="158" rx="10" ry="6"/><ellipse cx="308" cy="178" rx="10" ry="6"/></g>
+  <rect x="112" y="268" width="288" height="36" rx="18" fill="#fdba74"/>
+  <path d="M120 324h272v8c0 37-30 68-68 68H188c-38 0-68-31-68-68z" fill="#ea580c"/>
 </svg>

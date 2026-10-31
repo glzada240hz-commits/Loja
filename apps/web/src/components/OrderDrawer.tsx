@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Ban, CheckCheck, HandPlatter, History, MapPin, Pencil, Phone, Plus, Printer, ReceiptText, RotateCcw, Send, Tag, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -20,7 +21,7 @@ import type { Order, OrderEvent } from '../lib/types';
 import { CustomerFields, customerPayload, type CustomerDraft } from './CustomerFields';
 import { PaymentDialog } from './PaymentDialog';
 import { DeliveryBadge, StageBadge, StatusBadge, TypeBadge } from './status';
-import { Button, Chips, ErrorBox, Field, Loading, Modal, Money, MoneyInput, Stepper, useAction, useUi } from './ui';
+import { Alert, Button, Chips, ErrorBox, Field, Loading, Modal, Money, MoneyInput, MoreMenu, Stepper, useAction, useUi } from './ui';
 
 function eventLabel(e: OrderEvent): string {
   const d = e.data ?? {};
@@ -116,9 +117,9 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
       title: o.status === 'pending' ? `Recusar pedido #${o.number}` : `Cancelar pedido #${o.number}`,
       message:
         o.paidCents > 0 ? (
-          <div className="alert warn">
+          <Alert kind="warn">
             Este pedido tem {formatBRL(o.paidCents)} pago. Os pagamentos serão <b>estornados</b> no caixa atual.
-          </div>
+          </Alert>
         ) : (
           'Itens ainda não preparados voltam ao estoque; os já em preparo são registrados como perda.'
         ),
@@ -170,64 +171,83 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
   return (
     <>
       <div className="drawer-head">
-        <h2>
-          Pedido #{o.number} <TypeBadge type={o.type} table={o.tableLabel} tabKind={o.tabKind} />
-        </h2>
-        <Button variant="ghost" onClick={onClose} aria-label="Fechar">
-          ✕
-        </Button>
-      </div>
-      <div className="drawer-body">
-        <div className="hstack" style={{ marginBottom: 10 }}>
-          <StatusBadge status={o.status} />
-          {o.status !== 'cancelled' && o.status !== 'pending' && !(o.type === 'delivery' && o.deliveryStatus && o.deliveryStatus !== 'waiting') && <StageBadge stage={o.stage} />}
-          {o.deliveryStatus && o.status !== 'cancelled' && <DeliveryBadge status={o.deliveryStatus} />}
-          {o.receivable && o.balanceCents > 0 && <span className="badge red">Conta pendente</span>}
-          {o.source === 'online' && <span className="badge blue">Cardápio digital</span>}
-          <span className="spacer" />
+        <div className="grow">
+          <h2 className="hstack" style={{ gap: 8 }}>
+            Pedido #{o.number} <TypeBadge type={o.type} table={o.tableLabel} tabKind={o.tabKind} />
+          </h2>
           <small className="muted">
             {formatDateTime(o.createdAt)}
             {o.createdByName ? ` · ${o.createdByName}` : ''}
           </small>
         </div>
-        <small className="muted mono">ID interno: {o.id}</small>
+        <Button variant="ghost" icon={X} onClick={onClose} aria-label="Fechar" />
+      </div>
+      <div className="drawer-body">
+        <div className="hstack">
+          <StatusBadge status={o.status} />
+          {o.status !== 'cancelled' && o.status !== 'pending' && !(o.type === 'delivery' && o.deliveryStatus && o.deliveryStatus !== 'waiting') && <StageBadge stage={o.stage} />}
+          {o.deliveryStatus && o.status !== 'cancelled' && <DeliveryBadge status={o.deliveryStatus} />}
+          {o.receivable && o.balanceCents > 0 && <span className="badge red">Conta pendente</span>}
+          {o.source === 'online' && <span className="badge blue">Cardápio digital</span>}
+        </div>
+
+        <section className="card summary-strip" aria-label="Resumo financeiro">
+          <div>
+            <div className="k">Total</div>
+            <div className="v">{formatBRL(o.totalCents)}</div>
+          </div>
+          <div>
+            <div className="k">Pago</div>
+            <div className="v" style={{ color: o.paidCents ? 'var(--ok)' : undefined }}>{formatBRL(o.paidCents)}</div>
+          </div>
+          <div>
+            <div className="k">{o.balanceCents > 0 ? 'Falta receber' : 'Saldo'}</div>
+            <div className={'v' + (o.balanceCents > 0 ? ' due' : '')}>{formatBRL(o.balanceCents)}</div>
+          </div>
+        </section>
 
         {o.status === 'pending' && (
-          <div className="alert warn" style={{ marginTop: 10 }}>
-            Pedido recebido pelo cardápio digital aguardando aceite. Ele só vai para a cozinha (e o cliente só é avisado da confirmação) após o aceite.
-            <div className="hstack" style={{ marginTop: 8 }}>
-              <Button variant="success" onClick={() => setModal('accept')}>
-                Aceitar pedido
-              </Button>
-              <Button variant="danger" onClick={cancelOrder}>
-                Recusar
-              </Button>
-            </div>
-          </div>
+          <Alert
+            kind="warn"
+            action={
+              <span className="hstack" style={{ flexWrap: 'nowrap' }}>
+                <Button variant="success" onClick={() => setModal('accept')}>
+                  Aceitar pedido
+                </Button>
+                <Button variant="danger" onClick={cancelOrder}>
+                  Recusar
+                </Button>
+              </span>
+            }
+          >
+            Pedido do cardápio digital <b>aguardando aceite</b>. Só vai para a cozinha (e o cliente só é avisado) depois do aceite.
+          </Alert>
         )}
-        {o.status === 'cancelled' && <div className="alert error">Cancelado em {formatDateTime(o.cancelledAt)} — {o.cancelReason}</div>}
+        {o.status === 'cancelled' && <Alert kind="error">Cancelado em {formatDateTime(o.cancelledAt)} — {o.cancelReason}</Alert>}
         {o.billRequestedAt && o.status === 'open' && (
-          <div className="alert warn" style={{ marginTop: 10 }}>
-            Conta pedida às {formatTime(o.billRequestedAt)}{o.billRequestedByName ? ` por ${o.billRequestedByName}` : ''}.
-          </div>
+          <Alert kind="bill" icon={ReceiptText}>
+            Conta pedida às {formatTime(o.billRequestedAt)}
+            {o.billRequestedByName ? ` por ${o.billRequestedByName}` : ''}.
+          </Alert>
         )}
 
-        <section className="card" style={{ marginTop: 12 }}>
-          <div className="hstack">
-            <h3 style={{ margin: 0 }}>Cliente</h3>
-            <span className="spacer" />
+        <section className="card">
+          <div className="card-head">
+            <h3>Cliente{o.type === 'delivery' ? ' e entrega' : ''}</h3>
             {editable && can('orders.edit') && (
-              <Button size="sm" onClick={() => setModal('edit')}>
+              <Button size="sm" icon={Pencil} onClick={() => setModal('edit')}>
                 Editar dados
               </Button>
             )}
           </div>
-          <p style={{ marginTop: 6 }}>
+          <p style={{ margin: 0 }}>
             {o.customerName ?? <span className="muted">Sem nome</span>}
             {o.customerPhone && (
               <>
                 {' · '}
-                <a href={`tel:+${o.customerPhone}`}>{formatPhoneBR(o.customerPhone)}</a>
+                <a href={`tel:+${o.customerPhone}`}>
+                  <Phone size={13} aria-hidden /> {formatPhoneBR(o.customerPhone)}
+                </a>
               </>
             )}
           </p>
@@ -236,7 +256,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
               {address} {o.addrReference && <small className="muted">· Ref.: {o.addrReference}</small>}{' '}
               {address && (
                 <a href={mapsLink(`${o.addrStreet}, ${o.addrNumber} - ${o.neighborhoodName}`)} target="_blank" rel="noreferrer">
-                  abrir no mapa
+                  <MapPin size={13} aria-hidden /> abrir no mapa
                 </a>
               )}
               {o.courierName && (
@@ -254,7 +274,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
             </p>
           )}
           {o.etaAt && <p>Previsão: {formatTime(o.etaAt)}</p>}
-          {o.notes && <div className="alert warn">Obs. do pedido: {o.notes}</div>}
+          {o.notes && <Alert kind="warn">Obs. do pedido: {o.notes}</Alert>}
           {o.paymentIntent && (
             <p>
               Pagamento escolhido pelo cliente: <b>{PAYMENT_METHOD_LABEL[o.paymentIntent]}</b>
@@ -264,12 +284,11 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
         </section>
 
         <section className="card">
-          <div className="hstack">
-            <h3 style={{ margin: 0 }}>Itens</h3>
-            <span className="spacer" />
+          <div className="card-head">
+            <h3>Itens</h3>
             {editable && can('orders.edit') && o.deliveryStatus !== 'en_route' && (
-              <Button size="sm" onClick={() => nav(`/pdv?pedido=${o.id}`)}>
-                + Adicionar itens
+              <Button size="sm" icon={Plus} onClick={() => nav(`/pdv?pedido=${o.id}`)}>
+                Adicionar itens
               </Button>
             )}
           </div>
@@ -282,7 +301,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
                   {!i.sentAt && i.status === 'active' && o.status === 'open' && <span className="badge orange">não enviado</span>}
                 </div>
                 {i.options.length > 0 && <small className="muted">{i.options.map((x) => (x.quantity > 1 ? `${x.quantity}x ` : '') + x.optionName).join(', ')}</small>}
-                {i.notes && <div className="note" style={{ color: 'var(--orange)', fontSize: '.85rem' }}>“{i.notes}”</div>}
+                {i.notes && <div className="note-text">“{i.notes}”</div>}
                 {i.status === 'cancelled' && <small className="muted">Cancelado: {i.cancelReason}</small>}
                 {i.createdByName && <div><small className="muted">lançado por {i.createdByName}</small></div>}
               </div>
@@ -298,16 +317,14 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
                         onChange={(v) => act(() => patch(`/api/orders/${o.id}/items/${i.id}`, { version: o.version, quantity: v }))}
                       />
                     )}
-                    <Button size="sm" variant="ghost" onClick={() => cancelItem(i.id, i.productName, !!i.sentAt)} aria-label={`Cancelar ${i.productName}`}>
-                      Cancelar
-                    </Button>
+                    <Button size="sm" variant="ghost" icon={X} onClick={() => cancelItem(i.id, i.productName, !!i.sentAt)} aria-label={`Cancelar ${i.productName}`} title="Cancelar item" />
                   </div>
                 )}
               </div>
             </div>
           ))}
           {unsent.length > 0 && o.status === 'open' && (
-            <Button variant="primary" block busy={busy} style={{ marginTop: 8 }} onClick={() => act(() => post(`/api/orders/${o.id}/send`, { version: o.version }), 'Itens enviados')}>
+            <Button variant="primary" block busy={busy} icon={Send} style={{ marginTop: 8 }} onClick={() => act(() => post(`/api/orders/${o.id}/send`, { version: o.version }), 'Itens enviados')}>
               Enviar {unsent.length} item(ns) pendente(s) à cozinha
             </Button>
           )}
@@ -321,7 +338,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
                   </span>
                   <span className="spacer" />
                   {t.servedAt ? (
-                    <span className="badge dark">entregue {formatTime(t.servedAt)}{t.servedByName ? ` · ${t.servedByName}` : ''}</span>
+                    <span className="badge">entregue {formatTime(t.servedAt)}{t.servedByName ? ` · ${t.servedByName}` : ''}</span>
                   ) : (
                     <span className={'badge ' + (t.status === 'ready' ? 'green' : t.status === 'preparing' ? 'yellow' : 'blue')}>
                       {KITCHEN_STATUS_LABEL[t.status].toLowerCase()}
@@ -335,6 +352,14 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
         </section>
 
         <section className="card">
+          <div className="card-head">
+            <h3>Valores</h3>
+            {editable && can('orders.edit') && (
+              <Button size="sm" icon={Tag} onClick={() => setModal('discount')}>
+                {o.discountCents > 0 ? 'Alterar desconto' : 'Aplicar desconto'}
+              </Button>
+            )}
+          </div>
           <div className="totals">
             <span>Itens</span>
             <Money cents={o.subtotalCents} />
@@ -359,11 +384,6 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
             <b>Saldo</b>
             <b className="num">{formatBRL(o.balanceCents)}</b>
           </div>
-          {editable && can('orders.edit') && (
-            <Button size="sm" style={{ marginTop: 8 }} onClick={() => setModal('discount')}>
-              {o.discountCents > 0 ? 'Alterar desconto' : 'Aplicar desconto'}
-            </Button>
-          )}
         </section>
 
         {o.payments.length > 0 && (
@@ -402,7 +422,9 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
         )}
 
         <section className="card">
-          <h3>Histórico</h3>
+          <h3 className="hstack" style={{ gap: 6 }}>
+            <History size={16} aria-hidden /> Histórico
+          </h3>
           <ul className="timeline">
             {o.events.map((e) => (
               <li key={e.id}>
@@ -412,35 +434,59 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
               </li>
             ))}
           </ul>
+          <details style={{ marginTop: 8 }}>
+            <summary className="muted" style={{ cursor: 'pointer', fontSize: '.8rem' }}>
+              Código interno (suporte)
+            </summary>
+            <small className="muted mono">{o.id}</small>
+          </details>
         </section>
       </div>
       <div className="drawer-foot">
-        {(o.status === 'open' || (o.status === 'closed' && o.receivable)) && o.balanceCents > 0 && can('payments.create') && (
-          <Button variant="success" size="lg" onClick={() => setModal('pay')}>
-            Receber {formatBRL(o.balanceCents)}
-          </Button>
+        {o.status === 'open' && can('orders.close') && !canClose && (
+          <small className="muted" style={{ width: '100%' }}>
+            Para finalizar: {[o.balanceCents > 0 && `receber ${formatBRL(o.balanceCents)}`, !(o.type === 'delivery' ? o.deliveryStatus === 'delivered' : o.stage === 'ready' || o.stage === 'delivered') && (o.type === 'delivery' ? 'concluir a entrega' : 'aguardar a cozinha (pronto)')].filter(Boolean).join(' e ')}.
+          </small>
         )}
-        {o.status === 'open' && o.type !== 'delivery' && o.stage === 'ready' && (
-          <Button onClick={() => act(() => post(`/api/orders/${o.id}/handover`, {}), 'Entregue ao cliente')}>Entregue ao cliente</Button>
-        )}
-        {o.status === 'open' && can('orders.close') && (
-          <Button variant="dark" disabled={!canClose} busy={busy} onClick={() => close(false)} title={canClose ? '' : 'Requer pagamento completo e pedido pronto/entregue'}>
-            Finalizar pedido
-          </Button>
-        )}
-        {o.status === 'open' && o.balanceCents > 0 && can('orders.close') && (
-          <Button onClick={() => close(true)}>Fechar como pendente</Button>
-        )}
-        <span className="spacer" />
-        <a className="btn" href={`/imprimir/${o.id}?via=cliente&w=${settings.data?.printWidth ?? 80}`} target="_blank" rel="noreferrer">
-          Imprimir
-        </a>
-        {o.status === 'closed' && <Button onClick={reopen}>Reabrir</Button>}
-        {o.status === 'open' && (
-          <Button variant="danger" onClick={cancelOrder}>
-            Cancelar pedido
-          </Button>
-        )}
+        <div className="primary-actions">
+          {(o.status === 'open' || (o.status === 'closed' && o.receivable)) && o.balanceCents > 0 && can('payments.create') && (
+            <Button variant="success" size="lg" onClick={() => setModal('pay')}>
+              Receber {formatBRL(o.balanceCents)}
+            </Button>
+          )}
+          {o.status === 'open' && o.type !== 'delivery' && o.stage === 'ready' && (
+            <Button icon={HandPlatter} size="lg" onClick={() => act(() => post(`/api/orders/${o.id}/handover`, {}), 'Entregue ao cliente')}>
+              Entregue ao cliente
+            </Button>
+          )}
+          {o.status === 'open' && can('orders.close') && (
+            <Button variant="dark" size="lg" icon={CheckCheck} disabled={!canClose} busy={busy} onClick={() => close(false)}>
+              Finalizar pedido
+            </Button>
+          )}
+          {o.status === 'closed' && <Button icon={RotateCcw} onClick={reopen}>Reabrir</Button>}
+        </div>
+        <MoreMenu>
+          <a href={`/imprimir/${o.id}?via=cliente&w=${settings.data?.printWidth ?? 80}`} target="_blank" rel="noreferrer" role="menuitem">
+            <Printer size={16} aria-hidden /> Imprimir comprovante
+          </a>
+          <a href={`/imprimir/${o.id}?via=cozinha&w=${settings.data?.printWidth ?? 80}`} target="_blank" rel="noreferrer" role="menuitem">
+            <Printer size={16} aria-hidden /> Imprimir via da cozinha
+          </a>
+          {o.status === 'open' && o.balanceCents > 0 && can('orders.close') && (
+            <button type="button" role="menuitem" onClick={() => close(true)}>
+              <ReceiptText size={16} aria-hidden /> Fechar como conta pendente
+            </button>
+          )}
+          {o.status === 'open' && (
+            <>
+              <hr />
+              <button type="button" role="menuitem" className="danger" onClick={cancelOrder}>
+                <Ban size={16} aria-hidden /> Cancelar pedido…
+              </button>
+            </>
+          )}
+        </MoreMenu>
       </div>
       {modal === 'pay' && <PaymentDialog order={o} onClose={() => setModal(null)} onPaid={(fresh) => { refresh(fresh); if (fresh.balanceCents <= 0) setModal(null); }} />}
       {modal === 'discount' && <DiscountDialog order={o} onClose={() => setModal(null)} onSaved={(fresh) => { refresh(fresh); setModal(null); }} />}
