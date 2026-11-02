@@ -14,7 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { startPg, stopPg } from './pg-windows.mjs';
+import { createDatabase, startPg, stopPg } from './pg-windows.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIN = process.platform === 'win32';
@@ -250,7 +250,7 @@ async function main() {
     await pg.start().catch(() => {
       throw fail('Não foi possível iniciar o banco de dados da loja.\n' + pgLog.slice(-15).join(''));
     });
-  if (fresh) await pg.createDatabase('guto');
+  if (fresh) await (WIN ? createDatabase(PG_PORT, 'guto', cfg.dbPassword, 'guto') : pg.createDatabase('guto'));
   if (await portInUse(APP_PORT)) throw fail(`A porta ${APP_PORT} já está em uso (talvez o ambiente de TESTES esteja aberto). Feche-o e abra de novo.`);
 
   const lan = lanAddresses();

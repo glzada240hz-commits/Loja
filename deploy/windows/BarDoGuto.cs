@@ -20,7 +20,12 @@ class BarDoGuto
             return 1;
         }
         string extra = "";
-        foreach (string a in args) extra += " \"" + a.Replace("\"", "\\\"") + "\"";
+        bool semPausa = false;
+        foreach (string a in args)
+        {
+            if (a == "--sem-pausa") { semPausa = true; continue; } // execução automatizada (testes)
+            extra += " \"" + a.Replace("\"", "\\\"") + "\"";
+        }
         var psi = new ProcessStartInfo(node, "\"" + script + "\"" + extra);
         psi.UseShellExecute = false; // mesma janela de console
         psi.WorkingDirectory = Path.Combine(dir, "app");
@@ -29,7 +34,7 @@ class BarDoGuto
             using (Process p = Process.Start(psi))
             {
                 p.WaitForExit();
-                if (p.ExitCode != 0) Pause();
+                if (p.ExitCode != 0 && !semPausa) Pause();
                 return p.ExitCode;
             }
         }

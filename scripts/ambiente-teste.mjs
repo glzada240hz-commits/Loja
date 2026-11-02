@@ -17,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
-import { startPg, stopPg } from './pg-windows.mjs';
+import { createDatabase, startPg, stopPg } from './pg-windows.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIN = process.platform === 'win32';
@@ -319,7 +319,7 @@ async function main() {
     await pg.start().catch(() => {
       throw fail(`Não foi possível iniciar o PostgreSQL de testes na porta ${PG_PORT}.\n` + pgLog.slice(-15).join(''));
     });
-  if (fresh) await pg.createDatabase('guto_teste');
+  if (fresh) await (WIN ? createDatabase(PG_PORT, 'guto', 'guto-teste', 'guto_teste') : pg.createDatabase('guto_teste'));
   log(`PostgreSQL de testes rodando na porta ${PG_PORT}.`);
 
   if (await portInUse(APP_PORT)) throw fail(`A porta ${APP_PORT} já está em uso por outro programa. Feche-o ou use outra porta (no Prompt: set PORT=3001).`);

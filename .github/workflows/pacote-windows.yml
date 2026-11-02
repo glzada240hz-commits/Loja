@@ -60,7 +60,7 @@ jobs:
           $dados = Join-Path $env:RUNNER_TEMP 'dados-loja'
           $exe = Resolve-Path 'dist-windows\BarDoGuto\BarDoGuto.exe'
           function Start-Loja($extra) {
-            $a = @('--dados', $dados, '--porta', '3500', '--sem-navegador') + $extra
+            $a = @('--sem-pausa', '--dados', $dados, '--porta', '3500', '--sem-navegador') + $extra
             return Start-Process -FilePath $exe -ArgumentList $a -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\loja-out.txt" -RedirectStandardError "$env:RUNNER_TEMP\loja-err.txt"
           }
           function Wait-Health($p) {

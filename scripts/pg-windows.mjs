@@ -35,3 +35,15 @@ export async function stopPg(dataDir) {
   const pgCtl = await bin();
   spawnSync(pgCtl, ['stop', '-D', dataDir, '-m', 'fast', '-w', '-t', '60'], { windowsHide: true, stdio: 'ignore', timeout: 90_000 });
 }
+
+/** Cria o banco (a função da biblioteca exige que ela mesma tenha iniciado o servidor). */
+export async function createDatabase(port, user, password, name) {
+  const { default: pg } = await import('pg');
+  const c = new pg.Client({ host: '127.0.0.1', port, user, password, database: 'postgres' });
+  await c.connect();
+  try {
+    await c.query(`CREATE DATABASE "${name.replace(/"/g, '')}"`);
+  } finally {
+    await c.end();
+  }
+}
