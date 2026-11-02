@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Permission, Role } from '@guto/core';
 import { ApiError, get, post } from './api';
+import { deviceId } from './live';
 
 export interface Me {
   id: string;
@@ -60,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPerms(new Set(r.permissions));
     },
     async logout() {
+      // primeiro avisa que este aparelho saiu (o caixa não recebe alerta de "perdeu a conexão")
+      await post('/api/presence/bye', { device: deviceId() }).catch(() => undefined);
       await post('/api/auth/logout').catch(() => undefined);
       setMe(null);
       setPerms(new Set());

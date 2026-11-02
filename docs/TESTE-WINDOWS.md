@@ -69,7 +69,7 @@ cada vez que você inicia — use sempre o que aparece na janela. No computador,
 ### Conferir que está abrindo a versão certa
 
 Depois de entrar, clique no ícone **(i) Sobre** no rodapé da barra lateral escura (na cozinha, no topo).
-A linha **“Versão aberta neste aparelho”** deve mostrar **`0.2.0+fe9e2945`** (reformulação visual — rodada 2)
+A linha **“Versão aberta neste aparelho”** deve mostrar **`0.2.0+1d70bcf1`** (rodada 2 + melhorias)
 e a mensagem verde “mesma versão que o servidor”. Se mostrar outra coisa, toque em **“Recarregar a versão do
 servidor”**. Na tela de login a versão também aparece no rodapé do painel escuro.
 

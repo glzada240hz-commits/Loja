@@ -177,6 +177,15 @@ describe('app do atendente', () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(events.some((e) => e.type === 'presence.changed')).toBe(true);
     expect((await (await as(h, 'moto1')).get('/api/presence')).status).toBe(403);
+    // saída intencional (sair do sistema/fechar o app): fica como "saiu", sem alerta de queda;
+    // outro usuário não consegue marcar o aparelho de alguém como saído
+    expect((await caixa.post('/api/presence/bye', { device: 'tablet-cozinha-01' })).status).toBe(200);
+    expect((await caixa.get('/api/presence')).body.find((d: any) => d.label === 'Tablet cozinha')).toMatchObject({ online: true, left: false });
+    expect((await cozinha.post('/api/presence/bye', { device: 'tablet-cozinha-01' })).status).toBe(200);
+    expect((await caixa.get('/api/presence')).body.find((d: any) => d.label === 'Tablet cozinha')).toMatchObject({ online: false, left: true });
+    // voltou a sinalizar: online de novo
+    await cozinha.post('/api/presence', { device: 'tablet-cozinha-01', label: 'Tablet cozinha' });
+    expect((await caixa.get('/api/presence')).body.find((d: any) => d.label === 'Tablet cozinha')).toMatchObject({ online: true, left: false });
     setClock(null);
   });
 });

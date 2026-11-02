@@ -88,29 +88,37 @@ function Board() {
             <Clock size={13} aria-hidden /> {minutesSince(o.createdAt)} min{o.etaAt ? ` · prev. ${formatTime(o.etaAt)}` : ''}
           </small>
         </div>
-        <div style={{ marginTop: 4, fontWeight: 600 }}>
-          <MapPin size={14} aria-hidden style={{ verticalAlign: -2, color: 'var(--muted)' }} /> {o.neighborhoodName} — {o.addrStreet}, {o.addrNumber}
-          {o.addrComplement ? ` (${o.addrComplement})` : ''}{' '}
-          <a href={mapsLink(`${o.addrStreet}, ${o.addrNumber} - ${o.neighborhoodName}`)} target="_blank" rel="noreferrer" style={{ fontWeight: 500, fontSize: '.85rem' }}>
-            mapa
+        <div className="d-addr">
+          <span className="ellipsis" title={`${o.addrStreet}, ${o.addrNumber}${o.addrComplement ? ` (${o.addrComplement})` : ''}`}>
+            <b>{o.neighborhoodName}</b> · {o.addrStreet}, {o.addrNumber}
+            {o.addrComplement ? ` (${o.addrComplement})` : ''}
+          </span>
+          <a className="btn sm ghost icon-only" href={mapsLink(`${o.addrStreet}, ${o.addrNumber} - ${o.neighborhoodName}`)} target="_blank" rel="noreferrer" title="Abrir no mapa" aria-label={`Abrir endereço do pedido ${o.number} no mapa`}>
+            <MapPin className="icon" aria-hidden />
           </a>
         </div>
         <small className="muted" style={{ display: 'block' }}>
           {o.customerName} · {formatPhoneBR(o.customerPhone)}
         </small>
-        <div className="fee-split" style={{ marginTop: 6 }}>
-          <span>
-            Cobrar <b>{formatBRL(o.totalCents - o.paidCents)}</b>
-            {o.paymentIntent ? ` (${PAYMENT_METHOD_LABEL[o.paymentIntent as keyof typeof PAYMENT_METHOD_LABEL]})` : ''}
-            {o.changeForCents ? ` · troco p/ ${formatBRL(o.changeForCents)}` : ''}
-          </span>
-          <span>
-            Taxa do cliente <b>{formatBRL(o.deliveryFeeCents)}</b>
-          </span>
-          <span>
-            Repasse ao motoboy <b>{o.courierFeeCents != null ? formatBRL(o.courierFeeCents) : 'ao atribuir'}</b>
-          </span>
-        </div>
+        <dl className="d-money">
+          <div>
+            <dt>Cobrar</dt>
+            <dd>{formatBRL(o.totalCents - o.paidCents)}</dd>
+            <small>
+              {o.paymentIntent ? PAYMENT_METHOD_LABEL[o.paymentIntent as keyof typeof PAYMENT_METHOD_LABEL].replace(' (conferido manualmente)', '') : '—'}
+              {o.changeForCents ? ` · troco p/ ${formatBRL(o.changeForCents)}` : ''}
+            </small>
+          </div>
+          <div>
+            <dt>Taxa do cliente</dt>
+            <dd>{formatBRL(o.deliveryFeeCents)}</dd>
+          </div>
+          <div>
+            <dt>Repasse motoboy</dt>
+            <dd>{o.courierFeeCents != null ? formatBRL(o.courierFeeCents) : '—'}</dd>
+            {o.courierFeeCents == null && <small>definido ao atribuir</small>}
+          </div>
+        </dl>
         {o.deliveryIssue && o.deliveryStatus === 'issue' && (
           <div style={{ marginTop: 6 }}>
             <Alert kind="error">{o.deliveryIssue}</Alert>
@@ -122,11 +130,11 @@ function Board() {
 
   return (
     <>
-      <div className="grid cols-3">
-        <section>
+      <div className="lanes">
+        <section className="lane">
           <h2>Aguardando entregador ({waiting.length})</h2>
           {waiting.length > 0 && (
-            <div className="card" style={{ marginBottom: 10 }}>
+            <div className="lane-action">
               <div className="row">
                 <Field label="Entregador">
                   <select value={courierId} onChange={(e) => setCourier(e.target.value)}>
@@ -165,7 +173,7 @@ function Board() {
             )}
           </div>
         </section>
-        <section>
+        <section className="lane">
           <h2>Saídas montadas</h2>
           {board.data!.runs.filter((r) => r.status === 'assigned').length === 0 && <Empty title="Nenhuma saída aguardando" />}
           <div className="stack">
@@ -197,7 +205,7 @@ function Board() {
               })}
           </div>
         </section>
-        <section>
+        <section className="lane">
           <h2>Em rota ({enRoute.length})</h2>
           {enRoute.length === 0 && <Empty title="Nenhuma entrega em rota" />}
           <div className="stack">

@@ -28,6 +28,15 @@ export async function eventRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  // saída intencional (sair do sistema ou fechar o app): o caixa não recebe alerta de queda
+  app.post('/api/presence/bye', async (req) => {
+    const ctx = app.ctx(req);
+    const d = deviceInfo(req.body);
+    if (!d) throw new AppError(400, 'bad_request', 'Identificação do dispositivo inválida');
+    app.presence.left(d.deviceId, ctx.actor.userId);
+    return { ok: true };
+  });
+
   app.get('/api/presence', async (req) => {
     const ctx = app.ctx(req);
     if (!(['orders.view', 'kitchen.view'] as const).some((p) => can(ctx.actor.role, p))) throw new AppError(403, 'forbidden', 'Seu perfil não tem permissão para esta ação');

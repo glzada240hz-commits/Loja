@@ -112,3 +112,16 @@ de mudar de lugar — é a proteção contra toque errado funcionando). Resultad
 
 - Não executado em Windows real (só Linux). O iniciador é o mesmo da rodada anterior.
 - A aprovação visual é do dono; aqui há apenas avaliação técnica.
+
+## 8. Melhorias seguintes (versão `0.2.0+1d70bcf1`)
+
+| Melhoria | Problema que resolve | Como foi validada |
+|---|---|---|
+| **Aparelhos: saída intencional ≠ queda** | Fechar a aba ou tocar em “Sair” aparecia como “perdeu a conexão” (o caixa via “7 sem conexão”). Agora o aparelho avisa que saiu (fica como “saiu às HH:MM”, sem alerta); o servidor espera 2,5 s antes de declarar queda; ao perder a rede, o aparelho encerra o canal de tempo real e o caixa é avisado em segundos. | Teste de integração (saída marcada só pelo próprio usuário; volta a “online” ao sinalizar) + roteiro no navegador (aba fechada e “Sair” = “saiu”; modo avião = “sem conexão” em ~2,5 s) + E2E de queda de conexão |
+| **PDV: últimos pedidos** | Com o pedido vazio, o painel ficava em branco. Agora lista os 6 últimos pedidos do dia com situação (aceitar, a receber, pago, finalizado) e valor; um toque abre o pedido para cobrar, imprimir ou acrescentar. | Inspeção visual; E2E do PDV |
+| **Entregas em quadro de etapas** | Colunas sem destaque, “mapa” solto, valores espalhados. Agora: colunas com fundo próprio, seleção de entregador em barra escura, endereço numa linha com botão de mapa e **Cobrar / Taxa do cliente / Repasse motoboy** lado a lado. | Inspeção visual; E2E de expedição |
+| **Caixa e dia** | Dois cartões genéricos. Agora um painel grafite com o estado do dia e do caixa, valor do fundo em destaque e ações (Suprimento, Sangria, **Fechar caixa**) agrupadas. | Inspeção visual; E2E de abertura e fechamento de caixa |
+| **Seletor do atendente** | “Fechar” aparecia laranja mesmo sem itens. Agora só fica destacado quando há itens no rascunho. | Inspeção visual |
+
+Testes: tipos e lint sem erros; 32 unitários, 44 integração (inclui o novo teste de saída), 20 E2E — ver
+[`evidencias/execucao-testes-melhorias.txt`](evidencias/execucao-testes-melhorias.txt). Somente Linux.

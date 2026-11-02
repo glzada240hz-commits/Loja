@@ -712,7 +712,7 @@ function ProductPicker({
       title="Adicionar produtos"
       onClose={onClose}
       footer={
-        <Button variant="primary" block size="lg" icon={Check} onClick={onClose}>
+        <Button variant={count ? 'primary' : undefined} block size="lg" icon={count ? Check : undefined} onClick={onClose}>
           {count ? `Concluir · ${count} no rascunho` : 'Fechar'}
         </Button>
       }

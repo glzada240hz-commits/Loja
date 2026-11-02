@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowDownToLine, ArrowUpFromLine, Banknote, CalendarDays, Lock } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CASH_MOVEMENT_LABEL, formatBRL, PAYMENT_METHOD_LABEL, type PaymentMethod } from '@guto/core';
 import { Layout } from '../components/Layout';
@@ -48,45 +49,51 @@ export default function Cash() {
   const c = cash.data;
   return (
     <Layout title="Caixa e dia operacional">
-      <div className="grid cols-2">
-        <section className="card">
-          <h2>Dia operacional</h2>
+      <div className="cash-hero">
+        <section className="cash-block" aria-label="Dia operacional">
+          <div className="cash-k">
+            <CalendarDays size={15} aria-hidden /> Dia operacional {d ? <span className="badge green">aberto</span> : <span className="badge red">fechado</span>}
+          </div>
           {d ? (
             <>
-              <p>
-                Aberto em <b>{formatDateTime(d.openedAt)}</b> (referência {formatDate(d.referenceDate + 'T12:00:00')}). Pedidos feitos depois da meia-noite continuam neste dia até o
-                fechamento.
+              <div className="cash-v">{formatDate(d.referenceDate + 'T12:00:00')}</div>
+              <p className="cash-note">
+                Aberto em <b>{formatDateTime(d.openedAt)}</b> · {d.lastOrderNumber} pedido(s). Pedidos depois da meia-noite continuam neste dia até o fechamento.
               </p>
-              <p>Pedidos no dia: {d.lastOrderNumber}</p>
               {can('business_day.manage') && (
-                <Button variant="dark" onClick={closeDay}>
-                  Fechar dia
-                </Button>
+                <div className="cash-actions">
+                  <Button onClick={closeDay}>Fechar dia</Button>
+                </div>
               )}
             </>
           ) : (
             <>
-              <p>Nenhum dia aberto. Abra o dia para começar a vender.</p>
+              <div className="cash-v">Nenhum dia aberto</div>
+              <p className="cash-note">Abra o dia para começar a vender.</p>
               {can('business_day.open') && (
-                <Button variant="primary" size="lg" busy={busy} onClick={() => go(async () => { await post('/api/day/open', {}); reload(); }, { success: 'Dia aberto' })}>
-                  Abrir dia
-                </Button>
+                <div className="cash-actions">
+                  <Button variant="primary" size="lg" busy={busy} onClick={() => go(async () => { await post('/api/day/open', {}); reload(); }, { success: 'Dia aberto' })}>
+                    Abrir dia
+                  </Button>
+                </div>
               )}
             </>
           )}
         </section>
-        <section className="card">
-          <h2>Caixa</h2>
+        <section className="cash-block" aria-label="Caixa">
+          <div className="cash-k">
+            <Banknote size={15} aria-hidden /> Caixa {c && c.session.status === 'open' ? <span className="badge green">aberto</span> : d ? <span className="badge warn">fechado</span> : null}
+          </div>
           {!d ? (
-            <p className="muted">Abra o dia primeiro.</p>
+            <p className="cash-note">Abra o dia primeiro.</p>
           ) : cash.isLoading ? (
             <Loading />
           ) : cash.error ? (
             <ErrorBox error={cash.error} />
           ) : !c || c.session.status === 'closed' ? (
             <>
-              <p>Caixa fechado.</p>
-              <div className="row">
+              <p className="cash-note">Caixa fechado. Conte o dinheiro da gaveta e informe o fundo de troco para abrir.</p>
+              <div className="row cash-open">
                 <Field label="Fundo de troco (valor inicial)">
                   <MoneyInput value={opening} onChange={setOpening} />
                 </Field>
@@ -97,14 +104,19 @@ export default function Cash() {
             </>
           ) : (
             <>
-              <p>
+              <div className="cash-v">{formatBRL(c.session.openingCents)} <small>de fundo</small></div>
+              <p className="cash-note">
                 Aberto às {formatTime(c.session.openedAt)} com {formatBRL(c.session.openingCents)}.
               </p>
-              <div className="hstack">
-                <Button onClick={() => setMov('supply')}>+ Suprimento</Button>
-                <Button onClick={() => setMov('withdrawal')}>− Sangria</Button>
+              <div className="cash-actions">
+                <Button icon={ArrowDownToLine} onClick={() => setMov('supply')}>
+                  Suprimento
+                </Button>
+                <Button icon={ArrowUpFromLine} onClick={() => setMov('withdrawal')}>
+                  Sangria
+                </Button>
                 <span className="spacer" />
-                <Button variant="dark" onClick={() => setClosing(true)}>
+                <Button variant="primary" icon={Lock} onClick={() => setClosing(true)}>
                   Fechar caixa
                 </Button>
               </div>
@@ -115,7 +127,7 @@ export default function Cash() {
 
       {c && c.session.status === 'open' && (
         <>
-          <div className="grid cols-4" style={{ marginTop: 12 }}>
+          <div className="grid cols-4">
             <div className="stat">
               <div className="label">Dinheiro esperado na gaveta</div>
               <div className="value">{c.summary.expectedCash == null ? 'oculto' : formatBRL(c.summary.expectedCash)}</div>

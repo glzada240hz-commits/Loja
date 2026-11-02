@@ -13,6 +13,7 @@ interface Device {
   userName: string;
   role: keyof typeof ROLE_LABEL;
   online: boolean;
+  left?: boolean;
   lastSeen: string;
   since: string;
 }
@@ -64,7 +65,7 @@ export function StaffAlerts() {
     const now = new Map(devices.data.map((d) => [d.deviceId, d.online]));
     if (prev.current) {
       for (const d of devices.data) {
-        if (prev.current.get(d.deviceId) === true && !d.online) {
+        if (prev.current.get(d.deviceId) === true && !d.online && !d.left) {
           ui.toast(`${d.label} perdeu a conexão`, 'error');
           beep(330);
         }
@@ -77,7 +78,8 @@ export function StaffAlerts() {
   if (!enabled || !devices.data) return null;
   const online = devices.data.filter((d) => d.online).length;
   // só alerta quedas recentes: sessões encerradas há muito tempo não são "aparelho sem conexão"
-  const offline = devices.data.filter((d) => !d.online && Date.now() - new Date(d.since).getTime() < RECENT_MS);
+  // saídas intencionais (sair/fechar o app) não são queda de conexão
+  const offline = devices.data.filter((d) => !d.online && !d.left && Date.now() - new Date(d.since).getTime() < RECENT_MS);
   return (
     <>
       <button
@@ -115,6 +117,8 @@ export function StaffAlerts() {
                   <td className="right">
                     {d.online ? (
                       <span className="badge green">online</span>
+                    ) : d.left ? (
+                      <span className="badge">saiu às {formatTime(d.since)}</span>
                     ) : Date.now() - new Date(d.since).getTime() < RECENT_MS ? (
                       <span className="badge red">sem conexão desde {formatTime(d.since)}</span>
                     ) : (

@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Bike, CheckCircle2, LayoutGrid, MapPin, MessageSquareText, Minus, Plus, Printer, Search, SearchX, ShoppingBag, ShoppingCart, Store, Trash2, UserRound, X } from 'lucide-react';
-import { computeOrderTotals, formatBRL, ORDER_TYPE_LABEL, searchFilter, searchScore, type OrderType } from '@guto/core';
+import { computeOrderTotals, formatBRL, ORDER_TYPE_LABEL, placeLabel, searchFilter, searchScore, type OrderType } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { CustomerFields, customerPayload, emptyCustomer, type CustomerDraft } from '../components/CustomerFields';
 import { lineToItemInput, lineTotal, ProductDialog } from '../components/ProductDialog';
 import { OrderDrawer } from '../components/OrderDrawer';
 import { PaymentDialog } from '../components/PaymentDialog';
 import { Alert, Button, Empty, ErrorBox, Field, Loading, Modal, useAction, useUi } from '../components/ui';
-import { ApiError, get, newIdemKey, post } from '../lib/api';
+import { ApiError, get, newIdemKey, post, qs } from '../lib/api';
 import { lineFromItem } from '../lib/repeat';
 import { useDay, useMenu, useNeighborhoods, useOrder, useSettings } from '../lib/queries';
-import type { CartLine, MenuProduct, Order } from '../lib/types';
+import type { CartLine, MenuProduct, Order, OrderRow } from '../lib/types';
 
 const TYPES: OrderType[] = ['counter', 'takeout', 'delivery', 'table'];
 const TYPE_ICON = { counter: Store, takeout: ShoppingBag, delivery: Bike, table: LayoutGrid } as const;
@@ -373,16 +373,19 @@ export default function Pos() {
 
           <div className="order-lines">
             {cart.length === 0 ? (
-              <div className="order-empty">
-                <ShoppingCart className="icon" aria-hidden />
-                <b>Nenhum item no pedido</b>
-                <span>Toque nos produtos ou digite o código e tecle Enter.</span>
-                <span className="keys">
-                  <span><kbd>F2</kbd> buscar</span>
-                  <span><kbd>F4</kbd> enviar</span>
-                  <span><kbd>F9</kbd> cobrar</span>
-                </span>
-              </div>
+              <>
+                <div className="order-empty">
+                  <ShoppingCart className="icon" aria-hidden />
+                  <b>Nenhum item no pedido</b>
+                  <span>Toque nos produtos ou digite o código e tecle Enter.</span>
+                  <span className="keys">
+                    <span><kbd>F2</kbd> buscar</span>
+                    <span><kbd>F4</kbd> enviar</span>
+                    <span><kbd>F9</kbd> cobrar</span>
+                  </span>
+                </div>
+                {!targetId && <RecentOrders dayId={day.data?.day?.id} onOpen={setDrawer} />}
+              </>
             ) : (
               <ol className="lines">
                 {cart.map((l) => (
@@ -528,5 +531,47 @@ export default function Pos() {
       )}
       {drawer && <OrderDrawer orderId={drawer} onClose={() => setDrawer(null)} />}
     </Layout>
+  );
+}
+
+/** Últimos pedidos do dia: reabrir para cobrar, imprimir ou acrescentar sem sair do PDV. */
+function RecentOrders({ dayId, onOpen }: { dayId?: string; onOpen: (id: string) => void }) {
+  const q = useQuery({
+    queryKey: ['orders', 'recentes', dayId],
+    queryFn: () => get<OrderRow[]>('/api/orders' + qs({ dayId, status: 'open,pending,closed', limit: 6 })),
+    enabled: !!dayId,
+    refetchInterval: 30000,
+  });
+  const list = q.data ?? [];
+  if (!list.length) return null;
+  return (
+    <section className="recent" aria-label="Últimos pedidos">
+      <h3>Últimos pedidos</h3>
+      <ul>
+        {list.map((o) => {
+          const due = o.totalCents - o.paidCents;
+          return (
+            <li key={o.id}>
+              <button type="button" onClick={() => onOpen(o.id)} aria-label={`Abrir pedido ${o.number}`}>
+                <b className="r-num">#{o.number}</b>
+                <span className="r-place ellipsis">{placeLabel(o)}{o.customerName ? ` · ${o.customerName}` : ''}</span>
+                <span className="r-state">
+                  {o.status === 'pending' ? (
+                    <span className="badge orange">aceitar</span>
+                  ) : o.status === 'closed' ? (
+                    <span className="badge">finalizado</span>
+                  ) : due > 0 ? (
+                    <span className="badge warn">a receber</span>
+                  ) : (
+                    <span className="badge green">pago</span>
+                  )}
+                </span>
+                <span className="r-total">{formatBRL(o.totalCents)}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

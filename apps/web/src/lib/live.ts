@@ -34,6 +34,20 @@ const KEYS: Record<string, string[][]> = {
 };
 
 /** Identificador estável deste aparelho (para o caixa saber qual dispositivo caiu). */
+/** Avisa o servidor que este aparelho saiu de propósito (não é queda de conexão). */
+export function sayBye() {
+  try {
+    void fetch('/api/presence/bye', {
+      method: 'POST',
+      keepalive: true, // chega mesmo com a aba fechando
+      headers: { 'content-type': 'application/json', 'x-requested-with': 'guto' },
+      body: JSON.stringify({ device: deviceId() }),
+    }).catch(() => undefined);
+  } catch {
+    /* ignora */
+  }
+}
+
 export function deviceId(): string {
   const make = () => 'dev-' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
   try {
@@ -95,16 +109,27 @@ export function useLiveUpdates(qc: QueryClient, enabled: boolean, label = 'Dispo
       }).catch(() => setState('offline'));
     void ping();
     const pinger = setInterval(ping, 15000);
-    const onOffline = () => setState('offline');
+    // o aparelho percebeu que ficou sem rede: encerra o canal de tempo real (se a mensagem ainda chegar ao
+    // servidor, o caixa é avisado na hora; senão, pelo tempo sem sinal) e tenta de novo ao voltar
+    const onOffline = () => {
+      setState('offline');
+      es?.close();
+      if (retry) clearTimeout(retry);
+      retry = setTimeout(connect, 3000);
+    };
     const onOnline = () => {
       es?.close();
       if (retry) clearTimeout(retry);
       wasOffline = true;
       connect();
     };
+    // fechar a aba/app é saída intencional; ir para segundo plano (persisted) não é
+    const onPageHide = (e: PageTransitionEvent) => !e.persisted && sayBye();
     window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
+    window.addEventListener('pagehide', onPageHide);
     return () => {
+      window.removeEventListener('pagehide', onPageHide);
       es?.close();
       clearInterval(pinger);
       if (retry) clearTimeout(retry);
