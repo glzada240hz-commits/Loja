@@ -10,8 +10,7 @@ on:
     paths:
       - 'apps/**'
       - 'packages/**'
-      - 'scripts/loja.mjs'
-      - 'scripts/empacotar-windows.mjs'
+      - 'scripts/**'
       - 'deploy/windows/**'
       - 'package-lock.json'
       - '.github/workflows/pacote-windows.yml'
