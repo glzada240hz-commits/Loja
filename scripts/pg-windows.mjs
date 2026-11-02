@@ -15,14 +15,17 @@ async function bin() {
 export async function startPg(dataDir, port) {
   const pgCtl = await bin();
   const logFile = path.join(dataDir, '..', 'postgres.log');
+  // stdio 'ignore': o postgres iniciado pelo pg_ctl herdaria os canais de saída e o pg_ctl nunca "terminaria"
+  // para quem o chamou; as mensagens vão para o arquivo de log
   const r = spawnSync(pgCtl, ['start', '-D', dataDir, '-l', logFile, '-w', '-t', '90', '-o', `-p ${port} -c listen_addresses=127.0.0.1`], {
     windowsHide: true,
-    encoding: 'utf8',
+    stdio: 'ignore',
+    timeout: 120_000,
     env: { ...process.env, LC_MESSAGES: 'en_US.UTF-8' },
   });
   if (r.status !== 0) {
     const tail = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8').split(/\r?\n/).slice(-15).join('\n') : '';
-    throw Object.assign(new Error(`O banco de dados não iniciou (pg_ctl ${r.status}).\n${r.stdout ?? ''}${r.stderr ?? ''}\n${tail}`), { friendly: true });
+    throw Object.assign(new Error(`O banco de dados não iniciou (pg_ctl ${r.status ?? r.error?.message}).\n${tail}`), { friendly: true });
   }
 }
 
@@ -30,5 +33,5 @@ export async function startPg(dataDir, port) {
 export async function stopPg(dataDir) {
   if (!fs.existsSync(path.join(dataDir, 'postmaster.pid'))) return;
   const pgCtl = await bin();
-  spawnSync(pgCtl, ['stop', '-D', dataDir, '-m', 'fast', '-w', '-t', '60'], { windowsHide: true });
+  spawnSync(pgCtl, ['stop', '-D', dataDir, '-m', 'fast', '-w', '-t', '60'], { windowsHide: true, stdio: 'ignore', timeout: 90_000 });
 }
