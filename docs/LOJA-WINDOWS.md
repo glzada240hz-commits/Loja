@@ -15,6 +15,15 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 | Cópia de segurança | automática, 1 por dia (14 últimas) | não |
 | Cardápio | vazio ou exemplo (você escolhe) | exemplo |
 
+## Versão disponível
+
+- **`0.2.0+5f06d2af`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-5f06d2af
+  (`BarDoGuto-Instalador-0.2.0-5f06d2af.exe`, ~50 MB). Teste automático no Windows (GitHub Actions,
+  execução 41541650988): primeira abertura, login do admin, ausência de usuários de demonstração, abertura de
+  dia e caixa, pedido, interface, reabertura com o pedido mantido e cópia de segurança criada — **aprovado**.
+- Problemas que só apareceram no Windows e foram corrigidos: o PostgreSQL não iniciava com privilégios
+  elevados (agora via `pg_ctl`), o lançador ficava esperando o banco, e a criação do banco.
+
 ## Instalar
 
 1. Baixe `BarDoGuto-Instalador-<versão>.exe` (Releases do GitHub) e execute.
