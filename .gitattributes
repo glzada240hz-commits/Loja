@@ -1,2 +1,4 @@
 # Arquivos .bat ficam com quebra de linha do Windows (CRLF) no próprio repositório
 *.bat -text
+*.iss text eol=crlf
+*.txt -text

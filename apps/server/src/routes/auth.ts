@@ -11,8 +11,9 @@ import { validatePassword } from '../services/admin.js';
 
 export async function authRoutes(app: FastifyInstance) {
   const { db, config } = app.deps;
-  // Em produção sempre Secure; fora dela, conforme o acesso (HTTPS pelo túnel/proxy ou HTTP na rede local de testes).
-  const isSecure = (protocol: string) => config.NODE_ENV === 'production' || protocol === 'https';
+  // Produção na internet: sempre Secure. Na rede local da loja (COOKIE_SECURE=auto): conforme o acesso (HTTP ou HTTPS).
+  const secureMode = config.COOKIE_SECURE ?? (config.NODE_ENV === 'production' ? 'always' : 'auto');
+  const isSecure = (protocol: string) => secureMode === 'always' || protocol === 'https';
 
   app.post('/api/auth/login', { config: { rateLimit: { max: config.LOGIN_RATE_LIMIT, timeWindow: '1 minute' } } }, async (req, reply) => {
     const body = z.object({ username: z.string().min(1).max(60), password: z.string().min(1).max(200) }).parse(req.body);

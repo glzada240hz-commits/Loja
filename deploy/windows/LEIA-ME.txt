@@ -1,0 +1,34 @@
+BAR DO GUTO - SISTEMA DA LOJA (Windows)
+=======================================
+
+ABRIR
+  Duplo clique em "Bar do Guto" (atalho na Area de Trabalho) ou em BarDoGuto.exe.
+  Deixe a janela preta aberta enquanto a loja funciona. Para encerrar no fim do dia, feche a janela.
+
+PRIMEIRA VEZ
+  1. A janela pede para criar a senha do usuario "admin" (minimo 8 caracteres). GUARDE essa senha.
+  2. Responda S para carregar o cardapio de exemplo (precos DEMONSTRATIVOS - revise todos) ou N para comecar vazio.
+  3. Se o Windows perguntar sobre o Firewall, marque "Redes privadas" e clique em Permitir
+     (necessario para celulares e tablets da loja acessarem).
+  4. O navegador abre sozinho em http://localhost:3000. Entre como admin e cadastre os usuarios
+     reais (caixa, atendentes, cozinha, entregadores) em Ajustes > Usuarios.
+
+CELULARES E TABLETS
+  Conecte-os ao Wi-Fi da loja e abra o endereco "http://192.168..." que aparece na janela.
+  Use um Wi-Fi com senha e, se houver, uma rede separada para clientes.
+
+DADOS E COPIAS DE SEGURANCA
+  Os dados ficam em %LOCALAPPDATA%\BarDoGuto\loja (fora da pasta do programa).
+  Uma copia de seguranca e feita automaticamente por dia ao abrir (guarda as 14 ultimas) em
+  %LOCALAPPDATA%\BarDoGuto\loja\copias-de-seguranca
+  Copie essa pasta para um pendrive ou nuvem toda semana.
+  Desinstalar o programa NAO apaga os dados.
+
+ATUALIZAR
+  Instale a versao nova por cima. Os dados continuam.
+
+IMPORTANTE
+  - Comprovantes NAO sao documento fiscal.
+  - WhatsApp em modo demonstrativo (nao envia mensagens reais).
+  - Sem HTTPS: o app do atendente funciona no navegador do celular pelo Wi-Fi da loja,
+    mas nao instala como aplicativo. Para HTTPS veja docs/OPERACAO.md no projeto.

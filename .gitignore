@@ -14,3 +14,5 @@ apps/server/dist/
 apps/web/dev-dist/
 apps/web/dist-demo/
 .teste/
+.loja-teste/
+dist-windows/

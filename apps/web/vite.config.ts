@@ -15,7 +15,7 @@ function commit() {
     return 'sem-git';
   }
 }
-/** Impressão digital do código da interface: igual em qualquer máquina (ZIP ou Git, CRLF ou LF). */
+/** Impressão digital do código (interface, regras e servidor): igual em qualquer máquina (ZIP ou Git, CRLF ou LF). */
 function sourceHash() {
   const h = crypto.createHash('sha256');
   const walk = (dir: string) => {
@@ -30,6 +30,7 @@ function sourceHash() {
   };
   walk(path.join(__dirname, 'src'));
   walk(path.join(__dirname, '../../packages/core/src'));
+  walk(path.join(__dirname, '../server/src'));
   return h.digest('hex').slice(0, 8);
 }
 const BUILD = { version: pkg.version, commit: commit(), builtAt: new Date().toISOString(), code: sourceHash() };

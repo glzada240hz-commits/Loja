@@ -26,6 +26,10 @@ Ações sensíveis (desconto acima do limite, cancelamentos, reabertura, estorno
 conta pendente, taxa manual) pedem **autorização do gerente** na própria tela; o nome de quem autorizou
 fica no histórico e na auditoria.
 
+## Instalar na loja (Windows)
+
+Instalador `.exe` gerado e testado num Windows pelo GitHub Actions — veja [docs/LOJA-WINDOWS.md](docs/LOJA-WINDOWS.md).
+
 ## Testar no Windows (computador + celular), sem instalar banco
 
 Dois cliques em **`iniciar-teste.bat`**: sobe um banco de testes separado com dados fictícios, abre o

@@ -133,3 +133,27 @@ describe('12. acesso proibido entre perfis (verificado no servidor)', () => {
     expect(status.mode).toBe('demo');
   });
 });
+
+describe('cookie de sessão conforme o tipo de instalação', () => {
+  const login = async (extra: Record<string, string>, proto: 'http' | 'https') => {
+    const app = await buildApp(testConfig(extra), { logger: false });
+    try {
+      const r = await app.app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: JSON.stringify({ username: 'admin', password: 'admin-test-123' }),
+        headers: { 'content-type': 'application/json', 'x-requested-with': 'guto', 'x-forwarded-proto': proto },
+      });
+      expect(r.statusCode).toBe(200);
+      return String(r.headers['set-cookie']);
+    } finally {
+      await app.close();
+    }
+  };
+  it('produção na internet: sempre Secure; loja na rede local (COOKIE_SECURE=auto): segue o protocolo', async () => {
+    expect(await login({ NODE_ENV: 'production' }, 'http')).toContain('Secure');
+    expect(await login({ NODE_ENV: 'production', COOKIE_SECURE: 'auto' }, 'http')).not.toContain('Secure');
+    expect(await login({ NODE_ENV: 'production', COOKIE_SECURE: 'auto' }, 'https')).toContain('Secure');
+    expect(await login({ NODE_ENV: 'development' }, 'http')).not.toContain('Secure');
+  });
+});

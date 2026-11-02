@@ -17,6 +17,11 @@ const schema = z.object({
   /** Desliga workers em segundo plano (testes controlam manualmente). */
   DISABLE_WORKERS: z.coerce.boolean().default(false),
   LOG_LEVEL: z.string().default('info'),
+  /**
+   * Cookie de sessão "Secure": always = só por HTTPS (padrão em produção na internet); auto = segue o
+   * protocolo do acesso (instalação na rede local da loja, sem HTTPS). Padrão: always em produção, auto fora.
+   */
+  COOKIE_SECURE: z.enum(['auto', 'always']).optional(),
   /** tentativas de login por minuto por IP */
   LOGIN_RATE_LIMIT: z.coerce.number().int().min(1).default(10),
   /** pedidos pelo cardápio digital a cada 5 minutos por IP */

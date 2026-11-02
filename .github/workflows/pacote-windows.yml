@@ -1,0 +1,136 @@
+# Gera e TESTA o pacote do Bar do Guto para a loja num Windows real:
+#   BarDoGuto-Instalador-<versão>.exe  (instalador)  e  BarDoGuto-<versão>-portatil.zip
+# Os arquivos ficam nos "Artifacts" da execução e numa pré-release do GitHub.
+name: Pacote Windows (loja)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/gallant-hopper-i7t3xm]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/loja.mjs'
+      - 'scripts/empacotar-windows.mjs'
+      - 'deploy/windows/**'
+      - 'package-lock.json'
+      - '.github/workflows/pacote-windows.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pacote-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Compilar
+        run: npm run build
+
+      - name: Testes unitários
+        run: npm run test:unit
+
+      - name: Montar o pacote
+        run: node scripts/empacotar-windows.mjs
+
+      - name: Compilar o lançador BarDoGuto.exe
+        shell: pwsh
+        run: |
+          $csc = Get-ChildItem "$env:WINDIR\Microsoft.NET\Framework64" -Recurse -Filter csc.exe | Sort-Object FullName -Descending | Select-Object -First 1
+          & $csc.FullName /nologo /target:exe /platform:x64 /optimize+ "/win32icon:deploy\windows\BarDoGuto.ico" "/out:dist-windows\BarDoGuto\BarDoGuto.exe" deploy\windows\BarDoGuto.cs
+          if ($LASTEXITCODE -ne 0) { throw "falha ao compilar o lançador" }
+
+      - name: Teste no Windows — primeira abertura, login, pedido, reabertura e cópia de segurança
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dados = Join-Path $env:RUNNER_TEMP 'dados-loja'
+          $exe = Resolve-Path 'dist-windows\BarDoGuto\BarDoGuto.exe'
+          function Start-Loja($extra) {
+            $a = @('--dados', $dados, '--porta', '3500', '--sem-navegador') + $extra
+            return Start-Process -FilePath $exe -ArgumentList $a -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\loja-out.txt" -RedirectStandardError "$env:RUNNER_TEMP\loja-err.txt"
+          }
+          function Wait-Health {
+            for ($i = 0; $i -lt 120; $i++) {
+              try { if ((Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3500/api/health).StatusCode -eq 200) { return } } catch {}
+              Start-Sleep -Seconds 1
+            }
+            Get-Content "$env:RUNNER_TEMP\loja-out.txt", "$env:RUNNER_TEMP\loja-err.txt" -ErrorAction SilentlyContinue
+            throw 'o sistema não respondeu'
+          }
+          function Stop-Loja($p) { & taskkill /T /F /PID $p.Id | Out-Null; Get-Process postgres -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 3 }
+          $h = @{ 'x-requested-with' = 'guto' }
+          $pw = 'TesteWindows-' + (Get-Random)
+
+          $p = Start-Loja @('--nao-interativo', '--senha-admin', $pw, '--exemplo')
+          Wait-Health
+          $s = $null
+          Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/auth/login -Headers $h -ContentType 'application/json' -Body (@{ username = 'admin'; password = $pw } | ConvertTo-Json) -SessionVariable s | Out-Null
+          $menu = Invoke-RestMethod -Uri http://127.0.0.1:3500/api/menu -WebSession $s
+          $produtos = ($menu | ForEach-Object { $_.products } | Measure-Object).Count
+          if ($produtos -lt 1) { throw 'cardápio de exemplo não carregou' }
+          try { Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/auth/login -Headers $h -ContentType 'application/json' -Body '{"username":"caixa","password":"demo1234"}'; throw 'usuário de demonstração existe no modo loja' } catch { if ($_.Exception.Message -like '*demonstração*') { throw } }
+          Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/day/open -Headers $h -WebSession $s -ContentType 'application/json' -Body '{}' | Out-Null
+          Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/cash/open -Headers $h -WebSession $s -ContentType 'application/json' -Body '{"openingCents":10000}' | Out-Null
+          $variant = $menu[0].products[0].variants[0].id
+          $body = @{ type = 'counter'; send = $true; items = @(@{ variantId = $variant; quantity = 2 }) } | ConvertTo-Json -Depth 5
+          $pedido = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/orders -Headers ($h + @{ 'idempotency-key' = [guid]::NewGuid().ToString() }) -WebSession $s -ContentType 'application/json' -Body $body
+          Write-Host "Pedido #$($pedido.number) total $($pedido.totalCents) centavos"
+          $html = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3500/).Content
+          if ($html -notlike '*Bar do Guto*') { throw 'interface não carregou' }
+          Stop-Loja $p
+
+          # reabertura: mesmos dados, cópia de segurança do dia criada
+          $p = Start-Loja @()
+          Wait-Health
+          Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/auth/login -Headers $h -ContentType 'application/json' -Body (@{ username = 'admin'; password = $pw } | ConvertTo-Json) -SessionVariable s2 | Out-Null
+          $lista = Invoke-RestMethod -Uri 'http://127.0.0.1:3500/api/orders?status=open,pending,closed' -WebSession $s2
+          if (-not ($lista | Where-Object { $_.number -eq $pedido.number })) { throw 'pedido não persistiu após reabrir' }
+          $copias = Get-ChildItem (Join-Path $dados 'copias-de-seguranca') -Directory
+          if ($copias.Count -lt 1) { throw 'cópia de segurança não foi criada' }
+          Write-Host "OK: dados persistiram; cópias de segurança: $($copias.Name -join ', ')"
+          Stop-Loja $p
+
+      - name: Gerar instalador e zip
+        shell: pwsh
+        run: |
+          $v = (Get-Content apps/web/dist/version.json | ConvertFrom-Json).id -replace '\+', '-'
+          echo "VERSAO=$v" >> $env:GITHUB_ENV
+          $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          & $iscc "/DAppVersion=$v" "/DSourceDir=$PWD\dist-windows\BarDoGuto" "/DOutputDir=$PWD\dist-windows" deploy\windows\BarDoGuto.iss
+          if ($LASTEXITCODE -ne 0) { throw 'falha ao gerar o instalador' }
+          Compress-Archive -Path dist-windows\BarDoGuto -DestinationPath "dist-windows\BarDoGuto-$v-portatil.zip"
+          Get-ChildItem dist-windows -File | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BarDoGuto-${{ env.VERSAO }}
+          path: |
+            dist-windows/BarDoGuto-Instalador-*.exe
+            dist-windows/BarDoGuto-*-portatil.zip
+          retention-days: 30
+
+      - name: Publicar pré-release com o instalador
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "loja-$env:VERSAO"
+          gh release delete $tag --yes --cleanup-tag 2>$null
+          gh release create $tag --target $env:GITHUB_SHA --prerelease --title "Bar do Guto - loja $env:VERSAO" --notes "Instalador para Windows gerado e testado automaticamente num Windows (primeira abertura, login, pedido, reabertura e copia de seguranca). Baixe BarDoGuto-Instalador-*.exe." (Get-ChildItem dist-windows\BarDoGuto-Instalador-*.exe).FullName (Get-ChildItem dist-windows\BarDoGuto-*-portatil.zip).FullName
