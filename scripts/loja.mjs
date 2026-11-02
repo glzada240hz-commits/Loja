@@ -14,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { startPg, stopPg } from './pg-windows.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIN = process.platform === 'win32';
@@ -150,6 +151,8 @@ function backup(force = false) {
 
 async function stopLeftover() {
   if (!(await portInUse(PG_PORT))) return;
+  if (WIN) await stopPg(PG_DIR).catch(() => undefined);
+  if (!(await portInUse(PG_PORT))) return;
   const pidFile = path.join(PG_DIR, 'postmaster.pid');
   const pid = fs.existsSync(pidFile) ? Number(fs.readFileSync(pidFile, 'utf8').split(/\r?\n/)[0]) : NaN;
   if (pid > 0) {
@@ -197,7 +200,8 @@ async function shutdown(code = 0) {
   if (pg) log('Encerrando com segurança… (os dados ficam guardados)');
   for (const c of children) c.kill();
   try {
-    await pg?.stop();
+    if (WIN && pg) await stopPg(PG_DIR);
+    else await pg?.stop();
   } catch {
     /* já parado */
   }
@@ -241,9 +245,11 @@ async function main() {
     log(`Criando o banco de dados da loja em ${PG_DIR} …`);
     await pg.initialise();
   }
-  await pg.start().catch(() => {
-    throw fail('Não foi possível iniciar o banco de dados da loja.');
-  });
+  if (WIN) await startPg(PG_DIR, PG_PORT);
+  else
+    await pg.start().catch(() => {
+      throw fail('Não foi possível iniciar o banco de dados da loja.\n' + pgLog.slice(-15).join(''));
+    });
   if (fresh) await pg.createDatabase('guto');
   if (await portInUse(APP_PORT)) throw fail(`A porta ${APP_PORT} já está em uso (talvez o ambiente de TESTES esteja aberto). Feche-o e abra de novo.`);
 

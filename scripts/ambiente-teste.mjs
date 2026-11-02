@@ -17,6 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
+import { startPg, stopPg } from './pg-windows.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIN = process.platform === 'win32';
@@ -139,6 +140,8 @@ function migrateOldData() {
 
 /** Desliga um PostgreSQL de testes que sobrou de uma execução anterior (janela fechada à força). */
 async function stopLeftover() {
+  if (!(await portInUse(PG_PORT))) return;
+  if (WIN) await stopPg(PG_DIR).catch(() => undefined);
   if (!(await portInUse(PG_PORT))) return;
   const pidFile = path.join(PG_DIR, 'postmaster.pid');
   const pid = fs.existsSync(pidFile) ? Number(fs.readFileSync(pidFile, 'utf8').split(/\r?\n/)[0]) : NaN;
@@ -264,7 +267,8 @@ async function shutdown(code = 0) {
   if (pg) log('Encerrando… (os dados de teste ficam guardados)');
   for (const c of children) c.kill();
   try {
-    await pg?.stop();
+    if (WIN && pg) await stopPg(PG_DIR);
+    else await pg?.stop();
   } catch {
     /* já parado */
   }
@@ -310,9 +314,11 @@ async function main() {
     log(`Criando banco de testes separado em ${PG_DIR} …`);
     await pg.initialise();
   }
-  await pg.start().catch(() => {
-    throw fail(`Não foi possível iniciar o PostgreSQL de testes na porta ${PG_PORT}.`);
-  });
+  if (WIN) await startPg(PG_DIR, PG_PORT);
+  else
+    await pg.start().catch(() => {
+      throw fail(`Não foi possível iniciar o PostgreSQL de testes na porta ${PG_PORT}.\n` + pgLog.slice(-15).join(''));
+    });
   if (fresh) await pg.createDatabase('guto_teste');
   log(`PostgreSQL de testes rodando na porta ${PG_PORT}.`);
 

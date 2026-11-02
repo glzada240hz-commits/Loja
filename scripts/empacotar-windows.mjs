@@ -22,6 +22,7 @@ const copy = (rel) => fs.cpSync(path.join(ROOT, rel), path.join(APP, rel), { rec
 copy('apps/server/dist');
 copy('apps/web/dist');
 copy('scripts/loja.mjs');
+copy('scripts/pg-windows.mjs');
 
 // dependências de produção com as MESMAS versões testadas (lidas de node_modules)
 const installed = (name) => JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules', name, 'package.json'), 'utf8')).version;
