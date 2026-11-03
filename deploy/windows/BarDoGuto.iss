@@ -53,9 +53,24 @@ Name: "{userstartup}\Bar do Guto"; Filename: "{app}\BarDoGuto.exe"; WorkingDir: 
 Filename: "{app}\LEIA-ME.txt"; Description: "Ler as instruções"; Flags: postinstall shellexec skipifsilent unchecked
 Filename: "{app}\BarDoGuto.exe"; Description: "Abrir o Bar do Guto agora"; Flags: postinstall nowait skipifsilent
 
+[UninstallRun]
+; encerra com segurança o Bar do Guto aberto (banco de dados incluído) antes de remover
+Filename: "{app}\BarDoGuto.exe"; Parameters: "--encerrar"; RunOnceId: "EncerrarBarDoGuto"; Flags: runhidden waituntilterminated
+
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\app"
 Type: filesandordirs; Name: "{app}\runtime"
 
 [Messages]
-brazilianportuguese.FinishedLabel=O Bar do Guto foi instalado. Na primeira abertura, crie a senha do administrador. Os dados da loja ficam em %LOCALAPPDATA%\BarDoGuto\loja e não são apagados se você desinstalar.
+brazilianportuguese.FinishedLabel=O Bar do Guto foi instalado. Na primeira abertura, crie a senha do administrador. Ele funciona como um aplicativo: fica no ícone perto do relógio; para encerrar no fim do dia, clique com o botão direito no ícone e escolha Encerrar. Os dados da loja ficam em %LOCALAPPDATA%\BarDoGuto\loja e não são apagados se você desinstalar.
+
+[Code]
+// Atualização por cima: se o Bar do Guto estiver aberto, encerra com segurança antes de copiar os arquivos.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Result := '';
+  if CheckForMutexes('BarDoGuto.Loja') and FileExists(ExpandConstant('{app}\BarDoGuto.exe')) then
+    Exec(ExpandConstant('{app}\BarDoGuto.exe'), '--encerrar', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;

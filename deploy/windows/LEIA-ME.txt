@@ -2,19 +2,29 @@ BAR DO GUTO - SISTEMA DA LOJA (Windows)
 =======================================
 
 ABRIR
-  Duplo clique em "Bar do Guto" (atalho na Area de Trabalho) ou em BarDoGuto.exe.
-  Deixe a janela preta aberta enquanto a loja funciona. Para encerrar no fim do dia, feche a janela.
+  Duplo clique em "Bar do Guto" (atalho na Area de Trabalho ou menu Iniciar).
+  Funciona como um aplicativo comum: nao ha janela preta. O sistema abre em janela propria e
+  fica um icone perto do relogio (pode estar na setinha ^ da barra de tarefas).
+  Fechar a janela do sistema NAO desliga o Bar do Guto (celulares e cozinha continuam).
+  Para voltar: clique no atalho de novo ou duas vezes no icone perto do relogio.
+
+ENCERRAR NO FIM DO DIA
+  Botao direito no icone perto do relogio > "Encerrar o Bar do Guto".
+  Desligar o Windows com ele aberto tambem encerra com seguranca.
 
 PRIMEIRA VEZ
-  1. A janela pede para criar a senha do usuario "admin" (minimo 8 caracteres). GUARDE essa senha.
-  2. Responda S para carregar o cardapio de exemplo (precos DEMONSTRATIVOS - revise todos) ou N para comecar vazio.
+  1. Aparece a tela "Bem-vindo ao Bar do Guto": crie a senha do usuario "admin"
+     (minimo 8 caracteres). GUARDE essa senha.
+  2. Marque "Carregar cardapio de exemplo" (precos DEMONSTRATIVOS - revise todos) ou deixe
+     desmarcado para comecar vazio.
   3. Se o Windows perguntar sobre o Firewall, marque "Redes privadas" e clique em Permitir
      (necessario para celulares e tablets da loja acessarem).
-  4. O navegador abre sozinho em http://localhost:3000. Entre como admin e cadastre os usuarios
+  4. O sistema abre sozinho. Entre como admin e cadastre os usuarios
      reais (caixa, atendentes, cozinha, entregadores) em Ajustes > Usuarios.
 
 CELULARES E TABLETS
-  Conecte-os ao Wi-Fi da loja e abra o endereco "http://192.168..." que aparece na janela.
+  Conecte-os ao Wi-Fi da loja e abra o endereco "http://192.168...:3000" que aparece no menu
+  do icone perto do relogio (botao direito; clique no endereco para copiar).
   Use um Wi-Fi com senha e, se houver, uma rede separada para clientes.
 
 DADOS E COPIAS DE SEGURANCA
@@ -25,7 +35,11 @@ DADOS E COPIAS DE SEGURANCA
   Desinstalar o programa NAO apaga os dados.
 
 ATUALIZAR
-  Instale a versao nova por cima. Os dados continuam.
+  Instale a versao nova por cima (o instalador encerra o Bar do Guto sozinho). Os dados continuam.
+
+PROBLEMAS
+  Botao direito no icone > "Registro de funcionamento" mostra o que aconteceu (para o suporte).
+  Os registros ficam em %LOCALAPPDATA%\BarDoGuto\loja\registros
 
 IMPORTANTE
   - Comprovantes NAO sao documento fiscal.

@@ -3,9 +3,13 @@
 //  - sem usuários de demonstração; a senha do administrador é criada na primeira abertura;
 //  - cópia de segurança automática do banco uma vez por dia (antes de iniciar), mantendo as 14 últimas;
 //  - não abre duas vezes; fechar a janela encerra tudo com segurança.
-// Uso (o instalador cria o atalho): BarDoGuto.exe  ==  node scripts/loja.mjs
-// Opções: --porta 3000  --dados <pasta>  --sem-navegador  --backup-agora
-//         --nao-interativo --senha-admin <senha> [--exemplo]   (só para instalação automatizada/testes)
+// Uso: o aplicativo BarDoGuto.exe (Windows) executa este script escondido com --gui; também roda direto:
+//      node scripts/loja.mjs
+// Opções: --porta 3000  --dados <pasta>  --sem-navegador  --backup-agora  --exemplo
+//         --nao-interativo --senha-admin <senha>   (só para instalação automatizada/testes)
+//         --gui   modo usado pelo aplicativo do Windows: sem perguntas no terminal (a senha da primeira abertura
+//                 chega pela variável GUTO_SENHA_ADMIN, nunca por argumento), linhas GUTO_PRONTO/GUTO_ERRO
+//                 para o aplicativo e encerramento seguro quando ele envia "sair" ou fecha a entrada.
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -31,6 +35,9 @@ const LOCK = path.join(DIR, 'em-uso.lock');
 const PG_PORT = 54330;
 const APP_PORT = Number(opt('--porta') ?? process.env.PORT ?? 3000);
 const KEEP_BACKUPS = 14;
+const GUI = args.includes('--gui');
+const ENV_PASSWORD = process.env.GUTO_SENHA_ADMIN;
+delete process.env.GUTO_SENHA_ADMIN; // não repassa a senha aos processos filhos
 const children = [];
 const pgLog = [];
 let pg;
@@ -107,6 +114,11 @@ function readConfig() {
 
 /** Primeira abertura: senha do administrador e (opcional) cardápio de exemplo. A senha não é guardada. */
 async function firstRun() {
+  const pw = ENV_PASSWORD ?? (args.includes('--nao-interativo') ? opt('--senha-admin') : undefined);
+  if (pw !== undefined || GUI || args.includes('--nao-interativo')) {
+    if (!pw || pw.length < 8) throw fail('A senha do administrador precisa ter pelo menos 8 caracteres.');
+    return { adminPassword: pw, example: args.includes('--exemplo') };
+  }
   console.log(`
 ==================================================================
   BAR DO GUTO — PRIMEIRA ABERTURA NESTE COMPUTADOR
@@ -114,11 +126,6 @@ async function firstRun() {
   Vamos criar o usuário "admin" (dono/gerente). Guarde a senha:
   sem ela não é possível entrar no sistema.
 `);
-  if (args.includes('--nao-interativo')) {
-    const pw = opt('--senha-admin') ?? '';
-    if (pw.length < 8) throw fail('Use --senha-admin com pelo menos 8 caracteres.');
-    return { adminPassword: pw, example: args.includes('--exemplo') };
-  }
   for (;;) {
     const a = await ask('  Crie a senha do admin (mínimo 8 caracteres): ', true);
     if (a.length < 8) {
@@ -211,6 +218,15 @@ async function shutdown(code = 0) {
 process.on('SIGINT', () => void shutdown(0));
 process.on('SIGTERM', () => void shutdown(0));
 process.on('SIGHUP', () => void shutdown(0)); // janela fechada no Windows
+if (GUI) {
+  // o aplicativo pede o encerramento escrevendo "sair"; se ele fechar (ou cair), a entrada termina
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', (d) => /sair/.test(d) && void shutdown(0));
+  process.stdin.on('end', () => void shutdown(0));
+  process.stdin.on('error', () => void shutdown(0));
+}
+/** Mensagem para o aplicativo do Windows (uma linha, em base64 para aceitar acentos e quebras de linha). */
+const toApp = (kind, text) => GUI && console.log(`${kind} ${Buffer.from(text, 'utf8').toString('base64')}`);
 
 async function main() {
   checkNode();
@@ -279,12 +295,18 @@ async function main() {
   server.on('exit', (c) => {
     if (!stopping) {
       log(`O sistema parou inesperadamente (código ${c}). Feche esta janela e abra o Bar do Guto de novo.`);
+      toApp('GUTO_ERRO', `O sistema parou inesperadamente (código ${c}). Abra o Bar do Guto de novo.`);
       void shutdown(1);
     }
   });
   if (!(await waitHealth(`http://127.0.0.1:${APP_PORT}/api/health`))) throw fail('O sistema não respondeu. Veja as mensagens acima.');
 
   const local = `http://localhost:${APP_PORT}`;
+  if (GUI) {
+    log(`Pronto: ${local} · rede local: ${lan.map((ip) => `http://${ip}:${APP_PORT}`).join(', ') || 'nenhuma'} · dados: ${DIR}`);
+    toApp('GUTO_PRONTO', [local, lan.map((ip) => `http://${ip}:${APP_PORT}`).join(','), DIR, BACKUP_DIR].join('|'));
+    return;
+  }
   console.log(`
 ==================================================================
   BAR DO GUTO — LOJA (uso real)        NÃO FECHE ESTA JANELA
@@ -307,5 +329,6 @@ ${lan.length ? `  Celulares e tablets no Wi-Fi da loja:\n${lan.map((ip) => `    
 main().catch(async (e) => {
   if (pgLog.length && !e.friendly) console.error(pgLog.slice(-20).join(''));
   console.error(`\n\x1b[31m[ERRO]\x1b[0m ${e.friendly ? e.message : (e.stack ?? e)}\n`);
+  toApp('GUTO_ERRO', e.friendly ? e.message : `Erro inesperado: ${e.message ?? e}`);
   await shutdown(1);
 });

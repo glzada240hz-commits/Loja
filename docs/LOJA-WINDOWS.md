@@ -31,23 +31,44 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
      **Mais informações → Executar assim mesmo**.
    - Não pede senha de administrador do Windows (instala para o usuário atual).
 2. Marque “Criar atalho na Área de Trabalho” e, se quiser, “Abrir quando o Windows iniciar”.
-3. Na primeira abertura: crie a **senha do admin** (guarde!) e escolha se quer o cardápio de exemplo
-   (preços demonstrativos — revise todos).
+3. Na primeira abertura aparece a tela **“Bem-vindo ao Bar do Guto”**: crie a **senha do admin** (guarde!)
+   e marque se quer o cardápio de exemplo (preços demonstrativos — revise todos).
 4. Se o Firewall perguntar, marque **Redes privadas → Permitir** (para os celulares e tablets acessarem).
-5. O navegador abre em `http://localhost:3000`. Entre como `admin` e cadastre os usuários reais
+5. O sistema abre na **própria janela** (sem barra de endereço). Entre como `admin` e cadastre os usuários reais
    (caixa, atendentes, cozinha, entregadores) em **Ajustes → Usuários**, as mesas, bairros e o cardápio.
 
 ## No dia a dia
 
-- Abra o **Bar do Guto** pelo atalho e deixe a janela preta aberta. Feche-a no fim do dia.
-- Celulares e tablets: no Wi-Fi da loja, abra o endereço `http://192.168…:3000` mostrado na janela.
+- Abra o **Bar do Guto** pelo atalho. Ele funciona como um aplicativo comum: **não há janela preta**.
+  Enquanto abre, aparece uma tela “Abrindo…”; depois o sistema abre em janela própria e fica um **ícone
+  perto do relógio** (pode estar na setinha ^ da barra de tarefas).
+- Fechar a janela do sistema **não desliga** o Bar do Guto (os celulares e a cozinha continuam). Para voltar,
+  clique no atalho de novo ou duas vezes no ícone perto do relógio.
+- **Fim do dia**: botão direito no ícone → **Encerrar o Bar do Guto** (encerra o banco com segurança).
+  Desligar o Windows com ele aberto também encerra com segurança.
+- Celulares e tablets: botão direito no ícone → o endereço `http://192.168…:3000` aparece no menu (clique
+  para copiar). Abra-o no navegador do celular conectado ao Wi-Fi da loja.
 - Cópias de segurança: `%LOCALAPPDATA%\BarDoGuto\loja\copias-de-seguranca` (atalho no menu Iniciar).
   Copie essa pasta para um pendrive ou nuvem toda semana.
 - Atualizar: instale a versão nova por cima. Os dados continuam. Confira a versão em **(i) Sobre**.
 
+## Por dentro (para suporte)
+
+- `BarDoGuto.exe` é um aplicativo de janela do Windows (não de console). Ele executa, **escondido**, o
+  servidor do sistema com o Node.js que vai **dentro do pacote** (`runtime\node.exe`) — a loja não instala
+  Node nem vê janela dele; é o mesmo que outros aplicativos fazem ao levar o próprio motor embutido.
+- A janela do sistema é o Microsoft Edge (que já vem no Windows) em **modo aplicativo**, com perfil próprio em
+  `%LOCALAPPDATA%\BarDoGuto\janela`; sem Edge, usa o Chrome; sem os dois, o navegador padrão.
+- Registro de funcionamento: `%LOCALAPPDATA%\BarDoGuto\loja\registros\AAAA-MM-DD.txt` (30 dias; sem
+  senhas) — também no menu do ícone.
+- A senha da primeira abertura vai ao sistema por variável de ambiente, nunca por linha de comando nem
+  registro.
+- `BarDoGuto.exe --encerrar` encerra com segurança a cópia aberta (usado pelo instalador antes de atualizar ou
+  desinstalar).
+
 ## Restaurar uma cópia de segurança
 
-1. Feche o Bar do Guto.
+1. Encerre o Bar do Guto (botão direito no ícone perto do relógio → Encerrar).
 2. Renomeie `%LOCALAPPDATA%\BarDoGuto\loja\banco` para `banco-antigo`.
 3. Copie a pasta da cópia desejada (ex.: `copias-de-seguranca\2026-11-02-19-09`) para
    `%LOCALAPPDATA%\BarDoGuto\loja\banco`.

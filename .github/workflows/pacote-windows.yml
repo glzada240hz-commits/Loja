@@ -50,10 +50,10 @@ jobs:
         shell: pwsh
         run: |
           $csc = Get-ChildItem "$env:WINDIR\Microsoft.NET\Framework64" -Recurse -Filter csc.exe | Sort-Object FullName -Descending | Select-Object -First 1
-          & $csc.FullName /nologo /target:exe /platform:x64 /optimize+ "/win32icon:deploy\windows\BarDoGuto.ico" "/out:dist-windows\BarDoGuto\BarDoGuto.exe" deploy\windows\BarDoGuto.cs
+          & $csc.FullName /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 /r:System.Windows.Forms.dll /r:System.Drawing.dll "/win32icon:deploy\windows\BarDoGuto.ico" "/out:dist-windows\BarDoGuto\BarDoGuto.exe" deploy\windows\BarDoGuto.cs
           if ($LASTEXITCODE -ne 0) { throw "falha ao compilar o lançador" }
 
-      - name: Teste no Windows — primeira abertura, login, pedido, reabertura e cópia de segurança
+      - name: Teste no Windows — aplicativo sem console, primeira abertura, login, pedido, encerramento seguro, reabertura e cópia de segurança
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -61,18 +61,32 @@ jobs:
           $exe = Resolve-Path 'dist-windows\BarDoGuto\BarDoGuto.exe'
           function Start-Loja($extra) {
             $a = @('--sem-pausa', '--dados', $dados, '--porta', '3500', '--sem-navegador') + $extra
-            return Start-Process -FilePath $exe -ArgumentList $a -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\loja-out.txt" -RedirectStandardError "$env:RUNNER_TEMP\loja-err.txt"
+            return Start-Process -FilePath $exe -ArgumentList $a -PassThru
           }
+          function Show-Registro { Get-ChildItem (Join-Path $dados 'registros') -Filter *.txt -ErrorAction SilentlyContinue | Get-Content }
+          # BarDoGuto.exe precisa ser aplicativo de janela (subsistema GUI = 2), não de console
+          $bytes = [IO.File]::ReadAllBytes($exe)
+          $pe = [BitConverter]::ToInt32($bytes, 0x3C)
+          $subsistema = [BitConverter]::ToUInt16($bytes, $pe + 0x5C)
+          if ($subsistema -ne 2) { throw "BarDoGuto.exe não é aplicativo de janela (subsistema $subsistema)" }
+          Write-Host 'OK: BarDoGuto.exe é aplicativo de janela (sem console)'
           function Wait-Health($p) {
             for ($i = 0; $i -lt 120; $i++) {
               if ($p.HasExited) { break }
               try { if ((Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3500/api/health).StatusCode -eq 200) { return } } catch {}
               Start-Sleep -Seconds 1
             }
-            Get-Content "$env:RUNNER_TEMP\loja-out.txt", "$env:RUNNER_TEMP\loja-err.txt" -ErrorAction SilentlyContinue
+            Show-Registro
             throw 'o sistema não respondeu'
           }
-          function Stop-Loja($p) { & taskkill /T /F /PID $p.Id | Out-Null; Get-Process postgres -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 3 }
+          function Stop-Loja($p) {
+            # encerramento seguro, como o menu "Encerrar" e o instalador fazem
+            $e = Start-Process -FilePath $exe -ArgumentList '--encerrar' -PassThru -Wait
+            if ($e.ExitCode -ne 0 -or -not $p.WaitForExit(60000)) { Show-Registro; throw 'o aplicativo não encerrou' }
+            if (Test-Path (Join-Path $dados 'banco\postmaster.pid')) { Show-Registro; throw 'o banco não foi encerrado com segurança' }
+            if (Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*dist-windows*' }) { throw 'node.exe ficou aberto' }
+            Write-Host 'OK: encerrado com segurança (banco parado, sem processos restantes)'
+          }
           $h = @{ 'x-requested-with' = 'guto' }
           $pw = 'TesteWindows-' + (Get-Random)
 
@@ -92,6 +106,13 @@ jobs:
           Write-Host "Pedido #$($pedido.number) total $($pedido.totalCents) centavos"
           $html = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3500/).Content
           if ($html -notlike '*Bar do Guto*') { throw 'interface não carregou' }
+          # abrir de novo não cria segunda cópia: só pede para mostrar a janela e sai
+          $p2 = Start-Loja @()
+          if (-not $p2.WaitForExit(20000)) { throw 'segunda abertura não terminou' }
+          if ($p.HasExited) { throw 'a primeira cópia fechou' }
+          Write-Host 'OK: segunda abertura não duplicou o sistema'
+          $reg = (Show-Registro) -join "`n"
+          if ($reg -like "*$pw*") { throw 'a senha apareceu no registro' }
           Stop-Loja $p
 
           # reabertura: mesmos dados, cópia de segurança do dia criada
