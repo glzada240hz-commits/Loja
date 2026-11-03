@@ -5,6 +5,8 @@ import { ROLE_HOME, ROLE_LABEL, type Permission } from '@guto/core';
 import { useAuth } from './lib/auth';
 import { deviceKind, useLiveUpdates } from './lib/live';
 import { Loading } from './components/ui';
+import { useKitchenPrinterStation } from './lib/kitchenPrinter';
+import { useSettings } from './lib/queries';
 import { Login } from './pages/Login';
 
 const Pos = lazy(() => import('./pages/Pos'));
@@ -24,6 +26,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Password = lazy(() => import('./pages/Password'));
 const Waiter = lazy(() => import('./pages/waiter/Waiter'));
 const Print = lazy(() => import('./pages/Print'));
+const Phones = lazy(() => import('./pages/Phones'));
 const PublicMenu = lazy(() => import('./pages/public/PublicMenu'));
 const Track = lazy(() => import('./pages/public/Track'));
 
@@ -35,6 +38,15 @@ function Private({ perm, children }: { perm?: Permission; children: ReactElement
   return children;
 }
 
+/** Impressão automática da cozinha (só no aparelho marcado; ver lib/kitchenPrinter). */
+function KitchenPrinterStation() {
+  const { can } = useAuth();
+  const s = useSettings();
+  const loc = useLocation();
+  useKitchenPrinterStation(can('kitchen.view') && !loc.pathname.startsWith('/imprimir'), s.data?.printWidth ?? 80);
+  return null;
+}
+
 export function App() {
   const { me, loading } = useAuth();
   const qc = useQueryClient();
@@ -44,6 +56,7 @@ export function App() {
   if (loading && !isPublic) return <Loading />;
   return (
     <Suspense fallback={<Loading />}>
+      {me && !isPublic && <KitchenPrinterStation />}
       <Routes>
         <Route path="/c" element={<PublicMenu />} />
         <Route path="/c/pedido/:token" element={<Track />} />
@@ -64,6 +77,7 @@ export function App() {
         <Route path="/whatsapp" element={<Private perm="whatsapp.inbox"><WhatsApp /></Private>} />
         <Route path="/ajustes" element={<Private perm="settings.manage"><Settings /></Private>} />
         <Route path="/atendente/*" element={<Private perm="tables.serve"><Waiter /></Private>} />
+        <Route path="/celulares" element={<Private perm="cash.open"><Phones /></Private>} />
         <Route path="/senha" element={<Private><Password /></Private>} />
         <Route path="/imprimir/:id" element={<Private perm="orders.view"><Print /></Private>} />
         <Route path="*" element={<Navigate to={me ? ROLE_HOME[me.role] : '/login'} replace />} />

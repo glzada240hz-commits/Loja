@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+f826eaaf`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-f826eaaf
+- **`0.2.0+5cc3fdf9`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-5cc3fdf9
+  (`BarDoGuto-Instalador-0.2.0-5cc3fdf9.exe`). **Atendentes no celular** (QR na tela *Celulares e cozinha*) e
+  **pedidos impressos na cozinha automaticamente**, direto na impressora padrão — ver
+  [CELULARES-E-COZINHA.md](CELULARES-E-COZINHA.md).
+- `0.2.0+f826eaaf` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-f826eaaf
   (`BarDoGuto-Instalador-0.2.0-f826eaaf.exe`). Corrige: no **App do atendente** aberto pelo gerente/caixa não
   havia como voltar ao sistema (o aplicativo da loja não tem o botão Voltar do navegador); agora há a seta
   **Voltar ao sistema**. Em janelas estreitas o botão de menu não cobre mais o título de Mesas. O link do

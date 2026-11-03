@@ -22,6 +22,11 @@ PRIMEIRA VEZ
   4. O sistema abre sozinho. Entre como admin e cadastre os usuarios
      reais (caixa, atendentes, cozinha, entregadores) em Ajustes > Usuarios.
 
+CELULARES DOS ATENDENTES E PEDIDOS NA COZINHA
+  No sistema: menu "Celulares e cozinha". Atendentes leem o QR com o celular no Wi-Fi da loja.
+  No computador da impressora: "Ligar impressao neste computador" e "Imprimir teste".
+  Os pedidos saem sozinhos na impressora PADRAO do Windows (deixe a termica como padrao).
+
 CELULARES E TABLETS
   Conecte-os ao Wi-Fi da loja e abra o endereco "http://192.168...:3000" que aparece no menu
   do icone perto do relogio (botao direito; clique no endereco para copiar).

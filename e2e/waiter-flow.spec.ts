@@ -33,10 +33,18 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
     const a = await session(browser, 'atendente1', { width: 390, height: 844 }, true);
     atendente = a.page;
     atendenteCtx = a.ctx;
-    caixa = (await session(browser, 'caixa', { width: 1366, height: 860 })).page;
+    const cx = await session(browser, 'caixa', { width: 1366, height: 860 });
+    caixa = cx.page;
     cozinha = (await session(browser, 'cozinha', { width: 1024, height: 768 })).page;
     await expect(atendente).toHaveURL(/\/atendente$/); // perfil atendente cai direto no app
+    // o computador do caixa imprime os pedidos da cozinha (impressão capturada pelo teste)
+    await cx.ctx.addInitScript(() => ((window as unknown as { __gutoPrintSpy: string[] }).__gutoPrintSpy = []));
+    await caixa.goto('/celulares');
+    await expect(caixa.getByRole('img', { name: /QR code: http:\/\/.*\/atendente/ })).toBeVisible();
+    await caixa.getByRole('button', { name: 'Ligar impressão neste computador' }).click();
+    await expect(caixa.getByText('Ligada neste computador')).toBeVisible();
     await caixa.goto('/mesas');
+    await expect(caixa.getByRole('link', { name: /Impressora cozinha/ })).toBeVisible();
     await cozinha.goto('/cozinha');
     for (const p of [atendente, caixa, cozinha]) await expect(p.getByText('Online', { exact: true })).toBeVisible();
   });
@@ -62,6 +70,12 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
     await expect(atendente).toHaveURL(/\/atendente\/pedido\//);
     orderId = atendente.url().split('/').pop()!;
     await shot(atendente, 'w02-atendente-enviado');
+
+    // saiu na impressora da cozinha (computador do caixa), uma única vez
+    const printed = () => caixa.evaluate(() => (window as unknown as { __gutoPrintSpy: string[] }).__gutoPrintSpy);
+    await expect.poll(async () => (await printed()).length).toBe(1);
+    const via = (await printed())[0]!;
+    for (const t of ['NOVO PEDIDO', 'MESA 8', '1x X-Bacon', 'SEM CEBOLA', 'OBS: bem passado', 'Atendente Ana']) expect(via).toContain(t);
 
     // caixa: chega sozinho, com responsável, valor e andamento
     const tile = caixa.getByRole('button', { name: /^Mesa 8, pedido/ });
@@ -98,6 +112,13 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
     await expect(r1).toContainText('X-Bacon'); // histórico mantido no estado em que estava
     await expect(caixa.getByRole('button', { name: /^Mesa 8, pedido/ })).toContainText('R$ 51,80');
     await shot(cozinha, 'w04-cozinha-acrescimo');
+    // acréscimo também sai impresso, só com o item novo
+    const prints = () => caixa.evaluate(() => (window as unknown as { __gutoPrintSpy: string[] }).__gutoPrintSpy);
+    await expect.poll(async () => (await prints()).length).toBe(2);
+    const via2 = (await prints())[1]!;
+    expect(via2).toContain('ACRÉSCIMO · RODADA 2');
+    expect(via2).toContain('Batata frita');
+    expect(via2).not.toContain('X-Bacon');
   });
 
   test('cozinha atualiza o preparo; atendente entrega; todos veem', async () => {

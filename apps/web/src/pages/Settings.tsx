@@ -13,7 +13,7 @@ type Tab = 'store' | 'nbs' | 'couriers' | 'users' | 'wa' | 'audit' | 'me';
 
 export default function Settings() {
   const { can } = useAuth();
-  const [tab, setTab] = useState<Tab>('store');
+  const [tab, setTab] = useState<Tab>(() => (new URLSearchParams(window.location.search).get('aba') as Tab) || 'store');
   const tabs: { id: Tab; label: string }[] = [
     { id: 'store', label: 'Loja' },
     { id: 'nbs', label: 'Bairros e taxas' },

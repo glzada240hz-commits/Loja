@@ -4,6 +4,7 @@
 //  - primeira abertura: tela para criar a senha do admin (passada ao sistema por variável de ambiente);
 //  - tela "Abrindo…" enquanto o banco e o sistema sobem; depois abre o sistema em JANELA PRÓPRIA
 //    (Microsoft Edge em modo aplicativo, sem barra de endereço; se não houver Edge/Chrome, o navegador padrão);
+//    --kiosk-printing: imprime direto na impressora padrão, sem diálogo (nota e pedidos da cozinha);
 //  - fica como ícone perto do relógio: abrir, endereço para celulares, cópias de segurança, registro, encerrar;
 //  - uma única cópia aberta; abrir de novo só traz a janela; "--encerrar" fecha com segurança (instalador/testes);
 //  - registro do funcionamento em <dados>\registros (para suporte), sem senhas.
@@ -326,7 +327,7 @@ class AppLoja : ApplicationContext
             {
                 Directory.CreateDirectory(pastaJanela);
                 Process.Start(nav, "--app=" + urlLocal + " --user-data-dir=" + Aspas(pastaJanela) +
-                    " --no-first-run --no-default-browser-check --start-maximized");
+                    " --no-first-run --no-default-browser-check --start-maximized --kiosk-printing");
             }
             else Process.Start(urlLocal);
         }

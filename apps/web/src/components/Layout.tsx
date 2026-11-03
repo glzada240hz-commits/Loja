@@ -13,6 +13,8 @@ import {
   Menu,
   MessageCircle,
   Package,
+  Printer,
+  QrCode,
   Receipt,
   Settings,
   ShoppingCart,
@@ -26,6 +28,7 @@ import { ROLE_LABEL, type Permission } from '@guto/core';
 import { useAuth } from '../lib/auth';
 import { get } from '../lib/api';
 import { useConnection } from '../lib/live';
+import { useKitchenPrinterStatus } from '../lib/kitchenPrinter';
 import { formatDate } from '../lib/format';
 import { AboutDialog } from './About';
 import { Logo } from './Logo';
@@ -49,6 +52,7 @@ const NAV: NavEntry[] = [
   { to: '/expedicao', label: 'Entregas', icon: Bike, perm: 'deliveries.manage' },
   { to: '/entregador', label: 'Minhas entregas', icon: Bike, perm: 'deliveries.own' },
   { to: '/atendente', label: 'App do atendente', icon: Smartphone, perm: 'tables.serve' },
+  { to: '/celulares', label: 'Celulares e cozinha', icon: QrCode, perm: 'cash.open' },
   { to: '/whatsapp', label: 'WhatsApp', icon: MessageCircle, perm: 'whatsapp.inbox' },
   { group: 'Gestão' },
   { to: '/caixa', label: 'Caixa e dia', icon: Banknote, perm: 'cash.open' },
@@ -82,6 +86,17 @@ export function ConnectionPill() {
 }
 
 /** Dia e caixa: discreto quando está tudo aberto, destacado quando falta abrir. */
+/** Aviso de que este computador imprime os pedidos da cozinha (e se há problema). */
+export function KitchenPrinterPill() {
+  const p = useKitchenPrinterStatus();
+  if (!p.on) return null;
+  return (
+    <NavLink to="/celulares" className={'conn ' + (p.error ? 'bad' : p.active ? 'ok' : 'wait')} style={{ textDecoration: 'none' }} title={p.error ?? (p.last ? `Último impresso: ${p.last}` : 'Imprimindo os pedidos da cozinha neste computador')}>
+      <Printer size={12} aria-hidden /> <span className="long">Impressora cozinha</span>
+    </NavLink>
+  );
+}
+
 export function DayStatus() {
   const { can } = useAuth();
   const q = useQuery({ queryKey: ['day'], queryFn: () => get('/api/day'), refetchInterval: 60000, enabled: can('orders.view') || can('kitchen.view') });
@@ -153,6 +168,7 @@ export function Layout({ children, title, actions, flush, bare }: { children: Re
           <div className="side-status">
             <ConnectionPill />
             <DayStatus />
+            <KitchenPrinterPill />
             <StaffAlerts />
           </div>
           <div className="sidebar-foot">

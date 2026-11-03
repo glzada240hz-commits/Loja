@@ -240,6 +240,14 @@ describe('6/7/16. cardápio digital → cozinha → entrega → acerto do entreg
     expect((await gerente.put('/api/settings', { pixKey: '' })).status).toBe(200);
   });
 
+  it('endereços da rede para o QR dos celulares: só caixa/gerente; lista http://ip:porta', async () => {
+    const r = await caixa.get('/api/system/addresses');
+    expect(r.status).toBe(200);
+    expect(Array.isArray(r.body.urls)).toBe(true);
+    for (const u of r.body.urls as string[]) expect(u).toMatch(/^http:\/\/[\d.]+:\d+$|^http:\/\//);
+    expect((await new Client(h.app).get('/api/system/addresses')).status).toBe(401);
+  });
+
   it('logo da loja: envio só de imagem, rota pública, formulário antigo não apaga', async () => {
     const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8ffff3f0005fe02fea7d6a4c00000000049454e44ae426082', 'hex');
     const send = (buf: Buffer, who = gerente) => {

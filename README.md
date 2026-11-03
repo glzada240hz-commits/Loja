@@ -29,6 +29,7 @@ fica no histórico e na auditoria.
 ## Instalar na loja (Windows)
 
 Instalador `.exe` gerado e testado num Windows pelo GitHub Actions — veja [docs/LOJA-WINDOWS.md](docs/LOJA-WINDOWS.md).
+Atendentes no celular e pedidos impressos na cozinha: [docs/CELULARES-E-COZINHA.md](docs/CELULARES-E-COZINHA.md).
 Nota não fiscal para cobrar (conta com QR Pix e comprovante com troco): [docs/NOTA-NAO-FISCAL.md](docs/NOTA-NAO-FISCAL.md).
 
 ## Testar no Windows (computador + celular), sem instalar banco

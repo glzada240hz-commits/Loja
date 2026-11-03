@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 import { randomToken } from '../lib/crypto.js';
@@ -52,6 +53,22 @@ export async function adminRoutes(app: FastifyInstance) {
     const s = await updateSettings(ctx.db, { logoUrl: '' }, ctx.actor.userId);
     await audit(ctx.db, ctx.actor, 'settings.logo', 'settings', 'store', { logoUrl: '' });
     return s;
+  });
+
+  // endereços deste computador na rede da loja (QR para os celulares dos atendentes e o tablet da cozinha)
+  app.get('/api/system/addresses', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'cash.open');
+    const port = app.deps.config.PORT;
+    const lan = Object.values(os.networkInterfaces())
+      .flat()
+      .filter((i): i is os.NetworkInterfaceInfo => !!i && i.family === 'IPv4' && !i.internal && !/^169\.254\./.test(i.address))
+      .map((i) => i.address)
+      // redes de casa/loja primeiro (192.168.x, 10.x); adaptadores virtuais por último
+      .sort((a, b) => Number(!a.startsWith('192.168.')) - Number(!b.startsWith('192.168.')));
+    const pub = app.deps.config.PUBLIC_BASE_URL;
+    const urls = [...new Set([...lan.map((ip) => `http://${ip}:${port}`), ...(pub && !/localhost|127\.0\.0\.1/.test(pub) ? [pub.replace(/\/$/, '')] : [])])];
+    return { urls };
   });
 
   // ---------- usuários ----------
