@@ -46,6 +46,15 @@ jobs:
       - name: Montar o pacote
         run: node scripts/empacotar-windows.mjs
 
+      - name: Incluir o túnel do cardápio na internet (cloudflared)
+        shell: pwsh
+        run: |
+          # túnel gratuito da Cloudflare (Apache-2.0), usado só quando o dono liga "Cardápio digital na internet"
+          Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile 'dist-windows\BarDoGuto\runtime\cloudflared.exe'
+          & 'dist-windows\BarDoGuto\runtime\cloudflared.exe' --version
+          if ($LASTEXITCODE -ne 0) { throw 'cloudflared não executou' }
+          "cloudflared: $(& 'dist-windows\BarDoGuto\runtime\cloudflared.exe' --version)" | Add-Content 'dist-windows\BarDoGuto\versao.txt'
+
       - name: Compilar o lançador BarDoGuto.exe
         shell: pwsh
         run: |
@@ -131,6 +140,29 @@ jobs:
           } else {
             Write-Warning 'Microsoft Print to PDF não existe neste Windows: a impressão na impressora escolhida não foi testada aqui'
           }
+
+          # cardápio na internet: liga o túnel, abre o cardápio pelo endereço público e confere o porteiro
+          Invoke-RestMethod -Method Put -Uri http://127.0.0.1:3500/api/settings -Headers $h -WebSession $s -ContentType 'application/json' -Body '{"publicMenuOnline":true}' | Out-Null
+          $pub = $null
+          for ($i = 0; $i -lt 60; $i++) {
+            $pub = Invoke-RestMethod -Uri http://127.0.0.1:3500/api/system/public-link -WebSession $s
+            if ($pub.status -eq 'online') { break }
+            Start-Sleep -Seconds 1
+          }
+          Write-Host "Túnel: $($pub.status) $($pub.menuUrl) $($pub.error)"
+          if ($pub.status -eq 'online') {
+            $okMenu = $false
+            for ($i = 0; $i -lt 30 -and -not $okMenu; $i++) {
+              try { $r = Invoke-WebRequest -UseBasicParsing $pub.menuUrl; $okMenu = ($r.StatusCode -eq 200 -and $r.Content -like '*Bar do Guto*') } catch { Start-Sleep -Seconds 2 }
+            }
+            if ($okMenu) {
+              $bloq = $(try { (Invoke-WebRequest -UseBasicParsing "$($pub.url)/api/orders").StatusCode } catch { [int]$_.Exception.Response.StatusCode })
+              $api = (Invoke-WebRequest -UseBasicParsing "$($pub.url)/api/public/menu").StatusCode
+              Write-Host "OK: cardápio abriu pela internet ($($pub.menuUrl)); /api/public/menu=$api; /api/orders de fora=$bloq"
+              if ($bloq -ne 404) { throw "API interna acessível pela internet (status $bloq)" }
+            } else { Write-Warning 'túnel no ar, mas o endereço público ainda não respondeu (DNS do túnel gratuito pode demorar)' }
+          } else { Write-Warning "túnel não ficou no ar neste Windows: $($pub.error)" }
+          Invoke-RestMethod -Method Put -Uri http://127.0.0.1:3500/api/settings -Headers $h -WebSession $s -ContentType 'application/json' -Body '{"publicMenuOnline":false}' | Out-Null
 
           $html = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3500/).Content
           if ($html -notlike '*Bar do Guto*') { throw 'interface não carregou' }

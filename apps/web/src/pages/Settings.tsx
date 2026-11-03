@@ -5,6 +5,7 @@ import { Layout } from '../components/Layout';
 import { Button, Empty, Field, Loading, Modal, MoneyInput, Tabs, useAction } from '../components/ui';
 import { del, get, post, put, upload } from '../lib/api';
 import { Logo } from '../components/Logo';
+import { PublicLinkCard } from '../components/PublicLink';
 import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/format';
 import { useSettings } from '../lib/queries';
@@ -84,6 +85,7 @@ function Store() {
         </div>
       </Field>
       <Field label="Mesas (separadas por vírgula)"><input value={f.tablesText} onChange={(e) => set({ tablesText: e.target.value })} /></Field>
+      <PublicLinkCard />
       <h3>Cardápio digital</h3>
       <label className="check"><input type="checkbox" checked={f.onlineOrdersEnabled} onChange={(e) => set({ onlineOrdersEnabled: e.target.checked })} /> Aceitar pedidos pelo cardápio digital (só com o dia aberto)</label>
       <div className="row">

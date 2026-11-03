@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatBRL, formatPhoneBR, ORDER_STATUS_LABEL } from '@guto/core';
 import { Layout } from '../components/Layout';
+import { PublicLinkCard } from '../components/PublicLink';
 import { OrderDrawer } from '../components/OrderDrawer';
 import { Button, Empty, Field, Loading, Modal, Tabs, useAction } from '../components/ui';
 import { get, newIdemKey, patch, post } from '../lib/api';
@@ -22,6 +23,7 @@ export default function WhatsApp() {
         “Avisar no WhatsApp” abre a conversa com o resumo pronto para mandar.{' '}
         <Link to="/atendente/whatsapp">Ver pedidos do WhatsApp de hoje</Link>
       </div>
+      <div style={{ padding: '8px 12px 0' }}><PublicLinkCard compact /></div>
       {status.data?.mode === 'demo' && (
         <div className="alert warn" style={{ margin: 0, borderRadius: 0 }}>
           <b>Conversas abaixo em MODO DEMONSTRATIVO:</b> para as mensagens chegarem e saírem sozinhas por aqui é preciso a WhatsApp Business Platform (Cloud API, da Meta — conta e possíveis custos por conta da loja). O lançamento de pedidos acima funciona sem ela.

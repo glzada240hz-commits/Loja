@@ -7,6 +7,7 @@ import { randomToken } from '../lib/crypto.js';
 import { badRequest } from '../lib/errors.js';
 import { imageExt } from './menu.js';
 import { queueTestPrint, readPrinterInfo } from '../services/kitchenPrintAgent.js';
+import { tunnelRef } from '../services/publicGateway.js';
 import { ROLES } from '@guto/core';
 import { requirePerm } from '../lib/context.js';
 import * as admin from '../services/admin.js';
@@ -98,6 +99,15 @@ export async function adminRoutes(app: FastifyInstance) {
     if (!s.kitchenPrinterName) throw badRequest('Escolha a impressora da cozinha primeiro');
     queueTestPrint(dir, s.kitchenPrinterName, s.printWidth);
     return { ok: true };
+  });
+
+  // cardápio digital na internet (túnel do computador da loja)
+  app.get('/api/system/public-link', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'cash.open');
+    const s = await getSettings(ctx.db);
+    const t = tunnelRef.current?.state;
+    return { supported: !!t, available: t?.available ?? false, enabled: s.publicMenuOnline, status: t?.status ?? 'off', url: t?.url ?? null, menuUrl: t?.url ? `${t.url}/c` : null, error: t?.error ?? null, since: t?.since ?? null };
   });
 
   // ---------- usuários ----------

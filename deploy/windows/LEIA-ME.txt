@@ -27,6 +27,11 @@ CELULARES DOS ATENDENTES E PEDIDOS NA COZINHA
   No computador da impressora: "Ligar impressao neste computador" e "Imprimir teste".
   Os pedidos saem sozinhos na impressora PADRAO do Windows (deixe a termica como padrao).
 
+CARDAPIO DIGITAL NA INTERNET (clientes pedindo de casa)
+  Ajustes > Loja > "Colocar o cardapio na internet". Aparece o link e o QR para o WhatsApp.
+  So funciona com este computador ligado e o Bar do Guto aberto. O link MUDA quando o
+  computador reinicia: copie o novo ao abrir a loja. De fora, so o cardapio abre.
+
 CELULARES E TABLETS
   Conecte-os ao Wi-Fi da loja e abra o endereco "http://192.168...:3000" que aparece no menu
   do icone perto do relogio (botao direito; clique no endereco para copiar).

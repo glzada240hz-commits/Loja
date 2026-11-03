@@ -18,6 +18,7 @@ import { configureNotify } from './whatsapp/notify.js';
 import { CloudApiProvider, DemoProvider, type WaProvider } from './whatsapp/provider.js';
 import { startWorkers, type Workers } from './workers.js';
 import { startKitchenPrintAgent } from './services/kitchenPrintAgent.js';
+import { startPublicGateway, startTunnelManager, tunnelRef } from './services/publicGateway.js';
 import { authRoutes } from './routes/auth.js';
 import { orderRoutes } from './routes/orders.js';
 import { opsRoutes } from './routes/ops.js';
@@ -197,6 +198,9 @@ export async function buildApp(config: Config, opts: { db?: Db; wa?: WaProvider;
 
   const workers = config.DISABLE_WORKERS ? null : startWorkers(deps, wa, app.log);
   const printAgent = config.PRINT_DIR ? startKitchenPrintAgent(deps, config.PRINT_DIR, app.log) : null;
+  const gateway = config.PUBLIC_PORT ? startPublicGateway(config.PUBLIC_PORT, config.PORT, app.log) : null;
+  const tunnel = config.PUBLIC_PORT ? startTunnelManager(deps, { cloudflared: config.CLOUDFLARED_PATH, publicPort: config.PUBLIC_PORT, log: app.log }) : null;
+  tunnelRef.current = tunnel;
 
   return {
     app,
@@ -208,6 +212,8 @@ export async function buildApp(config: Config, opts: { db?: Db; wa?: WaProvider;
     async close() {
       workers?.stop();
       printAgent?.stop();
+      tunnel?.stop();
+      gateway?.close();
       await app.close();
       if (pool) await pool.end();
     },

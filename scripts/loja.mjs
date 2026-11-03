@@ -283,7 +283,9 @@ async function main() {
     MIGRATIONS_DIR: path.join(ROOT, 'apps/server/dist/migrations'),
     WHATSAPP_MODE: 'demo',
     PRINT_DIR: path.join(DIR, 'impressao'), // fila da impressora da cozinha (BarDoGuto.exe imprime)
-    STORE_MODE: '1', // computador da loja imprime a cozinha sozinho (ver apps/web/src/lib/kitchenPrinter.ts)
+    STORE_MODE: '1',
+    PUBLIC_PORT: String(APP_PORT + 1), // porteiro do cardápio na internet (só /c); ver services/publicGateway.ts
+    ...(fs.existsSync(path.join(ROOT, '..', 'runtime', 'cloudflared.exe')) ? { CLOUDFLARED_PATH: path.join(ROOT, '..', 'runtime', 'cloudflared.exe') } : {}), // computador da loja imprime a cozinha sozinho (ver apps/web/src/lib/kitchenPrinter.ts)
     OFFICIAL_MENU_AUTO: '1', // cardápio do Bar do Guto já pronto na aba Cardápio (uma vez por versão)
     LOG_LEVEL: 'warn',
   };

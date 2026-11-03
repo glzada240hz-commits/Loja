@@ -270,3 +270,28 @@ describe('6/7/16. cardápio digital → cozinha → entrega → acerto do entreg
     expect((await gerente.req('DELETE', '/api/settings/logo')).body.logoUrl).toBe('');
   });
 });
+
+describe('cardápio na internet: porteiro', () => {
+  it('de fora só passa o cardápio; API interna bloqueada; cookie da equipe não passa', async () => {
+    const { startPublicGateway } = await import('../../src/services/publicGateway.js');
+    await h.app.listen({ port: 0, host: '127.0.0.1' });
+    const appPort = (h.app.server.address() as { port: number }).port;
+    const gw = startPublicGateway(0, appPort, { warn: () => undefined });
+    await new Promise((r) => gw.once('listening', r));
+    const base = `http://127.0.0.1:${(gw.address() as { port: number }).port}`;
+    try {
+      expect((await fetch(`${base}/api/public/menu`)).status).toBe(200);
+      expect((await fetch(`${base}/api/orders`, { headers: { cookie: caixa.cookie } })).status).toBe(404);
+      expect((await fetch(`${base}/api/settings`, { headers: { cookie: gerente.cookie } })).status).toBe(404);
+      const home = await fetch(`${base}/`, { redirect: 'manual' });
+      expect(home.status).toBe(302);
+      expect(home.headers.get('location')).toBe('/c');
+      // rota liberada não leva a sessão: a API pública responde sem saber quem é a equipe
+      const brand = await fetch(`${base}/api/public/brand`, { headers: { cookie: gerente.cookie } });
+      expect(brand.status).toBe(200);
+      expect(brand.headers.get('set-cookie')).toBeNull();
+    } finally {
+      gw.close();
+    }
+  });
+});

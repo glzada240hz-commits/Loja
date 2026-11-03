@@ -1003,3 +1003,8 @@ button.conn { cursor: pointer; font-family: inherit; }
 
 .wactions.wa-send { grid-template-columns: auto minmax(0, 1fr); }
 .wactions.wa-send .btn { white-space: normal; line-height: 1.15; }
+
+.public-card { border-color: #bfdbfe; background: #eff6ff; margin-bottom: 12px; }
+.public-card.compact { margin-bottom: 0; padding: 10px 12px; }
+.public-link { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.public-link-text { flex: 1 1 260px; display: grid; gap: 6px; }

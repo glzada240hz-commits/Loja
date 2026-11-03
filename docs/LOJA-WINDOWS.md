@@ -17,7 +17,10 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+0edfb473`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-0edfb473
+- **`0.2.0+ce3f9eff`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-ce3f9eff
+  (`BarDoGuto-Instalador-0.2.0-ce3f9eff.exe`). **Cardápio digital na internet** pelo túnel do computador da loja
+  (Ajustes → Loja). Ver [CARDAPIO-NA-INTERNET.md](CARDAPIO-NA-INTERNET.md).
+- `0.2.0+0edfb473` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-0edfb473
   (`BarDoGuto-Instalador-0.2.0-0edfb473.exe`). App do atendente com aba **Balcão**: pedido para levar (sem mesa)
   lançado no celular, sai na cozinha e o cliente paga no caixa.
 - `0.2.0+b8f2ccb0` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-b8f2ccb0

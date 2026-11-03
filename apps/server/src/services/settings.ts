@@ -43,6 +43,8 @@ export const storeSettingsSchema = z.object({
   officialMenuVersion: z.string().max(20).default(''),
   /** impressora do Windows onde sai a via da cozinha (vazio = impressão pelo navegador na impressora padrão) */
   kitchenPrinterName: z.string().max(200).default(''),
+  /** cardápio digital na internet pelo túnel do computador da loja (só com o computador ligado) */
+  publicMenuOnline: z.boolean().default(false),
   /** abre a impressão da nota automaticamente quando o pedido é quitado */
   autoPrintReceipt: z.boolean().default(false),
   /** largura padrão da bobina para impressão pelo navegador */

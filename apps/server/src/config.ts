@@ -28,6 +28,10 @@ const schema = z.object({
   STORE_MODE: z.enum(['0', '1']).default('0'),
   /** pasta da fila de impressão da cozinha lida pelo BarDoGuto.exe (duas impressoras); vazio = desligado */
   PRINT_DIR: z.string().optional(),
+  /** porta local do "porteiro" do cardápio digital na internet (0 = desligado) */
+  PUBLIC_PORT: z.coerce.number().int().min(0).default(0),
+  /** caminho do cloudflared.exe (túnel gratuito) */
+  CLOUDFLARED_PATH: z.string().optional(),
   /** tentativas de login por minuto por IP */
   LOGIN_RATE_LIMIT: z.coerce.number().int().min(1).default(10),
   /** pedidos pelo cardápio digital a cada 5 minutos por IP */
