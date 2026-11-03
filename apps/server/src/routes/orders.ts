@@ -49,11 +49,13 @@ export async function orderRoutes(app: FastifyInstance) {
         waOptIn: z.boolean().optional(),
         paymentIntent: paymentMethod.nullish(),
         changeForCents: cents.nullish(),
+        /** pedido recebido pelo WhatsApp e lançado pela equipe (aparece como WhatsApp na cozinha e nos relatórios) */
+        source: z.enum(['pos', 'whatsapp']).optional(),
         supervisor,
       })
       .parse(req.body);
-    const { supervisor: sup, ...input } = body;
-    const r = await svc.createOrder(ctx, { ...input, source: 'pos' }, { idem: idem(req, 'orders.create', input), supervisor: sup });
+    const { supervisor: sup, source, ...input } = body;
+    const r = await svc.createOrder(ctx, { ...input, source: source ?? 'pos' }, { idem: idem(req, 'orders.create', input), supervisor: sup });
     return svc.getOrder(ctx.db, r.id);
   });
 

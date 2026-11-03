@@ -103,7 +103,7 @@ export function ProductDialog({
           ))}
         </fieldset>
       )}
-      {product.groups.map((g) => {
+      {[...product.groups].sort((a, b) => Number(b.options.some((o) => o.priceCents > 0)) - Number(a.options.some((o) => o.priceCents > 0))).map((g) => {
         const count = g.options.reduce((a, o) => a + (sel[o.id] ?? 0), 0);
         const rule =
           g.minSelect > 0 && g.maxSelect > 0
@@ -115,8 +115,10 @@ export function ProductDialog({
               : g.maxSelect > 0
                 ? `Até ${g.maxSelect}`
                 : 'Opcional';
+        // acréscimos pagos em verde (o cliente paga a mais); retirar ingredientes fica neutro
+        const paid = g.options.some((o) => o.priceCents > 0);
         return (
-          <fieldset key={g.id} className="opt-group">
+          <fieldset key={g.id} className={'opt-group' + (paid ? ' acr' : '')}>
             <legend>
               {g.name} <small className="muted">({rule})</small> {g.minSelect > 0 && <span className="badge orange">obrigatório</span>}
             </legend>
@@ -126,7 +128,7 @@ export function ProductDialog({
                 const q = sel[o.id] ?? 0;
                 const atMax = g.maxSelect > 0 && count >= g.maxSelect && q === 0;
                 return (
-                  <div key={o.id} className="opt-row">
+                  <div key={o.id} className={'opt-row' + (q > 0 ? ' on' : '')}>
                     {g.maxSelect === 1 ? (
                       <input type="radio" aria-label={o.name} name={'g' + g.id} checked={q > 0} disabled={!o.available} onChange={() => setOpt(g.id, o.id, 1)} />
                     ) : o.priceCents === 0 ? (
@@ -135,7 +137,7 @@ export function ProductDialog({
                     <span className="grow">
                       {o.name} {!o.available && <span className="badge red">indisponível</span>}
                     </span>
-                    {o.priceCents > 0 && <span className="num muted">+ {formatBRL(o.priceCents)}</span>}
+                    {o.priceCents > 0 && <span className="num acr-price">+ {formatBRL(o.priceCents)}</span>}
                     {g.maxSelect !== 1 && o.priceCents > 0 && (
                       <Stepper
                         label={o.name}

@@ -352,9 +352,11 @@ export async function createOrder(
   opts: { idem?: IdemKey; supervisor?: SupervisorInput | null } = {},
 ) {
   const source = input.source ?? 'pos';
-  if (source === 'pos') requirePerm(ctx.actor, 'orders.create');
+  // 'pos' e 'whatsapp' são lançados pela equipe (caixa, atendente); 'online' vem do cardápio digital
+  const byStaff = source !== 'online';
+  if (byStaff) requirePerm(ctx.actor, 'orders.create');
   const discount = validateDiscount(input.discount);
-  if (input.deliveryFeeCents != null && source === 'pos') {
+  if (input.deliveryFeeCents != null && byStaff) {
     if (!Number.isSafeInteger(input.deliveryFeeCents) || input.deliveryFeeCents < 0) throw badRequest('Taxa de entrega inválida');
   }
   // precificação e autorização fora da transação (o login do supervisor tem contagem própria de falhas)
@@ -363,7 +365,7 @@ export async function createOrder(
   const previewDiscount = discount ? computeOrderTotals({ items: [{ unitPriceCents: previewSubtotal, quantity: 1, options: [] }], discount, deliveryFeeCents: 0 }).discountCents : 0;
   let authorizedBy = await authorizeDiscount(ctx, previewSubtotal, previewDiscount, opts.supervisor);
   let feeOverride = false;
-  if (input.type === 'delivery' && input.deliveryFeeCents != null && source === 'pos') {
+  if (input.type === 'delivery' && input.deliveryFeeCents != null && byStaff) {
     const nb = await resolveNeighborhood(ctx.db, validateAddress(input.address).neighborhoodId);
     if (nb.feeCents !== input.deliveryFeeCents) {
       feeOverride = true;
@@ -442,7 +444,7 @@ export async function createOrder(
       const at = now();
       const etaMinutes =
         input.etaMinutes ?? (input.type === 'delivery' ? (nb?.etaMinutes ?? settings.deliveryEtaMinutes) : input.type === 'takeout' ? settings.pickupEtaMinutes : null);
-      const status = source === 'pos' ? 'open' : 'pending';
+      const status = byStaff ? 'open' : 'pending';
       const [order] = await tx
         .insert(orders)
         .values({
@@ -478,19 +480,19 @@ export async function createOrder(
           trackingToken: randomToken(18),
           waOptIn: !!input.waOptIn && !!cust.phone,
           deliveryStatus: input.type === 'delivery' ? 'waiting' : null,
-          createdBy: source === 'pos' ? ctx.actor.userId : null,
+          createdBy: byStaff ? ctx.actor.userId : null,
           createdAt: at,
           updatedAt: at,
           acceptedAt: status === 'open' ? at : null,
         })
         .returning();
-      await insertItems(tx, order!.id, items, source === 'pos' ? ctx.actor : null, 0);
+      await insertItems(tx, order!.id, items, byStaff ? ctx.actor : null, 0);
       await recalc(tx, order!.id);
       await orderEvent(
         tx,
         order!.id,
         'created',
-        source === 'pos' ? ctx.actor : null,
+        byStaff ? ctx.actor : null,
         {
           source,
           type: input.type,
@@ -503,7 +505,7 @@ export async function createOrder(
         authorizedBy,
       );
       if (status === 'open' && input.send !== false) await launchPending(tx, order!, ctx.actor, emit);
-      if (source !== 'pos') await enqueueOrderNotification(tx, order!.id, 'order_received', emit);
+      if (!byStaff) await enqueueOrderNotification(tx, order!.id, 'order_received', emit);
       emit({ type: 'order.changed', orderId: order!.id, number });
       return { id: order!.id, number, trackingToken: order!.trackingToken };
     });

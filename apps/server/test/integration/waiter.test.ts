@@ -209,3 +209,40 @@ describe('cadastro de atendente e login', () => {
     expect(bad.body.error.message).toMatch(/pelo menos 3 letras/);
   });
 });
+
+describe('pedido do WhatsApp lançado pelo atendente e acréscimos', () => {
+  it('atendente lança pedido do WhatsApp (retirada): vai direto para a cozinha, origem WhatsApp, sem aguardar aceite', async () => {
+    const r = await ana.post('/api/orders', {
+      type: 'takeout', source: 'whatsapp', send: true,
+      customer: { name: 'Carla WhatsApp', phone: '(31) 98888-1234' },
+      paymentIntent: 'cash', changeForCents: 5000,
+      items: [{ variantId: m.variant('X-Burguer'), quantity: 2 }],
+    }, { 'idempotency-key': idemKey() });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ source: 'whatsapp', status: 'open', type: 'takeout', customerName: 'Carla WhatsApp', createdByName: 'Atendente Ana (demo)' });
+    expect(r.body.tickets).toHaveLength(1);
+    const k = await cozinha.get('/api/kitchen');
+    expect(k.body.tickets.some((t: any) => t.orderNumber === r.body.number)).toBe(true);
+    // sem nome/telefone não lança
+    const bad = await ana.post('/api/orders', { type: 'takeout', source: 'whatsapp', send: true, items: [{ variantId: m.variant('X-Burguer'), quantity: 1 }] }, { 'idempotency-key': idemKey() });
+    expect(bad.status).toBe(422);
+  });
+
+  it('acréscimos: gerente cadastra uma vez e todos os lanches da categoria ganham; preço entra no total', async () => {
+    const gerente = await as(h, 'gerente');
+    const menu0 = (await gerente.get('/api/menu')).body as any[];
+    const lanches = menu0.find((c) => c.name === 'Lanches');
+    expect((await ana.put('/api/menu/addons', { options: [], categoryIds: [] })).status).toBe(403);
+    const saved = await gerente.put('/api/menu/addons', { options: [{ name: 'Bacon', priceCents: 400 }, { name: 'Ovo', priceCents: 200 }], categoryIds: [lanches.id] });
+    expect(saved.status).toBe(200);
+    expect(saved.body.options.map((o: any) => [o.name, o.priceCents])).toEqual([['Bacon', 400], ['Ovo', 200]]);
+    const menu = (await ana.get('/api/menu')).body as any[];
+    const xb = menu.flatMap((c) => c.products).find((p: any) => p.name === 'X-Burguer');
+    expect(xb.groups[0].name).toBe('Acréscimos'); // aparece primeiro
+    const bacon = xb.groups[0].options.find((o: any) => o.name === 'Bacon');
+    expect(menu.flatMap((c) => c.products).filter((p: any) => p.categoryId === lanches.id).every((p: any) => p.groups.some((g: any) => g.name === 'Acréscimos'))).toBe(true);
+    const o = await ana.post('/api/orders', { type: 'table', tableLabel: '12', send: true, items: [{ variantId: m.variant('X-Burguer'), quantity: 1, options: [{ optionId: bacon.id, quantity: 2 }] }] }, { 'idempotency-key': idemKey() });
+    expect(o.status).toBe(200);
+    expect(o.body.totalCents).toBe(1350 + 800);
+  });
+});

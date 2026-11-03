@@ -92,6 +92,18 @@ export async function menuRoutes(app: FastifyInstance) {
     return menu.importOfficialMenu(app.ctx(req), body);
   });
 
+  app.get('/api/menu/addons', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'menu.manage');
+    return menu.getAddons(ctx.db);
+  });
+  app.put('/api/menu/addons', async (req) => {
+    const body = z
+      .object({ options: z.array(z.object({ id: uuid.optional(), name: z.string().min(1).max(60), priceCents: cents })).max(40), categoryIds: z.array(uuid).max(50) })
+      .parse(req.body);
+    return menu.saveAddons(app.ctx(req), body);
+  });
+
   app.get('/api/menu/groups', async (req) => {
     const ctx = app.ctx(req);
     requirePerm(ctx.actor, 'menu.manage');

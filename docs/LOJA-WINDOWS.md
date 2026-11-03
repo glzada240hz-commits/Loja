@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+eb149b04`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-eb149b04
+- **`0.2.0+b8f2ccb0`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-b8f2ccb0
+  (`BarDoGuto-Instalador-0.2.0-b8f2ccb0.exe`). **Acréscimos em verde** (Cardápio → Adicionais → Acréscimos) e aba
+  **WhatsApp** no app do atendente: lançar o pedido que chegou pelo WhatsApp (sai na cozinha) e “Avisar no
+  WhatsApp” com o resumo pronto. Ver [WHATSAPP-PEDIDOS.md](WHATSAPP-PEDIDOS.md).
+- `0.2.0+eb149b04` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-eb149b04
   (`BarDoGuto-Instalador-0.2.0-eb149b04.exe`). **Duas impressoras**: em *Celulares e cozinha* escolhe-se a
   **impressora da cozinha** (a via sai nela pelo aplicativo do Windows); a nota sai na impressora padrão (caixa).
 - `0.2.0+504501f9` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-504501f9

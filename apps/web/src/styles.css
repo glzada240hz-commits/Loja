@@ -862,7 +862,7 @@ button.conn { cursor: pointer; font-family: inherit; }
 .waiter-head .btn:disabled { background: var(--g-850); color: var(--g-500); border-color: var(--g-800); }
 .waiter-body { flex: 1; padding: 12px 12px 150px; max-width: 900px; width: 100%; margin: 0 auto; }
 .waiter-nav {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); border-top: 1px solid var(--line);
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface); border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -4px 16px rgba(0, 0, 0, .06);
 }
 .waiter-nav button { border: 0; background: none; font: inherit; font-size: var(--fs-xs); font-weight: 650; color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 60px; cursor: pointer; position: relative; }
@@ -979,3 +979,27 @@ button.conn { cursor: pointer; font-family: inherit; }
 .login-card { font-size: 1.05rem; background: var(--surface-2, #f4f4f5); border-radius: 10px; padding: 10px 12px; }
 
 .kprint-state.err { background: #fee2e2; color: #7f1d1d; }
+
+/* acréscimos pagos em verde */
+.opt-group.acr { border-color: #86efac; background: #f0fdf4; }
+.opt-group.acr legend { color: #15803d; }
+.opt-group.acr .opt-row { border-bottom-color: #bbf7d0; }
+.opt-group.acr .opt-row.on { background: #dcfce7; border-radius: 8px; padding: 0 6px; margin: 0 -6px; }
+.acr-price { color: #15803d; font-weight: 700; }
+/* pedidos do WhatsApp (app do atendente) */
+.wa-orders { display: grid; gap: 8px; margin-top: 10px; }
+.wa-order { display: flex; gap: 10px; align-items: center; justify-content: space-between; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.btn.wa-btn { background: #16a34a; border-color: #16a34a; color: #fff; text-decoration: none; }
+.btn.wa-btn:hover { background: #15803d; }
+.seg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.seg-row button { min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; }
+.seg-row button[aria-pressed='true'] { border-color: var(--brand, #ea580c); background: #fff7ed; color: #9a3412; }
+.draft-line { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.draft-line .stepper, .draft-line > :last-child { grid-column: 1 / -1; justify-self: end; }
+
+.addons-card { border-color: #86efac; background: #f0fdf4; margin-bottom: 12px; display: grid; gap: 8px; }
+.addon-row { display: grid; grid-template-columns: 1fr 140px auto; gap: 8px; align-items: center; }
+.addon-cats { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+
+.wactions.wa-send { grid-template-columns: auto minmax(0, 1fr); }
+.wactions.wa-send .btn { white-space: normal; line-height: 1.15; }

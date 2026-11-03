@@ -622,8 +622,9 @@ export async function importOfficialMenu(ctx: Ctx, opts: { archiveExamples: bool
         for (const v of vars) if (!used.has(v.id)) await tx.update(productVariants).set({ active: false }).where(eq(productVariants.id, v.id));
         if (ex) await tx.delete(comboItems).where(eq(comboItems.comboProductId, prodId));
         if (oc.removals) {
-          await tx.delete(productOptionGroups).where(eq(productOptionGroups.productId, prodId));
-          await tx.insert(productOptionGroups).values({ productId: prodId, groupId: retirar!.id, sort: 0 });
+          // garante o "Retirar ingredientes" sem tirar outros grupos (ex.: Acréscimos cadastrados pela loja)
+          const [linked] = await tx.select().from(productOptionGroups).where(and(eq(productOptionGroups.productId, prodId), eq(productOptionGroups.groupId, retirar!.id)));
+          if (!linked) await tx.insert(productOptionGroups).values({ productId: prodId, groupId: retirar!.id, sort: 0 });
         }
       }
     }
@@ -668,4 +669,60 @@ export async function autoImportOfficialMenu(deps: Deps): Promise<OfficialImport
   if (!admin) return null;
   const exampleStore = !s.storePhone.trim() || s.storePhone.startsWith('(11) 9000') || !s.storeAddress.trim() || /demonstrativo/i.test(s.storeAddress);
   return importOfficialMenu({ ...deps, actor: { userId: admin.id, role: 'admin', name: admin.name } }, { archiveExamples: true, updateStore: exampleStore });
+}
+
+export const ADDONS_GROUP = 'Acréscimos';
+
+/** Acréscimos pagos (aparecem em verde ao escolher o lanche): lista atual e categorias onde estão. */
+export async function getAddons(db: DbOrTx) {
+  const [g] = await db.select().from(optionGroups).where(and(eq(optionGroups.active, true), eq(optionGroups.name, ADDONS_GROUP)));
+  if (!g) return { options: [] as { id: string; name: string; priceCents: number }[], categoryIds: [] as string[] };
+  const opts = await db.select().from(options).where(and(eq(options.groupId, g.id), eq(options.active, true))).orderBy(asc(options.sort));
+  const linked = await db
+    .selectDistinct({ categoryId: products.categoryId })
+    .from(productOptionGroups)
+    .innerJoin(products, eq(products.id, productOptionGroups.productId))
+    .where(and(eq(productOptionGroups.groupId, g.id), eq(products.active, true)));
+  return { options: opts.map((o) => ({ id: o.id, name: o.name, priceCents: o.priceCents })), categoryIds: linked.map((l) => l.categoryId) };
+}
+
+/**
+ * Salva os acréscimos e coloca o grupo em TODOS os produtos das categorias escolhidas (ex.: Hambúrgueres),
+ * antes do "Retirar ingredientes". Produtos de categorias desmarcadas deixam de ter o grupo.
+ */
+export async function saveAddons(ctx: Ctx, input: { options: { id?: string; name: string; priceCents: number }[]; categoryIds: string[] }) {
+  requirePerm(ctx.actor, 'menu.manage');
+  for (const o of input.options) {
+    if (!o.name.trim()) throw badRequest('Informe o nome de cada acréscimo');
+    if (!Number.isSafeInteger(o.priceCents) || o.priceCents <= 0) throw badRequest(`Informe o preço de “${o.name}”`);
+  }
+  return inTx(ctx, async (tx, emit) => {
+    let [g] = await tx.select().from(optionGroups).where(and(eq(optionGroups.active, true), eq(optionGroups.name, ADDONS_GROUP)));
+    if (!g) [g] = await tx.insert(optionGroups).values({ name: ADDONS_GROUP, minSelect: 0, maxSelect: 0, sort: 1 }).returning();
+    const cur = await tx.select().from(options).where(eq(options.groupId, g!.id));
+    const keep = new Set<string>();
+    for (const [i, o] of input.options.entries()) {
+      const ex = cur.find((c) => (o.id && c.id === o.id) || norm(c.name) === norm(o.name));
+      if (ex) {
+        await tx.update(options).set({ name: o.name.trim(), priceCents: o.priceCents, active: true, sort: i }).where(eq(options.id, ex.id));
+        keep.add(ex.id);
+      } else {
+        const [n] = await tx.insert(options).values({ groupId: g!.id, name: o.name.trim(), priceCents: o.priceCents, sort: i }).returning();
+        keep.add(n!.id);
+      }
+    }
+    for (const c of cur) if (!keep.has(c.id)) await tx.update(options).set({ active: false }).where(eq(options.id, c.id));
+    // vínculo com os produtos
+    const prods = await tx.select({ id: products.id, categoryId: products.categoryId }).from(products).where(eq(products.active, true));
+    const want = new Set(input.categoryIds);
+    const links = await tx.select().from(productOptionGroups).where(eq(productOptionGroups.groupId, g!.id));
+    for (const p of prods) {
+      const has = links.some((l) => l.productId === p.id);
+      if (want.has(p.categoryId) && !has) await tx.insert(productOptionGroups).values({ productId: p.id, groupId: g!.id, sort: -1 });
+      if (!want.has(p.categoryId) && has) await tx.delete(productOptionGroups).where(and(eq(productOptionGroups.productId, p.id), eq(productOptionGroups.groupId, g!.id)));
+    }
+    await audit(tx, ctx.actor, 'menu.addons.save', 'option_group', g!.id, { options: input.options.map((o) => ({ name: o.name, priceCents: o.priceCents })), categoryIds: input.categoryIds });
+    emit({ type: 'menu.changed' });
+    return getAddons(tx);
+  });
 }

@@ -306,6 +306,7 @@ function Groups() {
   if (groups.isLoading) return <Loading />;
   return (
     <>
+      <AddonsEditor />
       <div className="page-head">
         <p className="muted" style={{ margin: 0 }}>Grupos de adicionais com limites mínimo e máximo (0 = sem limite). Associe aos produtos na edição do produto.</p>
         <div className="grow" />
@@ -526,5 +527,62 @@ function OfficialImport({ data, onClose }: { data: Official; onClose: () => void
         ))}
       </div>
     </Modal>
+  );
+}
+
+/** Acréscimos pagos (ex.: + Bacon R$ 4,00): aparecem em verde ao escolher o lanche, em todas as categorias marcadas. */
+function AddonsEditor() {
+  const qc = useQueryClient();
+  const menu = useMenu();
+  const cur = useQuery({ queryKey: ['addons'], queryFn: () => get<{ options: { id: string; name: string; priceCents: number }[]; categoryIds: string[] }>('/api/menu/addons') });
+  const [rows, setRows] = useState<{ id?: string; name: string; priceCents: number | null }[] | null>(null);
+  const [cats, setCats] = useState<string[] | null>(null);
+  const { busy, go } = useAction();
+  const cats0 = menu.data ?? [];
+  const list = rows ?? cur.data?.options.map((o) => ({ ...o })) ?? [];
+  const burgers = cats0.find((c) => /hamb[uú]rguer/i.test(c.name))?.id;
+  const sel = cats ?? (cur.data?.categoryIds.length ? cur.data.categoryIds : burgers ? [burgers] : []);
+  const valid = list.every((r) => r.name.trim() && r.priceCents && r.priceCents > 0);
+  const setRow = (i: number, patch: Partial<(typeof list)[number]>) => setRows(list.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  if (cur.isLoading) return null;
+  return (
+    <section className="card addons-card">
+      <h3 style={{ marginTop: 0 }}>Acréscimos <small className="muted">— aparecem em verde ao escolher o lanche (PDV, mesas e celular)</small></h3>
+      {list.length === 0 && <p className="muted">Nenhum acréscimo ainda. Ex.: Bacon R$ 4,00 · Ovo R$ 2,00 · Cheddar R$ 3,00.</p>}
+      {list.map((r, i) => (
+        <div key={r.id ?? `n${i}`} className="addon-row">
+          <input aria-label={`Acréscimo ${i + 1}`} placeholder="Ex.: Bacon" value={r.name} onChange={(e) => setRow(i, { name: e.target.value })} maxLength={60} />
+          <MoneyInput value={r.priceCents} onChange={(v) => setRow(i, { priceCents: v })} />
+          <Button variant="ghost" size="sm" aria-label={`Remover ${r.name || 'acréscimo'}`} onClick={() => setRows(list.filter((_, j) => j !== i))}>
+            <X size={16} aria-hidden />
+          </Button>
+        </div>
+      ))}
+      <Button size="sm" onClick={() => setRows([...list, { name: '', priceCents: null }])}>+ Acréscimo</Button>
+      <div className="addon-cats">
+        <span className="muted">Aparecem em:</span>
+        {cats0.map((c) => (
+          <label key={c.id} className="check">
+            <input type="checkbox" checked={sel.includes(c.id)} onChange={(e) => setCats(e.target.checked ? [...sel, c.id] : sel.filter((x) => x !== c.id))} /> {c.name}
+          </label>
+        ))}
+      </div>
+      <Button
+        variant="primary"
+        busy={busy}
+        disabled={!valid || (rows === null && cats === null)}
+        onClick={() =>
+          go(async () => {
+            const saved = await put('/api/menu/addons', { options: list.map((r) => ({ id: r.id, name: r.name.trim(), priceCents: r.priceCents })), categoryIds: sel });
+            qc.setQueryData(['addons'], saved);
+            setRows(null);
+            setCats(null);
+            await Promise.all([qc.invalidateQueries({ queryKey: ['menu'] }), qc.invalidateQueries({ queryKey: ['groups'] })]);
+          }, { success: 'Acréscimos salvos: já aparecem no PDV, nas mesas e no celular' })
+        }
+      >
+        Salvar acréscimos
+      </Button>
+    </section>
   );
 }

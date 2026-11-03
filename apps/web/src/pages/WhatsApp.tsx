@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, MessageCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatBRL, formatPhoneBR, ORDER_STATUS_LABEL } from '@guto/core';
 import { Layout } from '../components/Layout';
@@ -14,10 +15,16 @@ export default function WhatsApp() {
   const [tab, setTab] = useState<'inbox' | 'monitor'>('inbox');
   const status = useQuery({ queryKey: ['wa', 'status'], queryFn: () => get<any>('/api/whatsapp/status') });
   return (
-    <Layout title="WhatsApp" flush>
+    <Layout title="WhatsApp" flush actions={<Link className="btn wa-btn" to="/atendente/whatsapp/novo"><MessageCircle className="icon" aria-hidden /> Lançar pedido do WhatsApp</Link>}>
+      <div className="alert ok" style={{ margin: 0, borderRadius: 0 }}>
+        <b>Pedido pelo WhatsApp:</b> abra a conversa no WhatsApp da loja (celular ou WhatsApp Web), toque em{' '}
+        <Link to="/atendente/whatsapp/novo">Lançar pedido do WhatsApp</Link>, monte o pedido e envie: sai na cozinha na hora. Depois,
+        “Avisar no WhatsApp” abre a conversa com o resumo pronto para mandar.{' '}
+        <Link to="/atendente/whatsapp">Ver pedidos do WhatsApp de hoje</Link>
+      </div>
       {status.data?.mode === 'demo' && (
         <div className="alert warn" style={{ margin: 0, borderRadius: 0 }}>
-          <b>MODO DEMONSTRATIVO:</b> nenhuma mensagem é enviada a clientes reais. Configure a WhatsApp Business Platform (Cloud API) para ativar o envio. Use “Simular mensagem” para testar.
+          <b>Conversas abaixo em MODO DEMONSTRATIVO:</b> para as mensagens chegarem e saírem sozinhas por aqui é preciso a WhatsApp Business Platform (Cloud API, da Meta — conta e possíveis custos por conta da loja). O lançamento de pedidos acima funciona sem ela.
         </div>
       )}
       <div style={{ padding: '0 12px', background: 'var(--panel)' }}>

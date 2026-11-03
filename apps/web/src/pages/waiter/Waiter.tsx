@@ -13,6 +13,7 @@ import {
   Hash,
   LayoutGrid,
   LogOut,
+  MessageCircle,
   Plus,
   ReceiptText,
   RotateCcw,
@@ -23,7 +24,7 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
-import { formatBRL, placeLabel, searchFilter, unitTotal } from '@guto/core';
+import { formatBRL, formatPhoneBR, normalizePhoneBR, ORDER_STAGE_LABEL, PAYMENT_METHOD_LABEL, placeLabel, searchFilter, unitTotal, type PaymentMethod } from '@guto/core';
 import { ConnectionPill } from '../../components/Layout';
 import { Logo } from '../../components/Logo';
 import { lineToItemInput, lineTotal, ProductDialog } from '../../components/ProductDialog';
@@ -36,6 +37,7 @@ import { useDay, useMenu, useOrder, useSettings } from '../../lib/queries';
 import type { CartLine, MenuProduct, Order, OrderItem, OrderRow, Ticket } from '../../lib/types';
 import { moveDraft, useDraft } from './draft';
 import { lineFromItem } from '../../lib/repeat';
+import { CustomerFields, customerPayload, emptyCustomer, type CustomerDraft } from '../../components/CustomerFields';
 
 /** App do atendente (PWA para celular/tablet). Mesmo servidor e banco do caixa e da cozinha. */
 export default function Waiter() {
@@ -44,6 +46,8 @@ export default function Waiter() {
       <Route index element={<Home />} />
       <Route path="pedido/:id" element={<OrderScreen />} />
       <Route path="nova/:kind/:label" element={<OrderScreen />} />
+      <Route path="whatsapp" element={<WhatsAppOrders />} />
+      <Route path="whatsapp/novo" element={<WhatsAppNew />} />
     </Routes>
   );
 }
@@ -191,14 +195,17 @@ function Home() {
           ['table', 'Mesas', LayoutGrid, `${busyTables}/${tables.length}`],
           ['tab', 'Comandas', Hash, String(tabs.length)],
           ['mine', 'Minhas', UserRound, String(mine.length)],
+          ['whatsapp', 'WhatsApp', MessageCircle, ''],
         ] as const
       ).map(([id, label, Ico, n]) => (
-        <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}>
+        <button key={id} type="button" aria-pressed={id !== 'whatsapp' && tab === id} onClick={() => (id === 'whatsapp' ? nav('/atendente/whatsapp') : setTab(id))}>
           <Ico className="icon" aria-hidden />
           {label}
-          <span className="n" aria-label={`${n} ${label}`}>
-            {n}
-          </span>
+          {n && (
+            <span className="n" aria-label={`${n} ${label}`}>
+              {n}
+            </span>
+          )}
         </button>
       ))}
     </nav>
@@ -767,5 +774,208 @@ function ProductPicker({
         </div>
       )}
     </Modal>
+  );
+}
+
+// ---------------------------------------------------------------- pedidos do WhatsApp
+
+/** Texto para o atendente mandar ao cliente pelo WhatsApp do próprio celular (sem integração paga). */
+export function whatsAppSummary(o: Order, storeName: string, etaMinutes: number | null): string {
+  const items = o.items.filter((i) => i.status === 'active').map((i) => {
+    const opts = i.options.map((x) => (/^sem /i.test(x.optionName) ? x.optionName.toLowerCase() : `+ ${x.optionName}`)).join(', ');
+    return `• ${i.quantity}x ${i.productName}${i.variantName ? ` (${i.variantName})` : ''}${opts ? ` (${opts})` : ''}`;
+  });
+  const where = o.type === 'delivery' ? `Entrega: ${o.addrStreet}, ${o.addrNumber}${o.addrComplement ? ` - ${o.addrComplement}` : ''} - ${o.neighborhoodName}` : 'Retirada no balcão';
+  return [
+    `Olá${o.customerName ? `, ${o.customerName.split(' ')[0]}` : ''}! Seu pedido #${o.number} no ${storeName} foi recebido e já está na cozinha:`,
+    ...items,
+    o.type === 'delivery' ? `Taxa de entrega: ${formatBRL(o.deliveryFeeCents)}` : '',
+    `Total: ${formatBRL(o.totalCents)}`,
+    o.paymentIntent ? `Pagamento: ${PAYMENT_METHOD_LABEL[o.paymentIntent]}${o.changeForCents ? ` (troco para ${formatBRL(o.changeForCents)})` : ''}` : '',
+    where,
+    etaMinutes ? `Previsão: cerca de ${etaMinutes} min.` : '',
+    'Obrigado!',
+  ].filter(Boolean).join('\n');
+}
+const waLink = (phone: string | null, text: string) => {
+  const p = phone ? normalizePhoneBR(phone) : null;
+  return `https://wa.me/${p ?? ''}?text=${encodeURIComponent(text)}`;
+};
+
+function WhatsAppOrders() {
+  const nav = useNavigate();
+  const day = useDay();
+  const dayId = day.data?.day?.id;
+  const list = useQuery({
+    queryKey: ['orders', 'whatsapp', dayId],
+    queryFn: () => get<OrderRow[]>(`/api/orders${qs({ dayId, status: 'pending,open,closed', limit: 100 })}`),
+    enabled: !!dayId,
+    refetchInterval: 30_000,
+  });
+  const rows = (list.data ?? []).filter((o) => o.source === 'whatsapp');
+  return (
+    <Shell title="Pedidos do WhatsApp" subtitle="lance aqui o que o cliente pediu no WhatsApp" back="/atendente"
+      foot={<Button variant="primary" size="lg" block icon={Plus} onClick={() => nav('/atendente/whatsapp/novo')} disabled={!dayId}>Novo pedido do WhatsApp</Button>}>
+      {!dayId && !day.isLoading && <Alert kind="warn">O dia ainda não foi aberto no caixa. Peça para abrir o dia antes de lançar pedidos.</Alert>}
+      <Alert kind="info" icon={MessageCircle}>
+        Cliente pediu no WhatsApp? Toque em <b>Novo pedido do WhatsApp</b>, lance os itens e envie: sai na cozinha na hora. Depois toque em{' '}
+        <b>Avisar no WhatsApp</b> para mandar o resumo ao cliente pelo seu WhatsApp.
+      </Alert>
+      {list.isLoading ? <Loading /> : rows.length === 0 ? (
+        <Empty compact title="Nenhum pedido do WhatsApp hoje" />
+      ) : (
+        <div className="wa-orders">
+          {rows.map((o) => (
+            <div key={o.id} className="wa-order">
+              <div>
+                <b>#{o.number}</b> {o.customerName ?? 'Cliente'} <small className="muted">· {o.type === 'delivery' ? 'Entrega' : 'Retirada'} · {formatTime(o.createdAt)}</small>
+                <br />
+                <small>{o.status === 'closed' ? 'Finalizado' : ORDER_STAGE_LABEL[o.stage as keyof typeof ORDER_STAGE_LABEL] ?? o.stage} · <b>{formatBRL(o.totalCents)}</b></small>
+              </div>
+              <WaNotify orderId={o.id} />
+            </div>
+          ))}
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+/** Abre o WhatsApp do celular com o resumo do pedido pronto para enviar ao cliente. */
+function WaNotify({ orderId, big }: { orderId: string; big?: boolean }) {
+  const o = useOrder(orderId);
+  const s = useSettings();
+  if (!o.data) return null;
+  const eta = o.data.etaAt ? Math.max(5, Math.round((new Date(o.data.etaAt).getTime() - Date.now()) / 60000)) : null;
+  return (
+    <a className={'btn wa-btn' + (big ? ' lg block' : ' sm')} href={waLink(o.data.customerPhone, whatsAppSummary(o.data, s.data?.storeName ?? 'Bar do Guto', eta))} target="_blank" rel="noreferrer">
+      <MessageCircle className="icon" aria-hidden /> Avisar no WhatsApp
+    </a>
+  );
+}
+
+function WhatsAppNew() {
+  const qc = useQueryClient();
+  const menu = useMenu();
+  const { busy, go } = useAction();
+  const [delivery, setDelivery] = useState(false);
+  const [cust, setCust] = useState<CustomerDraft>(emptyCustomer);
+  const [lines, setLines] = useState<CartLine[]>([]);
+  const [picker, setPicker] = useState(false);
+  const [picking, setPicking] = useState<{ product: MenuProduct; line?: CartLine } | null>(null);
+  const [pay, setPay] = useState<PaymentMethod | ''>('');
+  const [changeFor, setChangeFor] = useState('');
+  const [notes, setNotes] = useState('');
+  const [sent, setSent] = useState<Order | null>(null);
+  const idem = useRef(newIdemKey());
+  const products = useMemo(() => (menu.data ?? []).flatMap((c) => c.products), [menu.data]);
+  const total = lines.reduce((a, l) => a + lineTotal(l), 0);
+  const phoneOk = !!normalizePhoneBR(cust.phone);
+  const addrOk = !delivery || (cust.street.trim() && cust.number.trim() && cust.neighborhoodId);
+  const ready = lines.length > 0 && cust.name.trim() && phoneOk && addrOk;
+  const missing = [!cust.name.trim() && 'nome', !phoneOk && 'telefone', !addrOk && 'endereço', !lines.length && 'itens'].filter(Boolean).join(', ');
+
+  if (sent)
+    return (
+      <Shell title={`Pedido #${sent.number} na cozinha`} back="/atendente/whatsapp" foot={<WaNotify orderId={sent.id} big />}>
+        <div className="pay-done">
+          <CheckCircle2 size={44} color="var(--ok)" aria-hidden />
+          <p className="pay-done-total">{formatBRL(sent.totalCents)}</p>
+          <p className="muted">{sent.customerName} · {formatPhoneBR(sent.customerPhone)} · {sent.type === 'delivery' ? 'Entrega' : 'Retirada'}</p>
+          <p>Enviado para a cozinha. Agora avise o cliente pelo WhatsApp (abre o WhatsApp do celular com o resumo pronto).</p>
+          <Button onClick={() => { setSent(null); setLines([]); setCust(emptyCustomer); setNotes(''); setPay(''); setChangeFor(''); idem.current = newIdemKey(); }}>Lançar outro pedido</Button>
+        </div>
+      </Shell>
+    );
+
+  const submit = () =>
+    go(async () => {
+      const cents = changeFor.trim() ? Math.round(Number(changeFor.replace(/\./g, '').replace(',', '.')) * 100) : null;
+      const body = {
+        type: delivery ? 'delivery' : 'takeout',
+        ...customerPayload(cust, delivery),
+        notes: notes.trim() || null,
+        items: lines.map(lineToItemInput),
+        send: true,
+        source: 'whatsapp',
+        paymentIntent: pay || null,
+        changeForCents: pay === 'cash' && cents ? cents : null,
+        confirmDuplicate: true,
+      };
+      const o = await post<Order>('/api/orders', body, { idempotencyKey: idem.current });
+      qc.setQueryData(['order', o.id], o);
+      void qc.invalidateQueries({ queryKey: ['orders'] });
+      setSent(o);
+    }, { success: 'Pedido enviado para a cozinha' });
+
+  return (
+    <Shell
+      title="Novo pedido do WhatsApp"
+      back="/atendente/whatsapp"
+      foot={
+        <div className="wactions wa-send">
+          <Button size="lg" icon={Plus} onClick={() => setPicker(true)} aria-label="Adicionar produtos">Produtos</Button>
+          <Button variant="primary" size="lg" icon={Send} busy={busy} disabled={!ready} onClick={submit} aria-label={ready ? `Enviar para a cozinha · ${formatBRL(total)}` : `Falta: ${missing}`}>
+            {ready ? `Enviar · ${formatBRL(total)}` : `Falta: ${missing}`}
+          </Button>
+        </div>
+      }
+    >
+      <section className="wsec">
+        <h3>Cliente</h3>
+        <div className="seg-row" role="group" aria-label="Retirada ou entrega">
+          <button type="button" aria-pressed={!delivery} onClick={() => setDelivery(false)}>Retirada</button>
+          <button type="button" aria-pressed={delivery} onClick={() => setDelivery(true)}>Entrega</button>
+        </div>
+        <CustomerFields value={cust} onChange={setCust} delivery={delivery} />
+      </section>
+      <section className="wsec">
+        <h3>Itens {lines.length > 0 && <small className="muted">· {formatBRL(total)}</small>}</h3>
+        {lines.length === 0 ? (
+          <Button block icon={Plus} onClick={() => setPicker(true)}>Adicionar produtos</Button>
+        ) : (
+          lines.map((l) => (
+            <div key={l.key} className="draft-line">
+              <div>
+                <b>{l.quantity}x {l.productName}</b>{l.variantName ? ` (${l.variantName})` : ''}
+                {l.options.length > 0 && <div><small className="muted">{l.options.map((o) => o.name).join(', ')}</small></div>}
+                {l.notes && <div><small>“{l.notes}”</small></div>}
+              </div>
+              <span className="num">{formatBRL(lineTotal(l))}</span>
+              <Stepper value={l.quantity} onChange={(q) => setLines((ls) => (q <= 0 ? ls.filter((x) => x.key !== l.key) : ls.map((x) => (x.key === l.key ? { ...x, quantity: q } : x))))} min={0} label={l.productName} />
+            </div>
+          ))
+        )}
+      </section>
+      <section className="wsec">
+        <h3>Pagamento (na entrega/retirada)</h3>
+        <select value={pay} onChange={(e) => setPay(e.target.value as PaymentMethod | '')} aria-label="Forma de pagamento">
+          <option value="">Não informado</option>
+          {(['cash', 'pix_manual', 'debit', 'credit', 'voucher'] as const).map((m) => <option key={m} value={m}>{PAYMENT_METHOD_LABEL[m]}</option>)}
+        </select>
+        {pay === 'cash' && <input style={{ marginTop: 8 }} inputMode="decimal" placeholder="Troco para quanto? (ex.: 100,00)" value={changeFor} onChange={(e) => setChangeFor(e.target.value)} aria-label="Troco para" />}
+        <textarea style={{ marginTop: 8 }} placeholder="Observação do pedido (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} aria-label="Observação do pedido" />
+      </section>
+      {picker && (
+        <ProductPicker
+          products={products}
+          draftLines={lines}
+          onPick={(p) => setPicking({ product: p })}
+          onQuickAdd={(l) => setLines((ls) => [...ls, l])}
+          onClose={() => setPicker(false)}
+        />
+      )}
+      {picking && (
+        <ProductDialog
+          product={picking.product}
+          initial={picking.line}
+          onClose={() => setPicking(null)}
+          onConfirm={(line) => {
+            setLines((ls) => [...ls, line]);
+            setPicking(null);
+          }}
+        />
+      )}
+    </Shell>
   );
 }
