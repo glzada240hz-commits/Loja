@@ -129,6 +129,18 @@ test.describe.serial('16. fluxo completo: cardápio digital → cozinha → entr
     await shot(caixa, '08-pagamento-troco');
     await dlg.getByRole('button', { name: /Registrar R\$ 50,80/ }).click();
     await expect(caixa.getByText('Pagamento registrado')).toBeVisible();
+    // tela de pago: troco e nota não fiscal
+    const pago = caixa.getByRole('dialog', { name: /Pedido #1 pago/ });
+    await caixa.context().addInitScript(() => (window.print = () => undefined)); // sem diálogo de impressão no teste
+    await expect(pago.getByText('R$ 49,20')).toBeVisible();
+    const [nota] = await Promise.all([caixa.waitForEvent('popup'), pago.getByRole('button', { name: 'Imprimir nota' }).click()]);
+    await expect(nota.getByText('NOTA DE VENDA — PAGO')).toBeVisible();
+    await expect(nota.getByText('NÃO É DOCUMENTO FISCAL')).toBeVisible();
+    await expect(nota.locator('.print-root')).toContainText('Troco');
+    await expect(nota.locator('.print-root')).toContainText('R$ 49,20');
+    await shot(nota, '08b-nota-nao-fiscal');
+    await nota.close();
+    await pago.getByRole('button', { name: 'Concluir' }).click();
     await caixa.getByRole('button', { name: 'Finalizar pedido' }).click();
     await expect(caixa.getByText('Pedido finalizado').first()).toBeVisible();
     await expect(caixa.locator('.drawer .badge', { hasText: 'Finalizado' })).toBeVisible();

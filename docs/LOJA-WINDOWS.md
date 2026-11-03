@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+39ab4c62`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-39ab4c62
+- **`0.2.0+19529aeb`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-19529aeb
+  (`BarDoGuto-Instalador-0.2.0-19529aeb.exe`). Inclui a **nota não fiscal para cobrar** (conta com QR Pix e
+  nota de pagamento com troco) — ver [NOTA-NAO-FISCAL.md](NOTA-NAO-FISCAL.md). Mesmo aplicativo sem janela preta
+  da versão abaixo.
+- `0.2.0+39ab4c62` (anterior, sem a nota) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-39ab4c62
   (`BarDoGuto-Instalador-0.2.0-39ab4c62.exe`, ~50 MB). **Funciona como aplicativo** (sem janela preta): tela de
   primeira abertura, janela própria, ícone perto do relógio.
 - Teste automático no Windows (GitHub Actions, `windows-latest`): o `BarDoGuto.exe` é aplicativo de janela

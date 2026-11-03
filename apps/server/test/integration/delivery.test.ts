@@ -230,4 +230,13 @@ describe('6/7/16. cardápio digital → cozinha → entrega → acerto do entreg
     // token de rastreio inexistente
     expect((await new Client(h.app).get('/api/public/orders/AAAAAAAAAAAAAAAAAAAAAAAA')).status).toBe(404);
   });
+
+  it('nota não fiscal: chave Pix validada no servidor; CNPJ e impressão automática salvos', async () => {
+    expect((await gerente.put('/api/settings', { pixKey: '11999998888' })).status).toBe(400); // celular sem +55
+    const ok = await gerente.put('/api/settings', { pixKey: '+55 11 99999-8888', pixCity: 'São Paulo', storeDocument: 'CNPJ 11.222.333/0001-81', autoPrintReceipt: true });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ pixCity: 'São Paulo', storeDocument: 'CNPJ 11.222.333/0001-81', autoPrintReceipt: true });
+    expect((await caixa.get('/api/settings')).body.pixKey).toBe('+55 11 99999-8888');
+    expect((await gerente.put('/api/settings', { pixKey: '' })).status).toBe(200);
+  });
 });

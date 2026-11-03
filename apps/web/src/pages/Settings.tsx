@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatBRL, formatPhoneBR, ROLE_LABEL, ROLES, type Role } from '@guto/core';
+import { formatBRL, formatPhoneBR, normalizePixKey, PIX_KEY_KIND_LABEL, ROLE_LABEL, ROLES, type Role } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { Button, Empty, Field, Loading, Modal, MoneyInput, Tabs, useAction } from '../components/ui';
 import { del, get, post, put } from '../lib/api';
@@ -81,7 +81,25 @@ function Store() {
           <select value={f.printWidth} onChange={(e) => set({ printWidth: Number(e.target.value) })}><option value={80}>80 mm</option><option value={58}>58 mm</option></select>
         </Field>
       </div>
-      <Field label="Rodapé do comprovante"><input value={f.receiptFooter} onChange={(e) => set({ receiptFooter: e.target.value })} /></Field>
+      <h3>Nota não fiscal (conta e comprovante)</h3>
+      <Field label="CNPJ ou CPF impresso na nota (opcional)" hint="Ex.: CNPJ 12.345.678/0001-90. A nota continua NÃO sendo documento fiscal."><input value={f.storeDocument} maxLength={40} onChange={(e) => set({ storeDocument: e.target.value })} /></Field>
+      <div className="row">
+        <Field
+          label="Chave Pix para o QR da conta (opcional)"
+          hint={
+            !f.pixKey.trim()
+              ? 'Com a chave, a conta impressa traz um QR Pix já com o valor. Celular: +5511999999999.'
+              : normalizePixKey(f.pixKey)
+                ? `Reconhecida como ${PIX_KEY_KIND_LABEL[normalizePixKey(f.pixKey)!.kind]}. Teste pagando R$ 0,01 antes de usar com clientes.`
+                : 'Chave não reconhecida: use CPF/CNPJ válido, e-mail, celular com +55 ou chave aleatória.'
+          }
+        >
+          <input value={f.pixKey} maxLength={77} onChange={(e) => set({ pixKey: e.target.value })} aria-invalid={!!f.pixKey.trim() && !normalizePixKey(f.pixKey)} />
+        </Field>
+        <Field label="Cidade (exigida pelo Pix)"><input value={f.pixCity} maxLength={40} onChange={(e) => set({ pixCity: e.target.value })} placeholder="Ex.: São Paulo" /></Field>
+      </div>
+      <label className="check"><input type="checkbox" checked={f.autoPrintReceipt} onChange={(e) => set({ autoPrintReceipt: e.target.checked })} /> Abrir a impressão da nota automaticamente quando o pedido for quitado</label>
+      <Field label="Rodapé da nota"><input value={f.receiptFooter} onChange={(e) => set({ receiptFooter: e.target.value })} /></Field>
       <Field label="Retenção sugerida de dados de clientes inativos (meses)" hint="Referência para revisão periódica; a exclusão é feita em Clientes."><input type="number" value={f.dataRetentionMonths} onChange={(e) => set({ dataRetentionMonths: Number(e.target.value) })} /></Field>
       <Button variant="primary" busy={busy} onClick={() => go(async () => {
         const { tablesText, ...rest } = f;

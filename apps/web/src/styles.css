@@ -829,6 +829,13 @@ button.conn { cursor: pointer; font-family: inherit; }
 .print-root .l { display: flex; justify-content: space-between; gap: 6px; }
 .print-root .c { text-align: center; }
 .print-root .warn { text-align: center; font-weight: 800; border: 1px solid #000; padding: 3px; margin: 6px 0; }
+.print-root .item { margin-bottom: 3px; }
+.print-root .sub { padding-left: 8px; font-size: 11px; }
+.print-root .l.sub { padding-left: 8px; }
+.print-root .total { font-size: 15px; margin-top: 2px; }
+.print-root .qr { width: 40mm; margin: 6px auto; }
+.print-root .qr svg { display: block; width: 100%; height: auto; }
+.print-root.w58 .qr { width: 34mm; }
 .print-toolbar { display: flex; gap: var(--s2); padding: var(--s3); justify-content: center; flex-wrap: wrap; background: var(--surface); border-bottom: 1px solid var(--line); }
 @media print { .no-print { display: none !important; } body { background: #fff; } .print-root { padding: 0; } }
 
@@ -926,3 +933,9 @@ button.conn { cursor: pointer; font-family: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+
+/* pagamento concluído */
+.pay-done { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 6px 0; }
+.pay-done p { margin: 0; }
+.pay-done-total { font-size: 2.2rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.pay-done .pay-change { width: 100%; max-width: 360px; }

@@ -2,13 +2,18 @@ import { useMemo, useRef, useState } from 'react';
 import { formatBRL, PAYMENT_METHOD_LABEL, splitEvenly, type PaymentMethod } from '@guto/core';
 import { newIdemKey, post } from '../lib/api';
 import type { Order } from '../lib/types';
-import { Banknote, CreditCard, QrCode, Ticket, Wallet, type LucideIcon } from 'lucide-react';
+import { Banknote, CheckCircle2, CreditCard, Printer, QrCode, Ticket, Wallet, type LucideIcon } from 'lucide-react';
+import { openNota } from '../lib/print';
+import { useSettings } from '../lib/queries';
 import { Alert, Button, Field, Modal, MoneyInput, useAction } from './ui';
 
 const METHODS: PaymentMethod[] = ['cash', 'pix_manual', 'debit', 'credit', 'voucher'];
 const METHOD_ICON: Partial<Record<PaymentMethod, LucideIcon>> = { cash: Banknote, pix_manual: QrCode, debit: CreditCard, credit: Wallet, voucher: Ticket };
 
-/** Registro de pagamento (total, parcial ou dividido) com cálculo de troco. O servidor confere tudo. */
+/**
+ * Registro de pagamento (total, parcial ou dividido) com cálculo de troco. O servidor confere tudo.
+ * "Imprimir conta" tira a nota não fiscal para o cliente conferir; quitado, mostra o troco e "Imprimir nota".
+ */
 export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClose: () => void; onPaid: (o: Order) => void }) {
   const balance = order.balanceCents;
   const [method, setMethod] = useState<PaymentMethod>(order.paymentIntent && order.paymentIntent !== 'pix_integrated' ? order.paymentIntent : 'cash');
@@ -18,6 +23,9 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
   const [ways, setWays] = useState(1);
   const key = useRef(newIdemKey());
   const { busy, go } = useAction();
+  const settings = useSettings();
+  const width = settings.data?.printWidth ?? 80;
+  const [done, setDone] = useState<{ order: Order; change: number } | null>(null);
 
   const parts = useMemo(() => (ways > 1 ? splitEvenly(balance, ways) : []), [balance, ways]);
   const applied = Math.min(amount ?? 0, balance);
@@ -39,6 +47,10 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
           { idempotencyKey: key.current },
         );
         key.current = newIdemKey();
+        if (r.order.balanceCents <= 0) {
+          setDone({ order: r.order, change: r.result.changeCents });
+          if (settings.data?.autoPrintReceipt) openNota(r.order.id, width);
+        }
         onPaid(r.order);
         return r;
       },
@@ -47,6 +59,35 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
 
   const quick = [applied, 2000, 5000, 10000, 20000].filter((v, i, a) => v >= applied && a.indexOf(v) === i).slice(0, 5);
   const registered = cashShort ? (tendered ?? 0) : applied;
+
+  if (done)
+    return (
+      <Modal
+        title={`Pedido #${done.order.number} pago`}
+        onClose={onClose}
+        footer={
+          <>
+            <Button onClick={onClose}>Concluir</Button>
+            <Button variant="primary" size="lg" icon={Printer} onClick={() => openNota(done.order.id, width)}>
+              Imprimir nota
+            </Button>
+          </>
+        }
+      >
+        <div className="pay-done">
+          <CheckCircle2 size={44} color="var(--ok)" aria-hidden />
+          <p className="pay-done-total">{formatBRL(done.order.totalCents)}</p>
+          <p className="muted">Pedido quitado · {done.order.place}</p>
+          {done.change > 0 && (
+            <div className="pay-change" aria-live="polite">
+              <span className="k">Troco a devolver</span>
+              <span className="v">{formatBRL(done.change)}</span>
+            </div>
+          )}
+          <small className="muted">A nota impressa não é documento fiscal.</small>
+        </div>
+      </Modal>
+    );
 
   return (
     <Modal title={`Receber — pedido #${order.number}`} onClose={onClose} className="pay-modal" bare>
@@ -167,6 +208,9 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
       </div>
       <div className="pay-foot">
         <Button onClick={onClose}>Fechar</Button>
+        <Button icon={Printer} onClick={() => openNota(order.id, width)} title="Nota não fiscal para o cliente conferir antes de pagar">
+          Imprimir conta
+        </Button>
         <Button variant="success" size="lg" busy={busy} disabled={invalid} onClick={submit}>
           Registrar {amount ? formatBRL(Math.min(amount, balance)) : ''}
         </Button>

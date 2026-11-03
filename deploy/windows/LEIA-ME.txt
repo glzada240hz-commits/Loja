@@ -41,6 +41,11 @@ PROBLEMAS
   Botao direito no icone > "Registro de funcionamento" mostra o que aconteceu (para o suporte).
   Os registros ficam em %LOCALAPPDATA%\BarDoGuto\loja\registros
 
+NOTA NAO FISCAL PARA COBRAR
+  Em Receber: "Imprimir conta" (para o cliente conferir). Depois de pago: "Imprimir nota".
+  Configure em Ajustes > Loja > Nota nao fiscal: CNPJ/CPF, chave Pix (QR com o valor na conta)
+  e cidade. Teste o QR com um pedido seu antes de usar com clientes.
+
 IMPORTANTE
   - Comprovantes NAO sao documento fiscal.
   - WhatsApp em modo demonstrativo (nao envia mensagens reais).

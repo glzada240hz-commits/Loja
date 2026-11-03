@@ -146,7 +146,7 @@ function seed(): State {
       storeName: 'Bar do Guto', storePhone: '(11) 90000-0000', storeAddress: 'Endereço demonstrativo — configure em Ajustes',
       onlineOrdersEnabled: true, onlineMinOrderCents: 0, pickupEtaMinutes: 25, deliveryEtaMinutes: 50, cashierMaxDiscountBp: 1000,
       kitchenLateMinutes: 20, duplicateWindowMinutes: 15, tables: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
-      onlinePaymentMethods: ['cash', 'pix_manual', 'credit', 'debit'], pixKeyDisplay: '', printWidth: 80, receiptFooter: 'Obrigado pela preferência!',
+      onlinePaymentMethods: ['cash', 'pix_manual', 'credit', 'debit'], pixKeyDisplay: '', storeDocument: '', pixKey: '', pixCity: '', autoPrintReceipt: false, printWidth: 80, receiptFooter: 'Obrigado pela preferência!',
       waAutoReplyEnabled: true, waGreeting: 'Olá! Você está falando com o Bar do Guto. Responda:\n1 - Cardápio e pedidos\n2 - Status do meu pedido\n3 - Falar com atendente', dataRetentionMonths: 24,
     },
     neighborhoods: [

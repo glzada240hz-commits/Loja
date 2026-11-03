@@ -4,3 +4,4 @@ export * from './permissions.js';
 export * from './status.js';
 export * from './br.js';
 export * from './search.js';
+export * from './pix.js';

@@ -133,6 +133,7 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
     await dlg.getByRole('button', { name: 'Cartão de débito' }).click();
     await dlg.getByRole('button', { name: /^Registrar R\$ 51,80/ }).click();
     await expect(caixa.getByText('Pagamento registrado')).toBeVisible();
+    await caixa.getByRole('dialog', { name: /pago$/ }).getByRole('button', { name: 'Concluir' }).click();
     await caixa.getByRole('button', { name: 'Finalizar pedido' }).click();
     await expect(caixa.locator('.drawer .badge', { hasText: 'Finalizado' })).toBeVisible();
     await shot(caixa, 'w07-caixa-finalizado');

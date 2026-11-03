@@ -20,6 +20,7 @@ import { useOrder, useSettings } from '../lib/queries';
 import type { Order, OrderEvent } from '../lib/types';
 import { CustomerFields, customerPayload, type CustomerDraft } from './CustomerFields';
 import { PaymentDialog } from './PaymentDialog';
+import { notaUrl, openNota } from '../lib/print';
 import { DeliveryBadge, StageBadge, StatusBadge, TypeBadge } from './status';
 import { Alert, Button, Chips, ErrorBox, Field, Loading, Modal, Money, MoneyInput, MoreMenu, Stepper, useAction, useUi } from './ui';
 
@@ -465,10 +466,13 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
             </Button>
           )}
           {o.status === 'closed' && <Button icon={RotateCcw} onClick={reopen}>Reabrir</Button>}
+          <Button icon={Printer} size="lg" onClick={() => openNota(o.id, settings.data?.printWidth)}>
+            {o.balanceCents > 0 ? 'Imprimir conta' : 'Imprimir nota'}
+          </Button>
         </div>
         <MoreMenu>
-          <a href={`/imprimir/${o.id}?via=cliente&w=${settings.data?.printWidth ?? 80}`} target="_blank" rel="noreferrer" role="menuitem">
-            <Printer size={16} aria-hidden /> Imprimir comprovante
+          <a href={notaUrl(o.id, settings.data?.printWidth, false)} target="_blank" rel="noreferrer" role="menuitem">
+            <Printer size={16} aria-hidden /> Ver nota não fiscal
           </a>
           <a href={`/imprimir/${o.id}?via=cozinha&w=${settings.data?.printWidth ?? 80}`} target="_blank" rel="noreferrer" role="menuitem">
             <Printer size={16} aria-hidden /> Imprimir via da cozinha
@@ -488,7 +492,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
           )}
         </MoreMenu>
       </div>
-      {modal === 'pay' && <PaymentDialog order={o} onClose={() => setModal(null)} onPaid={(fresh) => { refresh(fresh); if (fresh.balanceCents <= 0) setModal(null); }} />}
+      {modal === 'pay' && <PaymentDialog order={o} onClose={() => setModal(null)} onPaid={(fresh) => refresh(fresh)} />}
       {modal === 'discount' && <DiscountDialog order={o} onClose={() => setModal(null)} onSaved={(fresh) => { refresh(fresh); setModal(null); }} />}
       {modal === 'edit' && <EditOrderDialog order={o} onClose={() => setModal(null)} onSaved={(fresh) => { refresh(fresh); setModal(null); }} />}
       {modal === 'accept' && <AcceptDialog order={o} onClose={() => setModal(null)} onSaved={(fresh) => { refresh(fresh); setModal(null); }} />}

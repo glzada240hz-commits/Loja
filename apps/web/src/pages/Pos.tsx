@@ -522,10 +522,8 @@ export default function Pos() {
           onClose={() => setCreated(null)}
           onPaid={(o) => {
             qc.setQueryData(['order', o.id], o);
-            if (o.balanceCents <= 0) {
-              setCreated(null);
-              ui.toast(`Pedido #${o.number} quitado`, 'ok');
-            } else setCreated({ order: o, pay: true });
+            // quitado: o próprio diálogo mostra o troco e o botão Imprimir nota
+            if (o.balanceCents > 0) setCreated({ order: o, pay: true });
           }}
         />
       )}
