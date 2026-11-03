@@ -28,8 +28,9 @@ cervejas 40–45, drinks e doses 50–58, refrigerantes e sucos 60–70.
 | Drinks e doses | Pinga da Roça · Selvagem · Vinho · Conhaque · Caipirinha · Caipivodka · Cortezano · Campari · Whisky | 4,00 · 4,00 · 9,00 · 5,00 · 17,00 · 18,00 · 5,00 · 15,00 · 20,00 |
 | Refrigerantes e sucos | Coca-Cola 2L · Fanta 2L · Guarapan 2L · Kuat 2L · Mate Couro 1L · Refrigerante 600ml · Refrigerante Lata · Suco Tial 250ml · Suco 1L · Água Mineral · Água Mineral c/ Gás | 17,00 · 15,00 · 11,00 · 11,00 · 9,00 · 9,00 · 8,00 · 7,00 · 12,00 · 4,00 · 5,00 |
 
-Pontos a confirmar com o dono: “Fritas c/ Cheddar e Bacon” diz “muçarela e bacon” na arte (mantido);
-caipirinha/caipivodka não vão para a cozinha (feitas no balcão); “Whisk” da arte foi escrito “Whisky”.
+Confirmado pelo dono: “Fritas c/ Cheddar e Bacon” leva **cheddar** (a arte dizia muçarela; corrigido na
+versão `2026-11-03b`); caipirinha/caipivodka são feitas no **balcão** (não vão para a cozinha). “Whisk” da arte
+foi escrito “Whisky”. Adicionais pagos: aguardando resposta.
 
 Validação: teste de integração (preços, tamanhos, categorias, cozinha, exemplos fora, item do dono mantido,
 repetição sem duplicar, venda com “Sem milho”) e E2E (conferir → importar → aparece no PDV). Capturas em

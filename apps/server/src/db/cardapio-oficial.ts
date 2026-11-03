@@ -20,7 +20,8 @@ export interface OfficialCategory {
 
 const u = (priceCents: number) => [{ name: 'Único', priceCents }];
 
-export const OFFICIAL_MENU_VERSION = '2026-11-03';
+// muda quando o cardápio muda: o modo loja aplica a correção sozinho uma vez
+export const OFFICIAL_MENU_VERSION = '2026-11-03b';
 
 export const OFFICIAL_STORE = {
   storePhone: '(31) 98841-4429',
@@ -55,8 +56,8 @@ export const OFFICIAL_MENU: OfficialCategory[] = [
       { code: '23', name: 'Peixe Cascudo', description: '500g de peixe.', variants: u(4590) },
       { code: '24', name: 'Fritas', description: '500g de batata.', variants: u(2290) },
       { code: '25', name: 'Fritas c/ Queijo e Bacon', description: '500g de batata, muçarela e bacon.', variants: u(3790) },
-      // a arte diz "muçarela e bacon" também nesta; mantido como está na arte (confirmar com o dono)
-      { code: '26', name: 'Fritas c/ Cheddar e Bacon', description: '500g de batata, muçarela e bacon.', variants: u(4090) },
+      // a arte diz "muçarela e bacon"; o dono confirmou: leva cheddar
+      { code: '26', name: 'Fritas c/ Cheddar e Bacon', description: '500g de batata, cheddar e bacon.', variants: u(4090) },
       { code: '27', name: 'Coraçãozinho c/ Fritas', description: '350g de coraçãozinho e 450g de batata.', variants: u(4990) },
     ],
   },
