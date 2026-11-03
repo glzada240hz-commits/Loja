@@ -41,8 +41,8 @@ podem ser usadas juntas:
    **Duas impressoras (caixa e cozinha):** deixe a do **caixa** como impressora padrão do Windows (nota do
    cliente) e, em *Celulares e cozinha → Impressora da cozinha*, escolha a da **cozinha** na lista e clique em
    **Usar esta impressora** e **Imprimir teste na cozinha**. A partir daí a via da cozinha é impressa pelo
-   aplicativo Bar do Guto direto nessa impressora (fila em ; o
-   resultado da última impressão aparece na tela; vias que falharem 3 vezes vão para ).
+   aplicativo Bar do Guto direto nessa impressora (fila em `%LOCALAPPDATA%\BarDoGuto\loja\impressao`; o
+   resultado da última impressão aparece na tela; vias que falharem 3 vezes vão para `impressao\erros`).
 2. **Tela** — tablet ou celular na cozinha com usuário de perfil **Cozinha** (QR na mesma página):
    fila na ordem de chegada, som a cada pedido, botões *Iniciar preparo* e *Pronto* (o atendente é avisado).
 
