@@ -42,6 +42,7 @@ export interface Order {
   addrStreet: string | null; addrNumber: string | null; addrComplement: string | null; addrReference: string | null; neighborhoodId: string | null; neighborhoodName: string | null;
   notes: string | null; subtotalCents: number; discountType: 'amount' | 'percent' | null; discountValue: number | null; discountCents: number; discountReason: string | null;
   deliveryFeeCents: number; totalCents: number; paidCents: number; balanceCents: number; paymentIntent: PaymentMethod | null; changeForCents: number | null;
+  paymentPlan?: { method: PaymentMethod; amountCents: number }[] | null;
   etaAt: string | null; receivable: boolean; trackingToken: string | null; waOptIn: boolean;
   courierId: string | null; courierName: string | null; deliveryStatus: DeliveryStatus | null; deliveryIssue: string | null; courierFeeCents: number | null;
   createdAt: string; acceptedAt: string | null; readyAt: string | null; dispatchedAt: string | null; deliveredAt: string | null; closedAt: string | null;

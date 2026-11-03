@@ -5,6 +5,7 @@ import { Button, ErrorBox, Loading } from '../components/ui';
 import { formatDateTime, formatTime } from '../lib/format';
 import { useOrder, useSettings } from '../lib/queries';
 import type { Order } from '../lib/types';
+import { formatPlan } from '../components/PaymentPlan';
 
 /**
  * Impressão pelo navegador (diálogo do sistema) em bobina de 58 ou 80 mm.
@@ -160,7 +161,11 @@ function Nota({ o, items, st, qr, pix }: { o: Order; items: Order['items']; st: 
       {pays.some((x) => x.tenderedCents) && <div className="l"><span>Recebido em dinheiro</span><span>{formatBRL(pays.reduce((a, x) => a + (x.tenderedCents ?? 0), 0))}</span></div>}
       {change > 0 && <div className="l"><span>Troco</span><span>{formatBRL(change)}</span></div>}
       {o.balanceCents > 0 && <div className="l total"><b>A PAGAR</b><b>{formatBRL(o.balanceCents)}</b></div>}
-      {o.balanceCents > 0 && o.paymentIntent && <div>Pagamento na entrega: {PAYMENT_METHOD_LABEL[o.paymentIntent]}{o.changeForCents ? ` · troco p/ ${formatBRL(o.changeForCents)}` : ''}</div>}
+      {o.balanceCents > 0 && o.paymentPlan?.length ? (
+        <div>Pagamento combinado: {formatPlan(o.paymentPlan)}{o.changeForCents ? ` · troco p/ ${formatBRL(o.changeForCents)}` : ''}</div>
+      ) : o.balanceCents > 0 && o.paymentIntent ? (
+        <div>Pagamento na entrega: {PAYMENT_METHOD_LABEL[o.paymentIntent]}{o.changeForCents ? ` · troco p/ ${formatBRL(o.changeForCents)}` : ''}</div>
+      ) : null}
       {pix && (
         <div className="pix">
           <hr />

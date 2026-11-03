@@ -12,6 +12,7 @@ import {
   Flame,
   Hash,
   LayoutGrid,
+  Bike,
   LogOut,
   MessageCircle,
   ShoppingBag,
@@ -25,7 +26,7 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
-import { formatBRL, formatPhoneBR, normalizePhoneBR, ORDER_STAGE_LABEL, PAYMENT_METHOD_LABEL, placeLabel, searchFilter, unitTotal, type PaymentMethod } from '@guto/core';
+import { formatBRL, formatPhoneBR, normalizePhoneBR, ORDER_STAGE_LABEL, PAYMENT_METHOD_LABEL, placeLabel, searchFilter, unitTotal } from '@guto/core';
 import { ConnectionPill } from '../../components/Layout';
 import { Logo } from '../../components/Logo';
 import { lineToItemInput, lineTotal, ProductDialog } from '../../components/ProductDialog';
@@ -34,11 +35,12 @@ import { ApiError, get, newIdemKey, post, qs } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { elapsedLabel, formatTime, shortName } from '../../lib/format';
 import { useConnection } from '../../lib/live';
-import { useDay, useMenu, useOrder, useSettings } from '../../lib/queries';
+import { useDay, useMenu, useNeighborhoods, useOrder, useSettings } from '../../lib/queries';
 import type { CartLine, MenuProduct, Order, OrderItem, OrderRow, Ticket } from '../../lib/types';
 import { moveDraft, useDraft } from './draft';
 import { lineFromItem } from '../../lib/repeat';
 import { CustomerFields, customerPayload, emptyCustomer, type CustomerDraft } from '../../components/CustomerFields';
+import { formatPlan, PaymentPlanEditor, type PlanPart } from '../../components/PaymentPlan';
 
 /** App do atendente (PWA para celular/tablet). Mesmo servidor e banco do caixa e da cozinha. */
 export default function Waiter() {
@@ -199,7 +201,7 @@ function Home() {
           ['tab', 'Comandas', Hash, String(tabs.length)],
           ['mine', 'Minhas', UserRound, String(mine.length)],
           ['balcao', 'Balcão', ShoppingBag, ''],
-          ['whatsapp', 'WhatsApp', MessageCircle, ''],
+          ['whatsapp', 'Delivery', Bike, ''],
         ] as const
       ).map(([id, label, Ico, n]) => (
         <button key={id} type="button" aria-pressed={id !== 'whatsapp' && id !== 'balcao' && tab === id} onClick={() => (id === 'whatsapp' || id === 'balcao' ? nav(`/atendente/${id}`) : setTab(id))}>
@@ -795,7 +797,10 @@ export function whatsAppSummary(o: Order, storeName: string, etaMinutes: number 
     ...items,
     o.type === 'delivery' ? `Taxa de entrega: ${formatBRL(o.deliveryFeeCents)}` : '',
     `Total: ${formatBRL(o.totalCents)}`,
-    o.paymentIntent ? `Pagamento: ${PAYMENT_METHOD_LABEL[o.paymentIntent]}${o.changeForCents ? ` (troco para ${formatBRL(o.changeForCents)})` : ''}` : '',
+    o.paidCents > 0 ? `Já pago: ${formatBRL(o.paidCents)} · Falta: ${formatBRL(o.balanceCents)}` : '',
+    o.paymentPlan?.length
+      ? `Pagamento: ${formatPlan(o.paymentPlan)}${o.changeForCents ? ` (troco para ${formatBRL(o.changeForCents)})` : ''}`
+      : o.paymentIntent ? `Pagamento: ${PAYMENT_METHOD_LABEL[o.paymentIntent]}${o.changeForCents ? ` (troco para ${formatBRL(o.changeForCents)})` : ''}` : '',
     where,
     etaMinutes ? `Previsão: cerca de ${etaMinutes} min.` : '',
     'Obrigado!',
@@ -808,7 +813,7 @@ const waLink = (phone: string | null, text: string) => {
 
 type Channel = 'whatsapp' | 'balcao';
 const CH = {
-  whatsapp: { title: 'Pedidos do WhatsApp', sub: 'lance aqui o que o cliente pediu no WhatsApp', new: 'Novo pedido do WhatsApp', empty: 'Nenhum pedido do WhatsApp hoje' },
+  whatsapp: { title: 'Atendente do celular', sub: 'pedidos por WhatsApp e telefone: entrega ou retirada', new: 'Novo pedido (WhatsApp/telefone)', empty: 'Nenhum pedido por WhatsApp/telefone hoje' },
   balcao: { title: 'Balcão · para levar', sub: 'cliente na loja que vai levar (sem mesa)', new: 'Novo pedido para levar', empty: 'Nenhum pedido para levar hoje' },
 } as const;
 
@@ -834,8 +839,8 @@ function WhatsAppOrders({ channel }: { channel: Channel }) {
       {!dayId && !day.isLoading && <Alert kind="warn">O dia ainda não foi aberto no caixa. Peça para abrir o dia antes de lançar pedidos.</Alert>}
       {channel === 'whatsapp' ? (
         <Alert kind="info" icon={MessageCircle}>
-          Cliente pediu no WhatsApp? Toque em <b>Novo pedido do WhatsApp</b>, lance os itens e envie: sai na cozinha na hora. Depois toque em{' '}
-          <b>Avisar no WhatsApp</b> para mandar o resumo ao cliente pelo seu WhatsApp.
+          Cliente pediu pelo WhatsApp ou ligou? Toque em <b>Novo pedido</b>, coloque os itens, o endereço e o <b>bairro</b>: o sistema mostra o{' '}
+          <b>valor total com a taxa de entrega</b>. Envie e sai na cozinha na hora; depois <b>Avisar no WhatsApp</b> manda o resumo ao cliente.
         </Alert>
       ) : (
         <Alert kind="info" icon={ShoppingBag}>
@@ -886,19 +891,30 @@ function WhatsAppNew({ channel }: { channel: Channel }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [picker, setPicker] = useState(false);
   const [picking, setPicking] = useState<{ product: MenuProduct; line?: CartLine } | null>(null);
-  const [pay, setPay] = useState<PaymentMethod | ''>('');
+  const { can } = useAuth();
+  const ui = useUi();
+  const [parts, setParts] = useState<PlanPart[]>([]);
   const [changeFor, setChangeFor] = useState('');
   const [notes, setNotes] = useState('');
   const [sent, setSent] = useState<Order | null>(null);
   const idem = useRef(newIdemKey());
   const products = useMemo(() => (menu.data ?? []).flatMap((c) => c.products), [menu.data]);
-  const total = lines.reduce((a, l) => a + lineTotal(l), 0);
+  const nbs = useNeighborhoods();
+  const itemsTotal = lines.reduce((a, l) => a + lineTotal(l), 0);
+  const nb = delivery ? nbs.data?.find((n) => n.id === cust.neighborhoodId) : undefined;
+  const fee = nb?.feeCents ?? 0;
+  const total = itemsTotal + fee;
+  const paidNow = parts.filter((p) => p.paid).reduce((a, p) => a + (p.amountCents ?? 0), 0);
+  const cashDue = parts.filter((p) => p.method === 'cash' && !p.paid).reduce((a, p) => a + (p.amountCents ?? 0), 0);
+  const planSum = parts.reduce((a, p) => a + (p.amountCents ?? 0), 0);
+  const changeForCents = changeFor.trim() ? Math.round(Number(changeFor.replace(/\./g, '').replace(',', '.')) * 100) || 0 : 0;
   // WhatsApp: nome e telefone obrigatórios (para avisar); balcão: só o nome para chamar na retirada (opcional)
   const phoneOk = wa ? !!normalizePhoneBR(cust.phone) : !cust.phone.trim() || !!normalizePhoneBR(cust.phone);
   const nameOk = wa ? !!cust.name.trim() : true;
   const addrOk = !delivery || (cust.street.trim() && cust.number.trim() && cust.neighborhoodId);
-  const ready = lines.length > 0 && nameOk && phoneOk && addrOk;
-  const missing = [!nameOk && 'nome', !phoneOk && 'telefone', !addrOk && 'endereço', !lines.length && 'itens'].filter(Boolean).join(', ');
+  const planOk = planSum <= total;
+  const ready = lines.length > 0 && nameOk && phoneOk && addrOk && planOk;
+  const missing = [!nameOk && 'nome', !phoneOk && 'telefone', !addrOk && 'endereço', !lines.length && 'itens', !planOk && 'acertar o pagamento'].filter(Boolean).join(', ');
 
   if (sent)
     return (
@@ -912,14 +928,14 @@ function WhatsAppNew({ channel }: { channel: Channel }) {
           ) : (
             <p>Enviado para a cozinha. Diga ao cliente o número <b>#{sent.number}</b> e peça para pagar no caixa; ele retira quando ficar pronto.</p>
           )}
-          <Button onClick={() => { setSent(null); setLines([]); setCust(emptyCustomer); setNotes(''); setPay(''); setChangeFor(''); idem.current = newIdemKey(); }}>Lançar outro pedido</Button>
+          <Button onClick={() => { setSent(null); setLines([]); setCust(emptyCustomer); setNotes(''); setParts([]); setChangeFor(''); idem.current = newIdemKey(); }}>Lançar outro pedido</Button>
         </div>
       </Shell>
     );
 
   const submit = () =>
     go(async () => {
-      const cents = changeFor.trim() ? Math.round(Number(changeFor.replace(/\./g, '').replace(',', '.')) * 100) : null;
+      const cents = changeForCents || null;
       const body = {
         type: delivery ? 'delivery' : 'takeout',
         ...customerPayload(cust, delivery),
@@ -927,11 +943,21 @@ function WhatsAppNew({ channel }: { channel: Channel }) {
         items: lines.map(lineToItemInput),
         send: true,
         source: wa ? 'whatsapp' : 'pos',
-        paymentIntent: pay || null,
-        changeForCents: pay === 'cash' && cents ? cents : null,
+        // pagamento em partes: o combinado vai junto; o que já foi pago é registrado logo depois
+        paymentPlan: parts.filter((p) => p.amountCents && p.amountCents > 0).map((p) => ({ method: p.method, amountCents: p.amountCents })),
+        paymentIntent: (parts.find((p) => !p.paid) ?? parts[0])?.method ?? null,
+        changeForCents: cashDue && cents ? cents : null,
         confirmDuplicate: true,
       };
-      const o = await post<Order>('/api/orders', body, { idempotencyKey: idem.current });
+      let o = await post<Order>('/api/orders', body, { idempotencyKey: idem.current });
+      for (const p of parts.filter((x) => x.paid && x.amountCents)) {
+        try {
+          const r = await post<{ order: Order }>(`/api/orders/${o.id}/payments`, { method: p.method, amountCents: p.amountCents, tenderedCents: null, payerLabel: 'pago antes' }, { idempotencyKey: newIdemKey() });
+          o = r.order;
+        } catch (e) {
+          ui.toast(`Pedido enviado, mas o pagamento já feito (${PAYMENT_METHOD_LABEL[p.method]}) não foi registrado: ${(e as Error).message}. Registre no caixa.`, 'error');
+        }
+      }
       qc.setQueryData(['order', o.id], o);
       void qc.invalidateQueries({ queryKey: ['orders'] });
       setSent(o);
@@ -961,7 +987,7 @@ function WhatsAppNew({ channel }: { channel: Channel }) {
         <CustomerFields value={cust} onChange={setCust} delivery={wa && delivery} />
       </section>
       <section className="wsec">
-        <h3>Itens {lines.length > 0 && <small className="muted">· {formatBRL(total)}</small>}</h3>
+        <h3>Itens {lines.length > 0 && <small className="muted">· {formatBRL(itemsTotal)}</small>}</h3>
         {lines.length === 0 ? (
           <Button block icon={Plus} onClick={() => setPicker(true)}>Adicionar produtos</Button>
         ) : (
@@ -978,13 +1004,40 @@ function WhatsAppNew({ channel }: { channel: Channel }) {
           ))
         )}
       </section>
+      {lines.length > 0 && (
+        <section className="wsec total-box" aria-live="polite" aria-label="Valor total">
+          <dl>
+            <dt>Itens</dt>
+            <dd>{formatBRL(itemsTotal)}</dd>
+            {delivery && (
+              <>
+                <dt>Taxa de entrega{nb ? ` (${nb.name})` : ''}</dt>
+                <dd>{nb ? formatBRL(fee) : <span className="muted">escolha o bairro</span>}</dd>
+              </>
+            )}
+            <dt className="grand">Total</dt>
+            <dd className="grand">{formatBRL(total)}</dd>
+            {parts.some((p) => p.paid) && (
+              <>
+                <dt>Já pago</dt>
+                <dd>{formatBRL(paidNow)}</dd>
+                <dt>Falta receber</dt>
+                <dd>{formatBRL(Math.max(0, total - paidNow))}</dd>
+              </>
+            )}
+            {cashDue && changeForCents > cashDue && (
+              <>
+                <dt>Troco (dinheiro {formatBRL(cashDue)}, paga com {formatBRL(changeForCents)})</dt>
+                <dd>{formatBRL(changeForCents - cashDue)}</dd>
+              </>
+            )}
+          </dl>
+          {delivery && nb && <small className="muted">Previsão de entrega: ~{nb.etaMinutes} min</small>}
+        </section>
+      )}
       <section className="wsec">
         <h3>{wa ? 'Pagamento (na entrega/retirada)' : 'Pagamento (no caixa)'}</h3>
-        <select value={pay} onChange={(e) => setPay(e.target.value as PaymentMethod | '')} aria-label="Forma de pagamento">
-          <option value="">Não informado</option>
-          {(['cash', 'pix_manual', 'debit', 'credit', 'voucher'] as const).map((m) => <option key={m} value={m}>{PAYMENT_METHOD_LABEL[m]}</option>)}
-        </select>
-        {pay === 'cash' && <input style={{ marginTop: 8 }} inputMode="decimal" placeholder="Troco para quanto? (ex.: 100,00)" value={changeFor} onChange={(e) => setChangeFor(e.target.value)} aria-label="Troco para" />}
+        <PaymentPlanEditor total={total} parts={parts} onChange={setParts} changeFor={changeFor} onChangeFor={setChangeFor} allowPaid={can('payments.create')} />
         <textarea style={{ marginTop: 8 }} placeholder="Observação do pedido (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} aria-label="Observação do pedido" />
       </section>
       {picker && (

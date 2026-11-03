@@ -257,3 +257,28 @@ describe('balcão pelo celular', () => {
     expect(pay.status).toBe(200);
   });
 });
+
+describe('pagamento dividido e ruas do bairro', () => {
+  it('pedido guarda o combinado (dinheiro + Pix); partes acima do total são recusadas; parte já paga entra no caixa', async () => {
+    const base = {
+      type: 'delivery', source: 'whatsapp', send: true,
+      customer: { name: 'Lúcia', phone: '(31) 96666-0001' },
+      address: { street: 'Rua Ipê Amarelo', number: '45', neighborhoodId: m.neighborhood('Centro') },
+      items: [{ variantId: m.variant('X-Burguer'), quantity: 2 }], // 27,00 + taxa 5,00 = 32,00
+    };
+    const over = await ana.post('/api/orders', { ...base, paymentPlan: [{ method: 'cash', amountCents: 3000 }, { method: 'pix_manual', amountCents: 500 }] }, { 'idempotency-key': idemKey() });
+    expect(over.status).toBe(422);
+    const r = await ana.post('/api/orders', { ...base, changeForCents: 5000, paymentIntent: 'cash', paymentPlan: [{ method: 'pix_manual', amountCents: 1200 }, { method: 'cash', amountCents: 2000 }] }, { 'idempotency-key': idemKey() });
+    expect(r.status).toBe(200);
+    expect(r.body.totalCents).toBe(3200);
+    expect(r.body.paymentPlan).toEqual([{ method: 'pix_manual', amountCents: 1200 }, { method: 'cash', amountCents: 2000 }]);
+    // o Pix já pago é registrado pelo caixa (atendente não registra pagamento)
+    expect((await ana.post(`/api/orders/${r.body.id}/payments`, { method: 'pix_manual', amountCents: 1200 }, { 'idempotency-key': idemKey() })).status).toBe(403);
+    const pay = await caixa.post(`/api/orders/${r.body.id}/payments`, { method: 'pix_manual', amountCents: 1200 }, { 'idempotency-key': idemKey() });
+    expect(pay.status).toBe(200);
+    expect(pay.body.order.balanceCents).toBe(2000);
+    // ruas do bairro para sugerir no próximo pedido
+    const ruas = await ana.get(`/api/neighborhoods/${m.neighborhood('Centro')}/streets`);
+    expect(ruas.body).toContain('Rua Ipê Amarelo');
+  });
+});

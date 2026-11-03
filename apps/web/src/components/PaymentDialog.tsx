@@ -4,6 +4,7 @@ import { newIdemKey, post } from '../lib/api';
 import type { Order } from '../lib/types';
 import { Banknote, CheckCircle2, CreditCard, Printer, QrCode, Ticket, Wallet, type LucideIcon } from 'lucide-react';
 import { openNota } from '../lib/print';
+import { formatPlan } from './PaymentPlan';
 import { useSettings } from '../lib/queries';
 import { Alert, Button, Field, Modal, MoneyInput, useAction } from './ui';
 
@@ -107,6 +108,25 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
       </div>
       <div className="pay">
         <div className="pay-col">
+          {order.paymentPlan && order.paymentPlan.length > 1 && (
+            <div className="plan-chips" role="group" aria-label="Pagamento combinado">
+              <small className="muted">Combinado:</small>
+              {order.paymentPlan.map((p, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="chip"
+                  onClick={() => {
+                    setMethod(p.method);
+                    setAmount(Math.min(p.amountCents, balance));
+                    setTendered(p.method === 'cash' ? (order.changeForCents ?? null) : null);
+                  }}
+                >
+                  {formatPlan([p])}
+                </button>
+              ))}
+            </div>
+          )}
           <div role="group" aria-labelledby="pay-m">
             <span className="pay-label" id="pay-m">
               Forma de pagamento
@@ -152,6 +172,7 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
               ))}
             </div>
           )}
+          <small className="muted">Parte em dinheiro e parte no Pix/cartão? Registre a primeira parte com o valor dela; a janela continua aberta com o que falta.</small>
           <Field label="Identificação (opcional)" hint="Ex.: Pessoa 1, João">
             <input value={payer} onChange={(e) => setPayer(e.target.value)} maxLength={60} />
           </Field>

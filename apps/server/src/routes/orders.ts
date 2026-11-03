@@ -49,6 +49,7 @@ export async function orderRoutes(app: FastifyInstance) {
         waOptIn: z.boolean().optional(),
         paymentIntent: paymentMethod.nullish(),
         changeForCents: cents.nullish(),
+        paymentPlan: z.array(z.object({ method: paymentMethod, amountCents: cents })).max(6).nullish(),
         /** pedido recebido pelo WhatsApp e lançado pela equipe (aparece como WhatsApp na cozinha e nos relatórios) */
         source: z.enum(['pos', 'whatsapp']).optional(),
         supervisor,

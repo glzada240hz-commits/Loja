@@ -498,6 +498,8 @@ export const orders = pgTable(
     /** forma de pagamento escolhida pelo cliente (pedido online), apenas intenção */
     paymentIntent: paymentMethodEnum('payment_intent'),
     changeForCents: integer('change_for_cents'),
+    /** pagamento combinado em partes (ex.: R$ 30 dinheiro + R$ 20 Pix); o recebido de fato fica em payments */
+    paymentPlan: jsonb('payment_plan').$type<{ method: string; amountCents: number }[]>(),
     etaAt: ts('eta_at'),
     receivable: boolean('receivable').notNull().default(false),
     trackingToken: text('tracking_token').unique(),

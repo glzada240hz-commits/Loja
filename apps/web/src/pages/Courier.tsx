@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatBRL, formatPhoneBR, mapsLink, PAYMENT_METHOD_LABEL } from '@guto/core';
 import { Layout } from '../components/Layout';
+import { formatPlan } from '../components/PaymentPlan';
 import { DeliveryBadge } from '../components/status';
 import { Button, Empty, ErrorBox, Loading, useAction, useUi } from '../components/ui';
 import { get, post } from '../lib/api';
@@ -8,7 +9,7 @@ import { formatTime } from '../lib/format';
 
 interface Delivery {
   id: string; number: number; customerName: string | null; customerPhone: string | null; addrStreet: string | null; addrNumber: string | null;
-  addrComplement: string | null; addrReference: string | null; neighborhoodName: string | null; balanceCents: number; paymentIntent: any;
+  addrComplement: string | null; addrReference: string | null; neighborhoodName: string | null; balanceCents: number; paymentPlan?: { method: string; amountCents: number }[] | null; paymentIntent: any;
   changeForCents: number | null; notes: string | null; deliveryStatus: any; deliveryIssue: string | null; deliveryRunId: string | null;
   courierFeeCents: number | null; stage: string; dispatchedAt: string | null; deliveredAt: string | null; itemCount: number;
 }
@@ -70,8 +71,16 @@ export default function Courier() {
           {d.balanceCents > 0 ? (
             <>
               Receber: {formatBRL(d.balanceCents)}
-              {d.paymentIntent && <small className="muted"> · {PAYMENT_METHOD_LABEL[d.paymentIntent as keyof typeof PAYMENT_METHOD_LABEL]}</small>}
-              {d.changeForCents ? <div style={{ fontSize: '1rem' }}>Levar troco para {formatBRL(d.changeForCents)} (troco {formatBRL(d.changeForCents - d.balanceCents)})</div> : null}
+              {d.paymentPlan?.length ? (
+                <div style={{ fontSize: '1rem' }}>Combinado: {formatPlan(d.paymentPlan)}</div>
+              ) : (
+                d.paymentIntent && <small className="muted"> · {PAYMENT_METHOD_LABEL[d.paymentIntent as keyof typeof PAYMENT_METHOD_LABEL]}</small>
+              )}
+              {d.changeForCents ? (() => {
+                // troco só sobre a parte em dinheiro quando o pagamento é dividido
+                const cash = d.paymentPlan?.length ? d.paymentPlan.filter((p) => p.method === 'cash').reduce((a, p) => a + p.amountCents, 0) : d.balanceCents;
+                return <div style={{ fontSize: '1rem' }}>Levar troco para {formatBRL(d.changeForCents)} (troco {formatBRL(Math.max(0, d.changeForCents - cash))})</div>;
+              })() : null}
             </>
           ) : (
             <span style={{ color: 'var(--green)' }}>Já pago</span>

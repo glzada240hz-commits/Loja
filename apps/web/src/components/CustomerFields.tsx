@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { formatBRL, normalizePhoneBR } from '@guto/core';
 import { RotateCcw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { get } from '../lib/api';
 import { useNeighborhoods } from '../lib/queries';
 import { Field } from './ui';
@@ -31,6 +32,13 @@ export function CustomerFields({
   onRepeat?: (orderId: string, number: number) => void;
 }) {
   const nbs = useNeighborhoods();
+  const streetsQ = useQuery({
+    queryKey: ['streets', value.neighborhoodId],
+    queryFn: () => get<string[]>(`/api/neighborhoods/${value.neighborhoodId}/streets`),
+    enabled: delivery && !!value.neighborhoodId,
+    staleTime: 300_000,
+  });
+  const streets = streetsQ.data ?? [];
   const [found, setFound] = useState<any>(null);
   const set = (patch: Partial<CustomerDraft>) => onChange({ ...value, ...patch });
 
@@ -103,16 +111,9 @@ export function CustomerFields({
               </select>
             </Field>
           )}
+          {/* bairro primeiro: define a taxa; a rua sugere as já usadas naquele bairro */}
           <div className="row">
-            <Field label="Rua">
-              <input value={value.street} onChange={(e) => set({ street: e.target.value })} maxLength={150} />
-            </Field>
-            <Field label="Número">
-              <input value={value.number} onChange={(e) => set({ number: e.target.value })} maxLength={20} style={{ maxWidth: 110 }} />
-            </Field>
-          </div>
-          <div className="row">
-            <Field label="Bairro" hint={nb ? `Taxa ${formatBRL(nb.feeCents)} · ~${nb.etaMinutes} min` : undefined}>
+            <Field label="Bairro" hint={nb ? `Taxa ${formatBRL(nb.feeCents)} · ~${nb.etaMinutes} min` : 'Cadastre os bairros e as taxas em Bairros e taxas'}>
               <select value={value.neighborhoodId} onChange={(e) => set({ neighborhoodId: e.target.value })}>
                 <option value="">Selecione…</option>
                 {nbs.data
@@ -124,10 +125,25 @@ export function CustomerFields({
                   ))}
               </select>
             </Field>
-            <Field label="Complemento">
-              <input value={value.complement} onChange={(e) => set({ complement: e.target.value })} maxLength={100} />
+          </div>
+          <div className="row">
+            <Field label="Rua">
+              <input value={value.street} onChange={(e) => set({ street: e.target.value })} maxLength={150} list={streets.length ? 'ruas-do-bairro' : undefined} autoComplete="off" />
+              {streets.length > 0 && (
+                <datalist id="ruas-do-bairro">
+                  {streets.map((r) => (
+                    <option key={r} value={r} />
+                  ))}
+                </datalist>
+              )}
+            </Field>
+            <Field label="Número">
+              <input value={value.number} onChange={(e) => set({ number: e.target.value })} maxLength={20} style={{ maxWidth: 110 }} />
             </Field>
           </div>
+          <Field label="Complemento">
+            <input value={value.complement} onChange={(e) => set({ complement: e.target.value })} maxLength={100} />
+          </Field>
           <Field label="Ponto de referência">
             <input value={value.reference} onChange={(e) => set({ reference: e.target.value })} maxLength={150} />
           </Field>

@@ -1008,3 +1008,23 @@ button.conn { cursor: pointer; font-family: inherit; }
 .public-card.compact { margin-bottom: 0; padding: 10px 12px; }
 .public-link { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
 .public-link-text { flex: 1 1 260px; display: grid; gap: 6px; }
+
+.total-box { background: #fff7ed; border-color: #fed7aa; }
+.total-box dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; font-variant-numeric: tabular-nums; }
+.total-box dt { color: var(--ink-2); }
+.total-box dd { margin: 0; text-align: right; font-weight: 650; }
+.total-box .grand { font-size: 1.35rem; font-weight: 800; color: var(--ink); }
+
+/* pagamento em partes */
+.plan { display: grid; gap: 8px; }
+.plan-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.plan-row.paid .plan-m { color: #15803d; }
+.plan-m { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; }
+.plan-paid { white-space: nowrap; font-size: var(--fs-sm); }
+.plan-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.plan-status { font-weight: 700; font-size: var(--fs-sm); padding: 6px 10px; border-radius: 8px; }
+.plan-status.ok { background: #dcfce7; color: #14532d; }
+.plan-status.warn { background: #fef3c7; color: #78350f; }
+.plan-status.bad { background: #fee2e2; color: #7f1d1d; }
+
+.plan-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }

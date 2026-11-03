@@ -10,9 +10,11 @@ import {
   Info,
   LayoutGrid,
   LogOut,
+  MapPin,
   Menu,
   MessageCircle,
   Package,
+  PhoneCall,
   Printer,
   QrCode,
   Receipt,
@@ -52,6 +54,7 @@ const NAV: NavEntry[] = [
   { to: '/expedicao', label: 'Entregas', icon: Bike, perm: 'deliveries.manage' },
   { to: '/entregador', label: 'Minhas entregas', icon: Bike, perm: 'deliveries.own' },
   { to: '/atendente', label: 'App do atendente', icon: Smartphone, perm: 'tables.serve' },
+  { to: '/atendente/whatsapp', label: 'Atendente do celular', icon: PhoneCall, perm: 'orders.create' },
   { to: '/celulares', label: 'Celulares e cozinha', icon: QrCode, perm: 'cash.open' },
   { to: '/whatsapp', label: 'WhatsApp', icon: MessageCircle, perm: 'whatsapp.inbox' },
   { group: 'Gestão' },
@@ -61,6 +64,7 @@ const NAV: NavEntry[] = [
   { to: '/estoque', label: 'Estoque', icon: Package, perm: 'stock.view' },
   { to: '/despesas', label: 'Despesas', icon: Receipt, perm: 'expenses.manage' },
   { to: '/clientes', label: 'Clientes', icon: Users, perm: 'customers.view' },
+  { to: '/ajustes?aba=nbs', label: 'Bairros e taxas', icon: MapPin, perm: 'settings.manage' },
   { to: '/ajustes', label: 'Ajustes', icon: Settings, perm: 'settings.manage' },
 ];
 

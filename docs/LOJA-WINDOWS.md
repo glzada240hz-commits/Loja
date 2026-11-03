@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+ce3f9eff`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-ce3f9eff
+- **`0.2.0+c266e4ff`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-c266e4ff
+  (`BarDoGuto-Instalador-0.2.0-c266e4ff.exe`). Aba **Delivery** (atendente do celular) com **total já com a taxa do
+  bairro**, **pagamento dividido** (ex.: Pix já pago + dinheiro com troco), **Bairros e taxas** no menu e
+  sugestão de ruas do bairro. Ver [WHATSAPP-PEDIDOS.md](WHATSAPP-PEDIDOS.md).
+- `0.2.0+ce3f9eff` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-ce3f9eff
   (`BarDoGuto-Instalador-0.2.0-ce3f9eff.exe`). **Cardápio digital na internet** pelo túnel do computador da loja
   (Ajustes → Loja). Ver [CARDAPIO-NA-INTERNET.md](CARDAPIO-NA-INTERNET.md).
 - `0.2.0+0edfb473` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-0edfb473

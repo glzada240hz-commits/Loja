@@ -20,6 +20,7 @@ import { useOrder, useSettings } from '../lib/queries';
 import type { Order, OrderEvent } from '../lib/types';
 import { CustomerFields, customerPayload, type CustomerDraft } from './CustomerFields';
 import { PaymentDialog } from './PaymentDialog';
+import { formatPlan } from './PaymentPlan';
 import { notaUrl, openNota } from '../lib/print';
 import { DeliveryBadge, StageBadge, StatusBadge, TypeBadge } from './status';
 import { Alert, Button, Chips, ErrorBox, Field, Loading, Modal, Money, MoneyInput, MoreMenu, Stepper, useAction, useUi } from './ui';
@@ -276,12 +277,17 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
           )}
           {o.etaAt && <p>Previsão: {formatTime(o.etaAt)}</p>}
           {o.notes && <Alert kind="warn">Obs. do pedido: {o.notes}</Alert>}
-          {o.paymentIntent && (
+          {o.paymentPlan?.length ? (
+            <p>
+              Pagamento combinado: <b>{formatPlan(o.paymentPlan)}</b>
+              {o.changeForCents ? ` · troco para ${formatBRL(o.changeForCents)}` : ''}
+            </p>
+          ) : o.paymentIntent ? (
             <p>
               Pagamento escolhido pelo cliente: <b>{PAYMENT_METHOD_LABEL[o.paymentIntent]}</b>
               {o.changeForCents ? ` · troco para ${formatBRL(o.changeForCents)}` : ''}
             </p>
-          )}
+          ) : null}
         </section>
 
         <section className="card">

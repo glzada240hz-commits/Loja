@@ -80,6 +80,8 @@ export interface CreateOrderInput {
   confirmDuplicate?: boolean;
   paymentIntent?: PaymentMethod | null;
   changeForCents?: number | null;
+  /** pagamento combinado em partes (ex.: dinheiro + Pix) */
+  paymentPlan?: { method: PaymentMethod; amountCents: number }[] | null;
   waOptIn?: boolean;
 }
 
@@ -407,6 +409,11 @@ export async function createOrder(
         deliveryFeeCents,
       });
 
+      if (input.paymentPlan?.length) {
+        const sum = input.paymentPlan.reduce((a, p) => a + p.amountCents, 0);
+        if (input.paymentPlan.some((p) => !Number.isSafeInteger(p.amountCents) || p.amountCents <= 0)) throw unprocessable('Valor inválido numa parte do pagamento');
+        if (sum > totals.totalCents) throw unprocessable(`As partes do pagamento somam ${(sum / 100).toFixed(2).replace('.', ',')}, mais que o total do pedido`);
+      }
       if (source === 'online') {
         const minOrder = Math.max(settings.onlineMinOrderCents, nb?.minOrderCents ?? 0);
         if (totals.subtotalCents < minOrder) {
@@ -476,6 +483,7 @@ export async function createOrder(
           totalCents: totals.totalCents,
           paymentIntent: input.paymentIntent ?? null,
           changeForCents: input.changeForCents ?? null,
+          paymentPlan: input.paymentPlan?.length ? input.paymentPlan : null,
           etaAt: etaMinutes ? new Date(at.getTime() + etaMinutes * 60000) : null,
           trackingToken: randomToken(18),
           waOptIn: !!input.waOptIn && !!cust.phone,

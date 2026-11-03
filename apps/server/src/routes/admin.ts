@@ -3,6 +3,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { orders } from '../db/schema.js';
 import { randomToken } from '../lib/crypto.js';
 import { badRequest } from '../lib/errors.js';
 import { imageExt } from './menu.js';
@@ -123,6 +125,20 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get('/api/neighborhoods', async (req) => {
     app.ctx(req);
     return admin.listNeighborhoods(app.deps.db);
+  });
+  // ruas já usadas em entregas do bairro (sugestão ao digitar o endereço)
+  app.get('/api/neighborhoods/:id/streets', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'orders.create');
+    const { id } = idParam.parse(req.params);
+    const rows = await ctx.db
+      .select({ street: orders.addrStreet, n: sql<number>`count(*)` })
+      .from(orders)
+      .where(and(eq(orders.neighborhoodId, id), isNotNull(orders.addrStreet)))
+      .groupBy(orders.addrStreet)
+      .orderBy(desc(sql`count(*)`))
+      .limit(80);
+    return rows.map((r) => r.street!).filter(Boolean);
   });
   app.post('/api/neighborhoods', async (req) => {
     const body = z

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { formatBRL, formatPhoneBR, normalizePixKey, normalizeUsername, PIX_KEY_KIND_LABEL, ROLE_LABEL, ROLES, type Role } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { Button, Empty, Field, Loading, Modal, MoneyInput, Tabs, useAction } from '../components/ui';
@@ -14,7 +15,13 @@ type Tab = 'store' | 'nbs' | 'couriers' | 'users' | 'wa' | 'audit' | 'me';
 
 export default function Settings() {
   const { can } = useAuth();
-  const [tab, setTab] = useState<Tab>(() => (new URLSearchParams(window.location.search).get('aba') as Tab) || 'store');
+  const [sp] = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => (sp.get('aba') as Tab) || 'store');
+  // o menu lateral abre direto numa aba (ex.: Bairros e taxas)
+  useEffect(() => {
+    const a = sp.get('aba') as Tab | null;
+    if (a) setTab(a);
+  }, [sp]);
   const tabs: { id: Tab; label: string }[] = [
     { id: 'store', label: 'Loja' },
     { id: 'nbs', label: 'Bairros e taxas' },

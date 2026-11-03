@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatBRL, formatPhoneBR, mapsLink, PAYMENT_METHOD_LABEL } from '@guto/core';
 import { Layout } from '../components/Layout';
+import { formatPlan } from '../components/PaymentPlan';
 import { OrderDrawer } from '../components/OrderDrawer';
 import { DeliveryBadge, StageBadge } from '../components/status';
 import { Bike, Clock, MapPin, X } from 'lucide-react';
@@ -13,7 +14,7 @@ import { formatDateTime, formatTime, minutesSince } from '../lib/format';
 interface BoardOrder {
   id: string; number: number; status: string; stage: any; customerName: string | null; customerPhone: string | null;
   addrStreet: string | null; addrNumber: string | null; addrComplement: string | null; addrReference: string | null; neighborhoodName: string | null;
-  totalCents: number; paidCents: number; deliveryFeeCents: number; courierFeeCents: number | null; paymentIntent: any; changeForCents: number | null;
+  totalCents: number; paidCents: number; deliveryFeeCents: number; courierFeeCents: number | null; paymentPlan?: { method: string; amountCents: number }[] | null; paymentIntent: any; changeForCents: number | null;
   deliveryStatus: any; deliveryIssue: string | null; courierId: string | null; courierName: string | null; deliveryRunId: string | null;
   createdAt: string; readyAt: string | null; dispatchedAt: string | null; deliveredAt: string | null; etaAt: string | null; notes: string | null;
 }
@@ -105,7 +106,7 @@ function Board() {
             <dt>Cobrar</dt>
             <dd>{formatBRL(o.totalCents - o.paidCents)}</dd>
             <small>
-              {o.paymentIntent ? PAYMENT_METHOD_LABEL[o.paymentIntent as keyof typeof PAYMENT_METHOD_LABEL].replace(' (conferido manualmente)', '') : '—'}
+              {o.paymentPlan?.length ? formatPlan(o.paymentPlan) : o.paymentIntent ? PAYMENT_METHOD_LABEL[o.paymentIntent as keyof typeof PAYMENT_METHOD_LABEL].replace(' (conferido manualmente)', '') : '—'}
               {o.changeForCents ? ` · troco p/ ${formatBRL(o.changeForCents)}` : ''}
             </small>
           </div>

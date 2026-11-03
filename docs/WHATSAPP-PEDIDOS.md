@@ -24,6 +24,21 @@ por conversa, contratados pela loja. O sistema já tem a integração preparada 
 modo demonstrativo), mas não contratei nem ativei nada — é decisão e custo da loja. O lançamento acima
 funciona sem ela, com o WhatsApp que a loja já usa.
 
+## Delivery: bairro, total e pagamento dividido
+
+- **Bairros e taxas** (menu lateral, ou Ajustes → Bairros e taxas): o dono cadastra cada bairro da região com
+  a **taxa cobrada do cliente** (e, se quiser, o repasse ao motoboy, pedido mínimo e previsão). Desmarcar
+  “Atendemos este bairro” tira da lista. Os bairros de exemplo (Centro, Vila Nova, Jardim das Flores) devem ser
+  editados ou desmarcados.
+- No pedido de **Entrega**: primeiro o **bairro** (mostra a taxa), depois a **rua** (sugere as ruas já usadas
+  naquele bairro) e o número. O quadro **Total** mostra itens + taxa = total, o que já foi pago, o que falta e o
+  troco.
+- **Pagamento dividido**: toque nas formas (+ Dinheiro, + Pix, + débito…) e ajuste o valor de cada uma; o
+  sistema avisa “Falta definir R$ …” ou “Combinado”. Quem pode receber (caixa, gerente, admin) marca **já pago**
+  (ex.: Pix enviado antes) — entra no caixa na hora. O troco é calculado só sobre a parte em dinheiro.
+- O combinado aparece no pedido do caixa, em Entregas, no celular do motoboy, na nota e no resumo do WhatsApp.
+  No **Receber** do caixa há botões com cada parte combinada; registre uma parte e a janela continua com o resto.
+
 ## Balcão (para levar) pelo celular
 
 Aba **Balcão** no app do atendente: cliente na loja que vai levar (sem mesa). **Novo pedido para levar** →

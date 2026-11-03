@@ -15,6 +15,13 @@
       "when": 1793144455967,
       "tag": "0001_atendentes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793681013200,
+      "tag": "0002_pagamento_dividido",
+      "breakpoints": true
     }
   ]
 }
