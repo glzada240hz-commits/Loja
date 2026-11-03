@@ -33,7 +33,9 @@ versão `2026-11-03b`); caipirinha/caipivodka são feitas no **balcão** (não v
 foi escrito “Whisky”. Acréscimos (passados pelo dono, versão `2026-11-03c`):
 - **Hambúrgueres — Acréscimos:** Carne de picanha 5,00 · Ovo 2,00 · Cheddar 4,00 · Presunto 2,00 · Queijo 2,00 ·
   Bacon 4,00 · Frango 3,00 · Carne de hambúrguer 2,00.
-- **Hambúrgueres — Trocar carne:** Trocar carne por picanha + 4,00 (uma por lanche, desmarcável).
+- **Hambúrgueres — Trocar carne:** Trocar carne por picanha + 4,00 (uma por lanche, desmarcável); **X-Tudo**: até
+  2 trocas (2 carnes); **X-Picanha**: sem troca (versão `2026-11-03d`).
+- **Guloseimas** (não vai para a cozinha): Trento 5,00 · Kit Kat 6,00 · Trident 4,00 · Halls 3,00 · Suflair 10,00.
 - **Porções — Acréscimos da porção:** Cheddar 9,00 · Queijo e bacon 8,00.
 
 Validação: teste de integração (preços, tamanhos, categorias, cozinha, exemplos fora, item do dono mantido,

@@ -17,7 +17,10 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+31411a78`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-31411a78
+- **`0.2.0+6009ceaf`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-6009ceaf
+  (`BarDoGuto-Instalador-0.2.0-6009ceaf.exe`). Cardápio oficial `2026-11-03d`: X-Tudo com até 2 trocas de carne por
+  picanha, X-Picanha sem troca, nova categoria **Guloseimas** (Trento, Kit Kat, Trident, Halls, Suflair).
+- `0.2.0+31411a78` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-31411a78
   (`BarDoGuto-Instalador-0.2.0-31411a78.exe`). **Acréscimos do Bar do Guto** já cadastrados (hambúrgueres, troca de
   carne por picanha e porções), aplicados sozinhos na primeira abertura (cardápio oficial versão 2026-11-03c).
 - `0.2.0+d4dc8cd1` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-d4dc8cd1

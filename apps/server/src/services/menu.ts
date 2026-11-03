@@ -631,7 +631,7 @@ export async function importOfficialMenu(ctx: Ctx, opts: { archiveExamples: bool
 
     // acréscimos pagos (verde) por categoria: cria/atualiza o grupo e coloca em todos os produtos da categoria
     const catsNow = await tx.select().from(categories).where(eq(categories.active, true));
-    const prodsNow = await tx.select({ id: products.id, categoryId: products.categoryId }).from(products).where(eq(products.active, true));
+    const prodsNow = await tx.select({ id: products.id, categoryId: products.categoryId, name: products.name }).from(products).where(eq(products.active, true));
     for (const [gi, ag] of OFFICIAL_ADDON_GROUPS.entries()) {
       let [g] = await tx.select().from(optionGroups).where(and(eq(optionGroups.active, true), eq(optionGroups.name, ag.name)));
       if (g) await tx.update(optionGroups).set({ minSelect: 0, maxSelect: ag.maxSelect }).where(eq(optionGroups.id, g.id));
@@ -645,9 +645,14 @@ export async function importOfficialMenu(ctx: Ctx, opts: { archiveExamples: bool
       for (const c of cur) if (!ag.options.some((o) => norm(o.name) === norm(c.name))) await tx.update(options).set({ active: false }).where(eq(options.id, c.id));
       const catIds = catsNow.filter((c) => ag.categories.some((n) => norm(n) === norm(c.name))).map((c) => c.id);
       const links = await tx.select().from(productOptionGroups).where(eq(productOptionGroups.groupId, g!.id));
-      for (const p of prodsNow.filter((x) => catIds.includes(x.categoryId))) {
+      const target = prodsNow.filter(
+        (x) => catIds.includes(x.categoryId) && (!ag.only?.length || ag.only.some((n) => norm(n) === norm(x.name))) && !ag.except?.some((n) => norm(n) === norm(x.name)),
+      );
+      for (const p of target) {
         if (!links.some((l) => l.productId === p.id)) await tx.insert(productOptionGroups).values({ productId: p.id, groupId: g!.id, sort: gi - 10 });
       }
+      // tira o grupo de quem não deve ter (ex.: troca de carne no X-Picanha)
+      for (const l of links) if (!target.some((t) => t.id === l.productId)) await tx.delete(productOptionGroups).where(and(eq(productOptionGroups.productId, l.productId), eq(productOptionGroups.groupId, g!.id)));
     }
 
     // categorias que não são do cardápio oficial (ex.: as do dono) ficam depois das oficiais

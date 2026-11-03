@@ -21,7 +21,7 @@ export interface OfficialCategory {
 const u = (priceCents: number) => [{ name: 'Único', priceCents }];
 
 // muda quando o cardápio muda: o modo loja aplica a correção sozinho uma vez
-export const OFFICIAL_MENU_VERSION = '2026-11-03c';
+export const OFFICIAL_MENU_VERSION = '2026-11-03d';
 
 export const OFFICIAL_STORE = {
   storePhone: '(31) 98841-4429',
@@ -117,6 +117,17 @@ export const OFFICIAL_MENU: OfficialCategory[] = [
       { code: '70', name: 'Água Mineral c/ Gás', variants: u(500) },
     ],
   },
+  {
+    name: 'Guloseimas',
+    sendToKitchen: false,
+    products: [
+      { code: '80', name: 'Trento', variants: u(500) },
+      { code: '81', name: 'Kit Kat', variants: u(600) },
+      { code: '82', name: 'Trident', variants: u(400) },
+      { code: '83', name: 'Halls', variants: u(300) },
+      { code: '84', name: 'Suflair', variants: u(1000) },
+    ],
+  },
 ];
 
 /** Produtos, categorias e grupos que vêm no cardápio de EXEMPLO (preços inventados). */
@@ -134,6 +145,10 @@ export const EXAMPLE_GROUPS = ['Adicionais'];
 export interface OfficialAddonGroup {
   name: string;
   categories: string[];
+  /** só estes produtos da categoria (vazio = todos) */
+  only?: string[];
+  /** estes produtos da categoria não recebem o grupo */
+  except?: string[];
   maxSelect: number;
   options: { name: string; priceCents: number }[];
 }
@@ -154,9 +169,18 @@ export const OFFICIAL_ADDON_GROUPS: OfficialAddonGroup[] = [
     ],
   },
   {
+    // X-Picanha já é de picanha; X-Tudo tem 2 carnes (grupo próprio abaixo)
     name: 'Trocar carne',
     categories: ['Hambúrgueres'],
+    except: ['X-Picanha', 'X-Tudo'],
     maxSelect: 1,
+    options: [{ name: 'Trocar carne por picanha', priceCents: 400 }],
+  },
+  {
+    name: 'Trocar carnes (até 2)',
+    categories: ['Hambúrgueres'],
+    only: ['X-Tudo'],
+    maxSelect: 2,
     options: [{ name: 'Trocar carne por picanha', priceCents: 400 }],
   },
   {
