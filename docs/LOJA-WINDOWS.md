@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+c266e4ff`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-c266e4ff
+- **`0.2.0+d4dc8cd1`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-d4dc8cd1
+  (`BarDoGuto-Instalador-0.2.0-d4dc8cd1.exe`). **Ajustes → Loja → Zerar pedidos de teste** (só admin, digitando
+  ZERAR): apaga pedidos, caixas, dias, entregas e despesas de teste, devolve o estoque e guarda uma cópia em
+  `%LOCALAPPDATA%\BarDoGuto\loja\zerados`; mantém cardápio, bairros, usuários e ajustes.
+- `0.2.0+c266e4ff` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-c266e4ff
   (`BarDoGuto-Instalador-0.2.0-c266e4ff.exe`). Aba **Delivery** (atendente do celular) com **total já com a taxa do
   bairro**, **pagamento dividido** (ex.: Pix já pago + dinheiro com troco), **Bairros e taxas** no menu e
   sugestão de ruas do bairro. Ver [WHATSAPP-PEDIDOS.md](WHATSAPP-PEDIDOS.md).

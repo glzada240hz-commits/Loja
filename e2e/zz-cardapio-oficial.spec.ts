@@ -122,3 +122,21 @@ test('atendente do celular: entrega com bairro mostra o total com a taxa antes d
   expect(decodeURIComponent(link!)).toContain('Pagamento: Dinheiro R$ 20,00 + Pix R$ 7,90 (troco para R$ 50,00)');
   await ctx.close();
 });
+
+test('admin zera os pedidos de teste em Ajustes (digitando ZERAR)', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Usuário').fill('admin');
+  await page.getByLabel('Senha').fill('admin-e2e-123');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'));
+  expect(((await (await page.request.get('/api/orders?status=open,pending,closed,cancelled')).json()) as unknown[]).length).toBeGreaterThan(0);
+  await page.goto('/ajustes');
+  await page.getByRole('button', { name: 'Zerar pedidos de teste…' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Zerar pedidos de teste' });
+  await expect(dlg.getByRole('button', { name: 'Zerar agora' })).toBeDisabled();
+  await dlg.getByLabel('Para confirmar, digite ZERAR').fill('ZERAR');
+  await dlg.getByRole('button', { name: 'Zerar agora' }).click();
+  await expect(page.getByRole('dialog', { name: 'Pedidos zerados' })).toContainText('A numeração dos pedidos recomeça do 1');
+  expect(await (await page.request.get('/api/orders?status=open,pending,closed,cancelled')).json()).toHaveLength(0);
+  expect(((await (await page.request.get('/api/menu')).json()) as unknown[]).length).toBeGreaterThan(0);
+});

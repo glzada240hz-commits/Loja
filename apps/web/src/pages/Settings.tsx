@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { formatBRL, formatPhoneBR, normalizePixKey, normalizeUsername, PIX_KEY_KIND_LABEL, ROLE_LABEL, ROLES, type Role } from '@guto/core';
 import { Layout } from '../components/Layout';
-import { Button, Empty, Field, Loading, Modal, MoneyInput, Tabs, useAction } from '../components/ui';
+import { Alert, Button, Empty, Field, Loading, Modal, MoneyInput, Tabs, useAction } from '../components/ui';
 import { del, get, post, put, upload } from '../lib/api';
 import { Logo } from '../components/Logo';
 import { PublicLinkCard } from '../components/PublicLink';
@@ -35,6 +35,7 @@ export default function Settings() {
     <Layout title="Ajustes">
       <Tabs value={tab} onChange={setTab} tabs={tabs} />
       {tab === 'store' && <Store />}
+      {tab === 'store' && <ResetMovement />}
       {tab === 'nbs' && <Neighborhoods />}
       {tab === 'couriers' && <Couriers />}
       {tab === 'users' && <Users />}
@@ -461,5 +462,76 @@ function UserForm({ user, onClose, onSaved }: { user: any; onClose: () => void; 
         <label className="check"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Ativo</label>
       </form>
     </Modal>
+  );
+}
+
+/** Zerar pedidos de teste (só admin): apaga o movimento e devolve o estoque; cardápio e ajustes ficam. */
+function ResetMovement() {
+  const { can } = useAuth();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [txt, setTxt] = useState('');
+  const [customers, setCustomers] = useState(true);
+  const [done, setDone] = useState<{ counts: Record<string, number>; backupFile: string } | null>(null);
+  const { busy, go } = useAction();
+  if (!can('users.manage')) return null;
+  return (
+    <section className="card danger-zone">
+      <h3 style={{ marginTop: 0 }}>Zerar pedidos de teste</h3>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Use depois dos testes, antes de abrir de verdade. Apaga <b>pedidos, cozinha, pagamentos, caixas, dias, entregas, acertos de motoboy e despesas</b>
+        {' '}e devolve ao estoque o que os pedidos baixaram. <b>Mantém</b> cardápio, acréscimos, bairros, usuários, entregadores, impressoras e ajustes.
+        Antes de apagar, uma cópia de tudo é guardada na pasta da loja.
+      </p>
+      <Button variant="danger" onClick={() => { setOpen(true); setTxt(''); setDone(null); }}>Zerar pedidos de teste…</Button>
+      {open && (
+        <Modal
+          title={done ? 'Pedidos zerados' : 'Zerar pedidos de teste'}
+          onClose={() => setOpen(false)}
+          footer={
+            done ? (
+              <Button variant="primary" onClick={() => setOpen(false)}>Concluir</Button>
+            ) : (
+              <>
+                <Button onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button
+                  variant="danger"
+                  className="solid"
+                  busy={busy}
+                  disabled={txt.trim().toUpperCase() !== 'ZERAR'}
+                  onClick={() =>
+                    go(async () => {
+                      const r = await post<{ counts: Record<string, number>; backupFile: string }>('/api/admin/reset-movement', { confirm: txt, customers });
+                      setDone(r);
+                      await qc.invalidateQueries();
+                    })
+                  }
+                >
+                  Zerar agora
+                </Button>
+              </>
+            )
+          }
+        >
+          {done ? (
+            <>
+              <p>Pronto. Foram apagados <b>{done.counts.orders ?? 0}</b> pedidos{customers ? ` e ${done.counts.customers ?? 0} clientes` : ''}; o estoque foi devolvido.</p>
+              <p>Para vender de novo: <b>Caixa e dia → abrir o dia e o caixa</b>. A numeração dos pedidos recomeça do 1.</p>
+              <small className="muted">Cópia do que foi apagado: {done.backupFile}</small>
+            </>
+          ) : (
+            <>
+              <Alert kind="warn">Isto não pode ser desfeito pelo sistema (a cópia fica guardada para o suporte). Feche o caixa só depois de conferir que é teste.</Alert>
+              <label className="check" style={{ margin: '10px 0' }}>
+                <input type="checkbox" checked={customers} onChange={(e) => setCustomers(e.target.checked)} /> <span>Apagar também os <b>clientes</b> cadastrados nos testes</span>
+              </label>
+              <Field label="Para confirmar, digite ZERAR">
+                <input value={txt} onChange={(e) => setTxt(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} />
+              </Field>
+            </>
+          )}
+        </Modal>
+      )}
+    </section>
   );
 }

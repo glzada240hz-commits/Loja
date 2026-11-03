@@ -10,6 +10,7 @@ import { badRequest } from '../lib/errors.js';
 import { imageExt } from './menu.js';
 import { queueTestPrint, readPrinterInfo } from '../services/kitchenPrintAgent.js';
 import { tunnelRef } from '../services/publicGateway.js';
+import { resetMovement } from '../services/resetMovement.js';
 import { ROLES } from '@guto/core';
 import { requirePerm } from '../lib/context.js';
 import * as admin from '../services/admin.js';
@@ -110,6 +111,12 @@ export async function adminRoutes(app: FastifyInstance) {
     const s = await getSettings(ctx.db);
     const t = tunnelRef.current?.state;
     return { supported: !!t, available: t?.available ?? false, enabled: s.publicMenuOnline, status: t?.status ?? 'off', url: t?.url ?? null, menuUrl: t?.url ? `${t.url}/c` : null, error: t?.error ?? null, since: t?.since ?? null };
+  });
+
+  // zerar pedidos de teste (só admin; digita ZERAR; guarda cópia antes)
+  app.post('/api/admin/reset-movement', async (req) => {
+    const body = z.object({ confirm: z.string().max(20), customers: z.boolean().default(true) }).parse(req.body);
+    return resetMovement(app.ctx(req), body);
   });
 
   // ---------- usuários ----------

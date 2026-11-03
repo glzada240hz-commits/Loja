@@ -525,3 +525,36 @@ describe('impressora da cozinha escolhida (fila para o BarDoGuto.exe)', () => {
     }
   });
 });
+
+describe('zerar pedidos de teste', () => {
+  it('só o admin, digitando ZERAR; apaga o movimento, devolve o estoque e mantém cardápio, usuários e bairros', async () => {
+    const stock0 = Number(await stockOf(gerente, 'Hambúrguer bovino 120g'));
+    const o = await caixa.post('/api/orders', { type: 'table', tableLabel: '5', send: true, customer: { name: 'Teste', phone: '(31) 95555-0000' }, items: [{ variantId: m.variant('X-Burguer'), quantity: 3 }] }, { 'idempotency-key': idemKey() });
+    await caixa.post(`/api/orders/${o.body.id}/payments`, { method: 'cash', amountCents: 1000, tenderedCents: 1000 }, { 'idempotency-key': idemKey() });
+    expect(Number(await stockOf(gerente, 'Hambúrguer bovino 120g'))).toBe(stock0 - 3);
+    const menuBefore = ((await caixa.get('/api/menu')).body as any[]).flatMap((c) => c.products).length;
+
+    expect((await gerente.post('/api/admin/reset-movement', { confirm: 'ZERAR' })).status).toBe(403);
+    const admin = await as(h, 'admin');
+    expect((await admin.post('/api/admin/reset-movement', { confirm: 'zerar não' })).status).toBe(400);
+    const r = await admin.post('/api/admin/reset-movement', { confirm: 'ZERAR', customers: true });
+    expect(r.status).toBe(200);
+    expect(r.body.counts.orders).toBeGreaterThanOrEqual(1);
+    const fs = await import('node:fs');
+    expect(fs.existsSync(r.body.backupFile)).toBe(true);
+    expect(JSON.parse(fs.readFileSync(r.body.backupFile, 'utf8')).tables.orders.length).toBe(r.body.counts.orders);
+
+    expect((await gerente.get('/api/orders?status=open,pending,closed,cancelled')).body).toHaveLength(0);
+    expect((await gerente.get('/api/day')).body.day).toBeNull(); // dia e caixa zerados: abre de novo para testar
+    expect(Number(await stockOf(gerente, 'Hambúrguer bovino 120g'))).toBe(stock0); // estoque devolvido
+    expect(((await caixa.get('/api/menu')).body as any[]).flatMap((c) => c.products).length).toBe(menuBefore);
+    expect((await gerente.get('/api/neighborhoods')).body.length).toBeGreaterThan(0);
+    expect((await new (await import('../helpers.js')).Client(h.app).login('caixa')).cookie).toBeTruthy(); // usuários mantidos
+    // dá para abrir o dia e vender de novo; numeração recomeça
+    await gerente.post('/api/day/open', {});
+    await gerente.post('/api/cash/open', { openingCents: 0 });
+    const n = await caixa.post('/api/orders', { type: 'counter', send: true, items: [{ variantId: m.variant('X-Burguer'), quantity: 1 }] }, { 'idempotency-key': idemKey() });
+    expect(n.status).toBe(200);
+    expect(n.body.number).toBe(1);
+  });
+});

@@ -1028,3 +1028,5 @@ button.conn { cursor: pointer; font-family: inherit; }
 .plan-status.bad { background: #fee2e2; color: #7f1d1d; }
 
 .plan-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+
+.danger-zone { border-color: #fecaca; margin-top: 12px; }
