@@ -92,3 +92,37 @@ test('item cadastrado no Estoque com "Vender este item" aparece na hora no celul
   await expect(cel.getByRole('button', { name: 'Água com gás', exact: true })).toBeVisible();
   await ctx.close();
 });
+
+test('admin cadastra atendente pelo celular como a pessoa digita ("Ana Paula") e ela entra no celular', async ({ browser }) => {
+  const adm = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'pt-BR' });
+  const p = await adm.newPage();
+  await p.goto('/login');
+  await p.getByLabel('Usuário').fill('admin');
+  await p.getByLabel('Senha').fill('admin-e2e-123');
+  await p.getByRole('button', { name: 'Entrar' }).click();
+  await p.waitForURL((u) => !u.pathname.startsWith('/login'));
+  await p.goto('/ajustes?aba=users');
+  await p.getByRole('button', { name: '+ Usuário' }).click();
+  const dlg = p.getByRole('dialog', { name: 'Novo usuário' });
+  await dlg.getByLabel('Nome da pessoa').pressSequentially('Ana Paula');
+  await dlg.getByLabel('Usuário (para entrar)').fill('');
+  await dlg.getByLabel('Usuário (para entrar)').pressSequentially('Ana Paula');
+  await expect(dlg.getByLabel('Usuário (para entrar)')).toHaveValue('Ana Paula'); // o texto não "volta" enquanto digita
+  await expect(dlg).toContainText('Entra como: ana.paula');
+  await expect(dlg.getByLabel('Perfil')).toHaveValue('waiter');
+  await dlg.getByLabel('Senha').pressSequentially('Senha1234');
+  await dlg.getByRole('button', { name: 'Salvar' }).click();
+  const ok = p.getByRole('dialog', { name: 'Usuário pronto para entrar' });
+  await expect(ok).toContainText('ana.paula');
+  await expect(ok).toContainText('Senha1234');
+  await adm.close();
+
+  const cel = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'pt-BR' });
+  const c = await cel.newPage();
+  await c.goto('/login');
+  await c.getByLabel('Usuário').fill('Ana Paula'); // do jeito que ela lembra
+  await c.getByLabel('Senha').fill('Senha1234');
+  await c.getByRole('button', { name: 'Entrar' }).click();
+  await expect(c).toHaveURL(/\/atendente$/);
+  await cel.close();
+});

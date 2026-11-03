@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { as, idemKey, menuIndex, openStore, resetDb, setClock, startApp, type Client, type MenuIndex } from '../helpers.js';
+import { as, Client, idemKey, menuIndex, openStore, resetDb, setClock, startApp, type MenuIndex } from '../helpers.js';
 
 let h: Awaited<ReturnType<typeof startApp>>;
 let ana: Client;
@@ -187,5 +187,25 @@ describe('app do atendente', () => {
     await cozinha.post('/api/presence', { device: 'tablet-cozinha-01', label: 'Tablet cozinha' });
     expect((await caixa.get('/api/presence')).body.find((d: any) => d.label === 'Tablet cozinha')).toMatchObject({ online: true, left: false });
     setClock(null);
+  });
+});
+
+describe('cadastro de atendente e login', () => {
+  it('usuário digitado com maiúscula, acento ou espaço é salvo normalizado e entra do mesmo jeito', async () => {
+    const admin = await as(h, 'admin');
+    const r = await admin.post('/api/users', { name: 'João da Silva', username: 'João Silva', role: 'waiter', password: 'Cozinha#2026' });
+    expect(r.status).toBe(200);
+    expect(r.body.username).toBe('joao.silva');
+    for (const typed of ['joao.silva', 'João Silva', ' JOAO.SILVA ']) {
+      const c = new Client(h.app);
+      const l = await c.req('POST', '/api/auth/login', { username: typed, password: 'Cozinha#2026' });
+      expect(l.status, typed).toBe(200);
+    }
+    // senha continua exata
+    expect((await new Client(h.app).req('POST', '/api/auth/login', { username: 'joao.silva', password: 'cozinha#2026' })).status).toBe(401);
+    // curto demais: mensagem clara
+    const bad = await admin.post('/api/users', { name: 'Zé', username: 'Zé', role: 'waiter', password: 'Senha1234' });
+    expect(bad.status).toBe(422);
+    expect(bad.body.error.message).toMatch(/pelo menos 3 letras/);
   });
 });

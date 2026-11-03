@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
-import { localDateISO, normalizePhoneBR, ROLES, type Role } from '@guto/core';
+import { localDateISO, normalizePhoneBR, normalizeUsername, ROLES, type Role } from '@guto/core';
 import type { DbOrTx } from '../db/index.js';
 import {
   auditLogs,
@@ -40,8 +40,8 @@ export function validatePassword(pw: string) {
 export async function saveUser(ctx: Ctx, input: { id?: string; name: string; username: string; role: Role; active?: boolean; password?: string }) {
   requirePerm(ctx.actor, 'users.manage');
   if (!ROLES.includes(input.role)) throw badRequest('Perfil inválido');
-  const username = input.username?.trim().toLowerCase();
-  if (!username || !/^[a-z0-9._-]{3,40}$/.test(username)) throw unprocessable('Usuário deve ter 3 a 40 caracteres (letras, números, . _ -)');
+  const username = normalizeUsername(input.username ?? '');
+  if (!/^[a-z0-9._-]{3,40}$/.test(username)) throw unprocessable('O usuário (login) precisa ter pelo menos 3 letras ou números. Ex.: ana, joao.silva');
   if (!input.name?.trim()) throw unprocessable('Informe o nome');
   if (!input.id && !input.password) throw unprocessable('Defina uma senha inicial');
   if (input.password) validatePassword(input.password);

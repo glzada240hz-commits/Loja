@@ -54,7 +54,7 @@ export function Login() {
         <p className="muted" style={{ marginBottom: 20 }}>Use seu usuário e senha para começar o turno.</p>
         {err && <Alert kind="error">{err}</Alert>}
         <Field label="Usuário">
-          <input autoFocus autoComplete="username" autoCapitalize="none" value={username} onChange={(e) => setU(e.target.value)} required />
+          <input autoFocus autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={username} onChange={(e) => setU(e.target.value)} required />
         </Field>
         <Field label="Senha">
           <input type="password" autoComplete="current-password" value={password} onChange={(e) => setP(e.target.value)} required />

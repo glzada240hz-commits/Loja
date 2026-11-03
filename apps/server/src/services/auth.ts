@@ -1,5 +1,5 @@
 import { and, eq, gt, sql } from 'drizzle-orm';
-import { can, type Permission, type Role } from '@guto/core';
+import { can, normalizeUsername, type Permission, type Role } from '@guto/core';
 import type { DbOrTx } from '../db/index.js';
 import { sessions, users } from '../db/schema.js';
 import { now } from '../lib/clock.js';
@@ -17,7 +17,7 @@ const DUMMY_HASH = 'scrypt$16384$AAAAAAAAAAAAAAAAAAAAAA==$' + Buffer.alloc(64).t
 
 /** Confere usuário/senha com bloqueio temporário após tentativas falhas. */
 export async function checkCredentials(db: DbOrTx, username: string, password: string) {
-  const [u] = await db.select().from(users).where(eq(users.username, username.trim().toLowerCase()));
+  const [u] = await db.select().from(users).where(eq(users.username, normalizeUsername(username)));
   if (!u || !u.active) {
     await verifyPassword(password, DUMMY_HASH);
     throw new AppError(401, 'invalid_credentials', 'Usuário ou senha incorretos');

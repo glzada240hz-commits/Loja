@@ -91,3 +91,17 @@ export function minutesBetween(a: Date | string, b: Date | string): number {
 export function mapsLink(address: string): string {
   return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(address);
 }
+
+/**
+ * Usuário de login: minúsculo, sem acento, espaços viram ponto, só letras, números, ponto, _ e -.
+ * Usado no cadastro E no login (quem digita "Ana Paula" ou "João" entra como "ana.paula" / "joao").
+ */
+export function normalizeUsername(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '.')
+    .replace(/[^a-z0-9._-]/g, '');
+}

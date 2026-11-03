@@ -76,7 +76,7 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get('/api/users', async (req) => admin.listUsers(app.ctx(req)));
   app.post('/api/users', async (req) => {
     const body = z
-      .object({ id: uuid.optional(), name: z.string().min(1).max(80), username: z.string().min(3).max(40), role: z.enum(ROLES), active: z.boolean().optional(), password: z.string().max(200).optional() })
+      .object({ id: uuid.optional(), name: z.string().min(1).max(80), username: z.string().min(1).max(60), role: z.enum(ROLES), active: z.boolean().optional(), password: z.string().max(200).optional() })
       .parse(req.body);
     return admin.saveUser(app.ctx(req), body);
   });

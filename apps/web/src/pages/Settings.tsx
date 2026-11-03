@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatBRL, formatPhoneBR, normalizePixKey, PIX_KEY_KIND_LABEL, ROLE_LABEL, ROLES, type Role } from '@guto/core';
+import { formatBRL, formatPhoneBR, normalizePixKey, normalizeUsername, PIX_KEY_KIND_LABEL, ROLE_LABEL, ROLES, type Role } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { Button, Empty, Field, Loading, Modal, MoneyInput, Tabs, useAction } from '../components/ui';
 import { del, get, post, put, upload } from '../lib/api';
@@ -239,10 +239,10 @@ function Users() {
   const qc = useQueryClient();
   const list = useQuery({ queryKey: ['users'], queryFn: () => get<any[]>('/api/users') });
   const [edit, setEdit] = useState<any | null>(null);
-  const { busy, go } = useAction();
+  const [saved, setSaved] = useState<{ name: string; username: string; role: string; password: string } | null>(null);
   return (
     <section className="card">
-      <div className="page-head"><div className="grow" /><Button variant="primary" onClick={() => setEdit({ name: '', username: '', role: 'cashier', active: true, password: '' })}>+ Usuário</Button></div>
+      <div className="page-head"><div className="grow" /><Button variant="primary" onClick={() => setEdit({ name: '', username: '', role: 'waiter', active: true, password: '' })}>+ Usuário</Button></div>
       <table className="table">
         <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Último acesso</th><th></th></tr></thead>
         <tbody>
@@ -257,24 +257,16 @@ function Users() {
           ))}
         </tbody>
       </table>
-      {edit && (
-        <Modal title={edit.id ? `Editar ${edit.name}` : 'Novo usuário'} onClose={() => setEdit(null)} footer={
-          <Button variant="primary" busy={busy} disabled={!edit.name.trim() || !edit.username.trim() || (!edit.id && edit.password.length < 8)} onClick={() => go(async () => {
-            const { password, ...rest } = edit;
-            await post('/api/users', { id: rest.id, name: rest.name, username: rest.username, role: rest.role, active: rest.active, ...(password ? { password } : {}) });
-            await qc.invalidateQueries({ queryKey: ['users'] });
-            setEdit(null);
-          }, { success: 'Usuário salvo' })}>Salvar</Button>
-        }>
-          <Field label="Nome"><input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
-          <div className="row">
-            <Field label="Usuário (login)"><input value={edit.username} autoCapitalize="none" onChange={(e) => setEdit({ ...edit, username: e.target.value.toLowerCase() })} /></Field>
-            <Field label="Perfil"><select value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select></Field>
-          </div>
-          <Field label={edit.id ? 'Nova senha (deixe vazio para manter)' : 'Senha inicial'} hint="Mínimo 8 caracteres. Trocar a senha encerra as sessões do usuário.">
-            <input type="password" autoComplete="new-password" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} />
-          </Field>
-          <label className="check"><input type="checkbox" checked={edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked })} /> Ativo</label>
+      {edit && <UserForm user={edit} onClose={() => setEdit(null)} onSaved={(u) => { void qc.invalidateQueries({ queryKey: ['users'] }); setEdit(null); setSaved(u); }} />}
+      {saved && (
+        <Modal title="Usuário pronto para entrar" onClose={() => setSaved(null)} footer={<Button variant="primary" onClick={() => setSaved(null)}>Entendi</Button>}>
+          <p>Passe estes dados para <b>{saved.name}</b>:</p>
+          <dl className="dl login-card">
+            <dt>Usuário</dt><dd className="mono">{saved.username}</dd>
+            <dt>Senha</dt><dd>{saved.password ? <span className="mono">{saved.password}</span> : <span className="muted">a mesma de antes</span>}</dd>
+            <dt>Perfil</dt><dd>{ROLE_LABEL[saved.role as Role]}</dd>
+          </dl>
+          <p className="muted">No celular: Wi-Fi da loja → QR em “Celulares e cozinha” → entrar com o usuário e a senha acima. Maiúsculas e acentos no usuário não fazem diferença; na senha, fazem.</p>
         </Modal>
       )}
     </section>
@@ -415,5 +407,50 @@ export function MyPassword() {
       <Field label="Repita a nova senha" error={rep && rep !== next ? 'As senhas não conferem' : undefined}><input type="password" autoComplete="new-password" value={rep} onChange={(e) => setRep(e.target.value)} /></Field>
       <Button variant="primary" busy={busy} disabled={!cur || next.length < 8 || next !== rep} onClick={() => go(async () => { await post('/api/auth/password', { current: cur, next }); await logout(); }, { success: 'Senha alterada. Entre novamente.' })}>Alterar senha</Button>
     </section>
+  );
+}
+
+/**
+ * Cadastro de usuário. Sem transformar o texto enquanto se digita (no celular isso brigava com o corretor do
+ * teclado e o texto "voltava") e sem preenchimento automático do navegador (que trocava pelo login salvo).
+ */
+function UserForm({ user, onClose, onSaved }: { user: any; onClose: () => void; onSaved: (u: { name: string; username: string; role: string; password: string }) => void }) {
+  const [f, setF] = useState({ ...user, password: '' });
+  const [show, setShow] = useState(false);
+  const [touchedLogin, setTouchedLogin] = useState(!!user.id);
+  const { busy, go } = useAction();
+  const login = normalizeUsername(f.username);
+  const loginOk = /^[a-z0-9._-]{3,40}$/.test(login);
+  const pwOk = f.id ? !f.password || f.password.length >= 8 : f.password.length >= 8;
+  const noFill = { autoComplete: 'off', autoCorrect: 'off', autoCapitalize: 'none', spellCheck: false, 'data-lpignore': 'true', 'data-1p-ignore': 'true' } as const;
+  return (
+    <Modal title={f.id ? `Editar ${user.name}` : 'Novo usuário'} onClose={onClose} footer={
+      <Button variant="primary" busy={busy} disabled={!f.name.trim() || !loginOk || !pwOk} onClick={() => go(async () => {
+        const r = await post<{ username: string }>('/api/users', { id: f.id, name: f.name.trim(), username: login, role: f.role, active: f.active, ...(f.password ? { password: f.password } : {}) });
+        onSaved({ name: f.name.trim(), username: r.username, role: f.role, password: f.password });
+      }, { success: 'Usuário salvo' })}>Salvar</Button>
+    }>
+      <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
+        <Field label="Nome da pessoa">
+          <input name="guto-nome-pessoa" value={f.name} {...noFill} autoCapitalize="words"
+            onChange={(e) => setF({ ...f, name: e.target.value, ...(touchedLogin ? {} : { username: normalizeUsername(e.target.value.split(' ')[0] ?? '') }) })} />
+        </Field>
+        <div className="row">
+          <Field label="Usuário (para entrar)" hint={f.username ? (loginOk ? <>Entra como: <b className="mono">{login}</b></> : 'Pelo menos 3 letras ou números') : 'Ex.: ana, joao.silva'} error={f.username && !loginOk ? 'Usuário curto demais' : undefined}>
+            <input name="guto-novo-login" value={f.username} {...noFill} onChange={(e) => { setTouchedLogin(true); setF({ ...f, username: e.target.value }); }} />
+          </Field>
+          <Field label="Perfil">
+            <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select>
+          </Field>
+        </div>
+        <Field label={f.id ? 'Nova senha (deixe vazio para manter)' : 'Senha'} hint="Mínimo 8 caracteres. Maiúsculas e minúsculas fazem diferença." error={f.password && f.password.length < 8 ? `Faltam ${8 - f.password.length} caracteres` : undefined}>
+          <div className="pw-row">
+            <input name="guto-nova-senha" type={show ? 'text' : 'password'} value={f.password} autoComplete="new-password" autoCorrect="off" autoCapitalize="none" spellCheck={false} data-lpignore="true" onChange={(e) => setF({ ...f, password: e.target.value })} />
+            <Button size="sm" variant="ghost" onClick={() => setShow(!show)}>{show ? 'Esconder' : 'Mostrar'}</Button>
+          </div>
+        </Field>
+        <label className="check"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Ativo</label>
+      </form>
+    </Modal>
   );
 }

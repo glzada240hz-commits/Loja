@@ -73,3 +73,13 @@ describe('atendente', () => {
     expect(placeLabel({ type: 'delivery' })).toBe('Delivery');
   });
 });
+
+import { normalizeUsername } from '../src/br.js';
+describe('usuário de login', () => {
+  it('aceita como a pessoa digita: maiúsculas, acentos e espaços', () => {
+    expect(normalizeUsername('Ana Paula')).toBe('ana.paula');
+    expect(normalizeUsername('  João ')).toBe('joao');
+    expect(normalizeUsername('MARIA_2')).toBe('maria_2');
+    expect(normalizeUsername('zé!')).toBe('ze');
+  });
+});

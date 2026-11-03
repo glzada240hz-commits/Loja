@@ -973,3 +973,7 @@ button.conn { cursor: pointer; font-family: inherit; }
 .official-list { max-height: 52vh; overflow: auto; border-top: 1px solid var(--line); margin-top: 6px; }
 .official-list h3 { margin: 12px 0 4px; font-size: var(--fs-md); }
 .official-list .table td { padding: 6px 8px; vertical-align: top; }
+
+.pw-row { display: flex; gap: 6px; align-items: center; }
+.pw-row input { flex: 1 1 auto; }
+.login-card { font-size: 1.05rem; background: var(--surface-2, #f4f4f5); border-radius: 10px; padding: 10px 12px; }
