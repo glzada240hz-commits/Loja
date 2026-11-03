@@ -21,7 +21,7 @@ export interface OfficialCategory {
 const u = (priceCents: number) => [{ name: 'Único', priceCents }];
 
 // muda quando o cardápio muda: o modo loja aplica a correção sozinho uma vez
-export const OFFICIAL_MENU_VERSION = '2026-11-03e';
+export const OFFICIAL_MENU_VERSION = '2026-11-03f';
 
 export const OFFICIAL_STORE = {
   storePhone: '(31) 98841-4429',
@@ -172,7 +172,7 @@ export const OFFICIAL_ADDON_GROUPS: OfficialAddonGroup[] = [
     // X-Picanha já é de picanha; X-Tudo tem 2 carnes (grupo próprio abaixo)
     name: 'Trocar carne',
     categories: ['Hambúrgueres'],
-    except: ['X-Picanha', 'X-Tudo'],
+    except: ['X-Picanha', 'X-Tudo', 'X-Cabuloso'],
     maxSelect: 1,
     options: [{ name: 'Trocar carne por picanha', priceCents: 400 }],
   },
@@ -181,6 +181,14 @@ export const OFFICIAL_ADDON_GROUPS: OfficialAddonGroup[] = [
     categories: ['Hambúrgueres'],
     only: ['X-Tudo'],
     maxSelect: 2,
+    options: [{ name: 'Trocar carne por picanha', priceCents: 400 }],
+  },
+  {
+    // X-Cabuloso tem 4 carnes (confirmado pelo dono)
+    name: 'Trocar carnes (até 4)',
+    categories: ['Hambúrgueres'],
+    only: ['X-Cabuloso'],
+    maxSelect: 4,
     options: [{ name: 'Trocar carne por picanha', priceCents: 400 }],
   },
   {

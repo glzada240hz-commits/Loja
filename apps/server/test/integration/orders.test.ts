@@ -453,6 +453,10 @@ describe('cardápio oficial do Bar do Guto', () => {
     expect(xt.groups.some((g: any) => g.name === 'Trocar carne')).toBe(false);
     expect(all2.find((x: any) => x.name === 'X-Picanha').groups.some((g: any) => /^Trocar/.test(g.name))).toBe(false);
     expect(all2.find((x: any) => x.name === 'X-Burguer').groups.find((g: any) => g.name === 'Trocar carne')).toMatchObject({ maxSelect: 1 });
+    const cab = all2.find((x: any) => x.name === 'X-Cabuloso');
+    expect(cab.groups.find((g: any) => g.name === 'Trocar carnes (até 4)')).toMatchObject({ maxSelect: 4 });
+    expect(cab.groups.some((g: any) => g.name === 'Trocar carne')).toBe(false);
+    expect(all2.find((x: any) => x.name === 'X-Guto').groups.find((g: any) => g.name === 'Trocar carne')).toMatchObject({ maxSelect: 1 });
     expect(all2.find((x: any) => x.name === 'Suflair').variants[0].priceCents).toBe(1000);
     expect(menu.find((c) => c.name === 'Guloseimas')!.sendToKitchen).toBe(false);
     const fritas = all2.find((x: any) => x.name === 'Fritas');
