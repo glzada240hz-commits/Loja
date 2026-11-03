@@ -58,6 +58,11 @@ function Shell({ title, subtitle, back, children, foot, nav, action }: { title: 
           <Link to={back} className="waiter-back" aria-label="Voltar">
             <ArrowLeft size={24} aria-hidden />
           </Link>
+        ) : me && me.role !== 'waiter' ? (
+          // gerente/caixa abrindo o app do atendente: volta ao sistema (no aplicativo da loja não há botão Voltar do navegador)
+          <Link to="/" className="waiter-back" aria-label="Voltar ao sistema" title="Voltar ao sistema">
+            <ArrowLeft size={24} aria-hidden />
+          </Link>
         ) : (
           <Logo size={30} />
         )}

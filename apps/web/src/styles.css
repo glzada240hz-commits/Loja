@@ -197,6 +197,8 @@ kbd { font: 600 var(--fs-2xs) var(--font); padding: 1px 5px; border: 1px solid v
   .topbar-status .long, .topbar .top-who { display: none; }
   .content { padding: var(--s3); }
 }
+/* botão de menu flutuante não cobre o título das telas sem barra de topo (no celular já há recuo próprio) */
+@media (min-width: 561px) and (max-width: 900px) { .app .floor-bar { padding-left: 44px; } }
 
 /* =================================================================== botões */
 .btn {

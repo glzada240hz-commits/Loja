@@ -17,7 +17,12 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+950d6418`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-950d6418
+- **`0.2.0+f826eaaf`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-f826eaaf
+  (`BarDoGuto-Instalador-0.2.0-f826eaaf.exe`). Corrige: no **App do atendente** aberto pelo gerente/caixa não
+  havia como voltar ao sistema (o aplicativo da loja não tem o botão Voltar do navegador); agora há a seta
+  **Voltar ao sistema**. Em janelas estreitas o botão de menu não cobre mais o título de Mesas. O link do
+  cardápio digital na tela de entrada abre em outra janela.
+- `0.2.0+950d6418` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-950d6418
   (`BarDoGuto-Instalador-0.2.0-950d6418.exe`). Com a **logo do Bar do Guto** (app, ícones do Windows e do
   celular, topo da nota) e a **nota não fiscal para cobrar**. Capturas em `evidencias/logo/`.
 - `0.2.0+19529aeb` (anterior, sem a logo) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-19529aeb

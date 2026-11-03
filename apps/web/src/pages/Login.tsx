@@ -63,7 +63,7 @@ export function Login() {
           Entrar
         </Button>
         <p style={{ marginTop: 16, marginBottom: 0, textAlign: 'center', fontSize: '.875rem' }}>
-          <a href="/c">Ver cardápio digital (clientes)</a>
+          <a href="/c" target="_blank" rel="noreferrer">Ver cardápio digital (clientes)</a>
         </p>
       </form>
       </div>

@@ -59,3 +59,11 @@ test('atendente: bebida entra com um toque e "repetir" só vai para o rascunho (
   expect(after.items).toHaveLength(sent.items.length); // nada foi enviado ao servidor
   await ctx.close();
 });
+
+test('gerente no app do atendente consegue voltar ao sistema (o aplicativo da loja não tem botão Voltar do navegador)', async ({ page }) => {
+  await login(page, 'gerente');
+  await page.goto('/atendente');
+  await page.getByRole('link', { name: 'Voltar ao sistema' }).click();
+  await expect(page).not.toHaveURL(/\/atendente/);
+  await expect(page.getByRole('navigation', { name: 'Principal' })).toBeVisible();
+});
