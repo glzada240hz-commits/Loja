@@ -261,7 +261,7 @@ describe('6/7/16. cardápio digital → cozinha → entrega → acerto do entreg
     expect(ok.statusCode).toBe(200);
     const logoUrl = JSON.parse(ok.body).logoUrl as string;
     expect(logoUrl).toMatch(/^\/uploads\/logo-[\w-]+\.png$/);
-    expect((await new Client(h.app).get('/api/public/brand')).body).toEqual({ name: expect.any(String), logoUrl });
+    expect((await new Client(h.app).get('/api/public/brand')).body).toEqual({ name: expect.any(String), logoUrl, storeMode: false });
     expect((await h.app.inject({ method: 'GET', url: logoUrl })).statusCode).toBe(200);
     // salvar Ajustes com dados antigos (logoUrl vazio ou forjado) não muda a logo
     await gerente.put('/api/settings', { logoUrl: '' });

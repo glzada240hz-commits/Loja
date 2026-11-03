@@ -118,8 +118,9 @@ export default function Phones() {
                 <Button onClick={() => void printHtml(ticketHtml(testTicket(), 'novo', width))}>Imprimir teste</Button>
               </div>
               <small className="muted">
-                Ligue só no computador que tem a impressora. No aplicativo Bar do Guto (Windows) imprime direto, sem perguntar — deixe a
-                impressora térmica como <b>impressora padrão</b> do Windows. O sistema precisa ficar aberto neste computador.
+                No aplicativo Bar do Guto (Windows), o computador da loja já vem com a impressão <b>ligada</b> e imprime direto, sem
+                perguntar, na <b>impressora padrão</b> do Windows (deixe a térmica como padrão). O sistema precisa ficar aberto nele.
+                Em outro computador, ligue aqui só se ele tiver a impressora.
               </small>
             </div>
             <div className="kopt">

@@ -136,8 +136,19 @@ export const useKitchenPrinterStatus = () =>
     () => status,
   );
 
+/**
+ * Modo loja: no computador onde o sistema roda (aberto como localhost, que é onde fica a impressora), a
+ * impressão da cozinha já vem LIGADA, sem configurar. Só na primeira vez: se alguém desligar, fica desligada.
+ * Celulares e tablets acessam pelo IP da rede, então nunca ligam sozinhos.
+ */
+export function autoEnableOnStoreComputer(storeMode: boolean) {
+  if (!storeMode || ls.get(KEY_ON) !== null) return;
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) return;
+  setKitchenPrinting(true);
+}
+
 export function setKitchenPrinting(on: boolean) {
-  ls.set(KEY_ON, on ? '1' : null);
+  ls.set(KEY_ON, on ? '1' : '0'); // '0' = desligada de propósito (não religa sozinha)
   if (on) ls.set(KEY_SINCE, String(Date.now()));
   setStatus({ on, error: null });
 }

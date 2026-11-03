@@ -35,7 +35,7 @@ export async function publicRoutes(app: FastifyInstance) {
 
   app.get('/api/public/brand', { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async () => {
     const s = await getSettings(db);
-    return { name: s.storeName, logoUrl: s.logoUrl || null };
+    return { name: s.storeName, logoUrl: s.logoUrl || null, storeMode: app.deps.config.STORE_MODE === '1' };
   });
 
   app.get('/api/public/menu', { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async () => {

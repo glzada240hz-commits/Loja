@@ -24,7 +24,9 @@ Firewall (**Redes privadas**) e, se o computador tiver mais de uma rede, escolha
 Tudo o que é enviado (celular, PDV, cardápio digital aceito) entra na fila da cozinha na hora. Duas formas,
 podem ser usadas juntas:
 
-1. **Impressora** — na tela *Celulares e cozinha*, no **computador que tem a impressora**:
+1. **Impressora** — no aplicativo da loja (Windows), o **computador onde o sistema roda já vem com a impressão
+   ligada**: cada pedido enviado sai direto na impressora padrão, sem configurar. Em outro computador, ou para
+   desligar/testar, use a tela *Celulares e cozinha*:
    **Ligar impressão neste computador** e **Imprimir teste**. A partir daí cada envio sai em papel:
    número grande, mesa/comanda, itens, “SEM …”, adicionais, observações e atendente. Acréscimo sai como
    **ACRÉSCIMO · RODADA N** (só os itens novos); alteração como **ALTERADO**; pedido já impresso que for

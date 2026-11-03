@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+9e5c93d9`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-9e5c93d9
+- **`0.2.0+481cf00f`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-481cf00f
+  (`BarDoGuto-Instalador-0.2.0-481cf00f.exe`). **Pedido enviado sai direto na impressora**: o computador da loja já
+  vem com a impressão da cozinha ligada (impressora padrão do Windows, sem diálogo). Desligar em *Celulares e
+  cozinha* fica desligado.
+- `0.2.0+9e5c93d9` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-9e5c93d9
   (`BarDoGuto-Instalador-0.2.0-9e5c93d9.exe`). Corrige o cadastro de atendentes: usuário com maiúscula, acento ou
   espaço (“Ana Paula”, “João”) é aceito e entra do mesmo jeito; o campo não “volta” mais ao digitar no
   celular; o navegador não preenche com o login salvo; ao salvar aparece o usuário e a senha para passar.

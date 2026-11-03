@@ -1,12 +1,12 @@
-import { lazy, Suspense, type ReactElement } from 'react';
+import { lazy, Suspense, useEffect, type ReactElement } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ROLE_HOME, ROLE_LABEL, type Permission } from '@guto/core';
 import { useAuth } from './lib/auth';
 import { deviceKind, useLiveUpdates } from './lib/live';
 import { Loading } from './components/ui';
-import { useKitchenPrinterStation } from './lib/kitchenPrinter';
-import { useSettings } from './lib/queries';
+import { autoEnableOnStoreComputer, useKitchenPrinterStation } from './lib/kitchenPrinter';
+import { useBrand, useSettings } from './lib/queries';
 import { Login } from './pages/Login';
 
 const Pos = lazy(() => import('./pages/Pos'));
@@ -42,7 +42,11 @@ function Private({ perm, children }: { perm?: Permission; children: ReactElement
 function KitchenPrinterStation() {
   const { can } = useAuth();
   const s = useSettings();
+  const brand = useBrand();
   const loc = useLocation();
+  useEffect(() => {
+    if (brand.data && can('kitchen.view')) autoEnableOnStoreComputer(!!brand.data.storeMode);
+  }, [brand.data, can]);
   useKitchenPrinterStation(can('kitchen.view') && !loc.pathname.startsWith('/imprimir'), s.data?.printWidth ?? 80);
   return null;
 }
