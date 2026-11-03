@@ -150,6 +150,7 @@ jobs:
             Start-Sleep -Seconds 1
           }
           Write-Host "Túnel: $($pub.status) $($pub.menuUrl) $($pub.error)"
+          $tunelRes = "Cardapio na internet (teste automatico): tunel $($pub.status)"
           if ($pub.status -eq 'online') {
             $okMenu = $false
             for ($i = 0; $i -lt 30 -and -not $okMenu; $i++) {
@@ -159,9 +160,11 @@ jobs:
               $bloq = $(try { (Invoke-WebRequest -UseBasicParsing "$($pub.url)/api/orders").StatusCode } catch { [int]$_.Exception.Response.StatusCode })
               $api = (Invoke-WebRequest -UseBasicParsing "$($pub.url)/api/public/menu").StatusCode
               Write-Host "OK: cardápio abriu pela internet ($($pub.menuUrl)); /api/public/menu=$api; /api/orders de fora=$bloq"
+              $tunelRes = "Cardapio na internet (teste automatico): abriu pelo endereco publico; API interna bloqueada de fora (status $bloq)"
               if ($bloq -ne 404) { throw "API interna acessível pela internet (status $bloq)" }
-            } else { Write-Warning 'túnel no ar, mas o endereço público ainda não respondeu (DNS do túnel gratuito pode demorar)' }
-          } else { Write-Warning "túnel não ficou no ar neste Windows: $($pub.error)" }
+            } else { Write-Warning 'túnel no ar, mas o endereço público ainda não respondeu (DNS do túnel gratuito pode demorar)'; $tunelRes = 'Cardapio na internet (teste automatico): tunel no ar, endereco publico nao respondeu a tempo' }
+          } else { Write-Warning "túnel não ficou no ar neste Windows: $($pub.error)"; $tunelRes = "Cardapio na internet (teste automatico): tunel nao ficou no ar ($($pub.error))" }
+          $tunelRes | Set-Content (Join-Path $env:RUNNER_TEMP 'tunel.txt')
           Invoke-RestMethod -Method Put -Uri http://127.0.0.1:3500/api/settings -Headers $h -WebSession $s -ContentType 'application/json' -Body '{"publicMenuOnline":false}' | Out-Null
 
           $html = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3500/).Content
@@ -214,4 +217,5 @@ jobs:
         run: |
           $tag = "loja-$env:VERSAO"
           gh release delete $tag --yes --cleanup-tag 2>$null
-          gh release create $tag --target $env:GITHUB_SHA --prerelease --title "Bar do Guto - loja $env:VERSAO" --notes "Instalador para Windows gerado e testado automaticamente num Windows (primeira abertura, login, pedido, reabertura e copia de seguranca). Baixe BarDoGuto-Instalador-*.exe." (Get-ChildItem dist-windows\BarDoGuto-Instalador-*.exe).FullName (Get-ChildItem dist-windows\BarDoGuto-*-portatil.zip).FullName
+          $tunel = Get-Content (Join-Path $env:RUNNER_TEMP 'tunel.txt') -ErrorAction SilentlyContinue
+          gh release create $tag --target $env:GITHUB_SHA --prerelease --title "Bar do Guto - loja $env:VERSAO" --notes "Instalador para Windows gerado e testado automaticamente num Windows (primeira abertura, login, pedido, impressora da cozinha, reabertura e copia de seguranca). $tunel. Baixe BarDoGuto-Instalador-*.exe." (Get-ChildItem dist-windows\BarDoGuto-Instalador-*.exe).FullName (Get-ChildItem dist-windows\BarDoGuto-*-portatil.zip).FullName
