@@ -28,15 +28,11 @@ test('gerente confere e importa o cardápio do Bar do Guto; aparece no PDV com o
 });
 
 test('acréscimos em verde + atendente lança pedido do WhatsApp no celular e ele sai na cozinha', async ({ page, browser }) => {
-  // gerente cadastra os acréscimos dos hambúrgueres
+  // os acréscimos passados pelo dono já vêm com o cardápio (sem cadastrar)
   await login(page, 'gerente');
   await page.goto('/cardapio');
   await page.getByRole('tab', { name: 'Adicionais' }).click();
-  await page.getByRole('button', { name: '+ Acréscimo' }).click();
-  await page.getByLabel('Acréscimo 1').fill('Bacon');
-  await page.locator('.addon-row').first().locator('input').nth(1).fill('4,00');
-  await page.getByRole('button', { name: 'Salvar acréscimos' }).click();
-  await expect(page.getByText(/Acréscimos salvos/)).toBeVisible();
+  await expect(page.getByLabel('Acréscimo 1')).toHaveValue('Carne de picanha');
 
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'pt-BR' });
   const cel = await ctx.newPage();
@@ -47,7 +43,7 @@ test('acréscimos em verde + atendente lança pedido do WhatsApp no celular e el
   await cel.getByRole('button', { name: 'Adicionar produtos' }).first().click();
   await cel.getByRole('button', { name: 'X-Tudo', exact: true }).click();
   const dlg = cel.getByRole('dialog', { name: /X-Tudo/ });
-  const acr = dlg.locator('fieldset.opt-group.acr');
+  const acr = dlg.locator('fieldset.opt-group.acr').first();
   await expect(acr).toContainText('Acréscimos');
   await expect(acr).toContainText('+ R$ 4,00');
   await expect(acr).toHaveCSS('background-color', 'rgb(240, 253, 244)'); // verde
@@ -79,10 +75,10 @@ test('atendente lança pedido para levar no balcão pelo celular', async ({ brow
   await expect(cel).toHaveURL(/\/atendente\/balcao$/);
   await cel.getByRole('button', { name: 'Novo pedido para levar' }).click();
   await cel.getByRole('button', { name: 'Adicionar produtos' }).first().click();
-  await cel.getByRole('button', { name: 'Fritas', exact: true }).click();
+  await cel.getByRole('button', { name: 'Coca-Cola 2L', exact: true }).click();
   await cel.getByRole('button', { name: /Concluir · 1 no rascunho/ }).click();
   await cel.getByLabel('Nome', { exact: true }).first().fill('Seu João');
-  await cel.getByRole('button', { name: /Enviar para a cozinha · R\$ 22,90/ }).click();
+  await cel.getByRole('button', { name: /Enviar para a cozinha · R\$ 17,00/ }).click();
   await expect(cel.getByText(/pagar no caixa/)).toBeVisible();
   await expect(cel.getByRole('link', { name: 'Avisar no WhatsApp' })).toHaveCount(0);
   await cel.getByRole('button', { name: 'Voltar' }).or(cel.getByRole('link', { name: 'Voltar' })).first().click();
@@ -97,7 +93,7 @@ test('atendente do celular: entrega com bairro mostra o total com a taxa antes d
   await cel.goto('/atendente/whatsapp/novo');
   await cel.getByRole('button', { name: 'Entrega' }).click();
   await cel.getByRole('button', { name: 'Adicionar produtos' }).first().click();
-  await cel.getByRole('button', { name: 'Fritas', exact: true }).click();
+  await cel.getByRole('button', { name: 'Coca-Cola 2L', exact: true }).click();
   await cel.getByRole('button', { name: /Concluir · 1 no rascunho/ }).click();
   await cel.getByLabel('Telefone', { exact: true }).first().fill('(31) 97777-1212');
   await cel.getByLabel('Nome', { exact: true }).first().fill('Pedro');
@@ -107,19 +103,19 @@ test('atendente do celular: entrega com bairro mostra o total com a taxa antes d
   await expect(box).toContainText('escolha o bairro');
   await cel.getByLabel('Bairro').selectOption({ label: 'Centro — R$ 5,00' });
   await expect(box).toContainText('Taxa de entrega (Centro)');
-  await expect(box.locator('dd.grand')).toHaveText('R$ 27,90');
+  await expect(box.locator('dd.grand')).toHaveText('R$ 22,00');
   // pagamento dividido: R$ 20 em dinheiro (troco para 50) + o resto no Pix
   await cel.getByRole('group', { name: 'Adicionar forma de pagamento' }).getByRole('button', { name: '+ Dinheiro' }).click();
   await cel.getByLabel('Valor em Dinheiro').fill('20,00');
   await cel.getByRole('group', { name: 'Adicionar forma de pagamento' }).getByRole('button', { name: '+ Pix' }).click();
-  await expect(cel.getByLabel('Valor em Pix')).toHaveValue('7,90');
+  await expect(cel.getByLabel('Valor em Pix')).toHaveValue('2,00');
   await expect(cel.getByText('Combinado: as partes fecham o total.')).toBeVisible();
   await cel.getByLabel('Troco para').fill('50,00');
   await expect(box).toContainText('R$ 30,00'); // troco sobre a parte em dinheiro
-  await cel.getByRole('button', { name: /Enviar para a cozinha · R\$ 27,90/ }).click();
+  await cel.getByRole('button', { name: /Enviar para a cozinha · R\$ 22,00/ }).click();
   await expect(cel.getByText(/na cozinha/).first()).toBeVisible();
   const link = await cel.getByRole('link', { name: 'Avisar no WhatsApp' }).getAttribute('href');
-  expect(decodeURIComponent(link!)).toContain('Pagamento: Dinheiro R$ 20,00 + Pix R$ 7,90 (troco para R$ 50,00)');
+  expect(decodeURIComponent(link!)).toContain('Pagamento: Dinheiro R$ 20,00 + Pix R$ 2,00 (troco para R$ 50,00)');
   await ctx.close();
 });
 

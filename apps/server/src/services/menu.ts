@@ -20,7 +20,7 @@ import { badRequest, notFound, unprocessable } from '../lib/errors.js';
 import { toMilli } from './stock.js';
 import { getSettings, updateSettings } from './settings.js';
 import type { Deps } from '../lib/context.js';
-import { EXAMPLE_CATEGORIES, EXAMPLE_GROUPS, EXAMPLE_PRODUCTS, OFFICIAL_MENU, OFFICIAL_MENU_VERSION, OFFICIAL_REMOVALS, OFFICIAL_STORE } from '../db/cardapio-oficial.js';
+import { EXAMPLE_CATEGORIES, EXAMPLE_GROUPS, EXAMPLE_PRODUCTS, OFFICIAL_ADDON_GROUPS, OFFICIAL_MENU, OFFICIAL_MENU_VERSION, OFFICIAL_REMOVALS, OFFICIAL_STORE } from '../db/cardapio-oficial.js';
 
 export interface MenuOption {
   id: string;
@@ -626,6 +626,27 @@ export async function importOfficialMenu(ctx: Ctx, opts: { archiveExamples: bool
           const [linked] = await tx.select().from(productOptionGroups).where(and(eq(productOptionGroups.productId, prodId), eq(productOptionGroups.groupId, retirar!.id)));
           if (!linked) await tx.insert(productOptionGroups).values({ productId: prodId, groupId: retirar!.id, sort: 0 });
         }
+      }
+    }
+
+    // acréscimos pagos (verde) por categoria: cria/atualiza o grupo e coloca em todos os produtos da categoria
+    const catsNow = await tx.select().from(categories).where(eq(categories.active, true));
+    const prodsNow = await tx.select({ id: products.id, categoryId: products.categoryId }).from(products).where(eq(products.active, true));
+    for (const [gi, ag] of OFFICIAL_ADDON_GROUPS.entries()) {
+      let [g] = await tx.select().from(optionGroups).where(and(eq(optionGroups.active, true), eq(optionGroups.name, ag.name)));
+      if (g) await tx.update(optionGroups).set({ minSelect: 0, maxSelect: ag.maxSelect }).where(eq(optionGroups.id, g.id));
+      else [g] = await tx.insert(optionGroups).values({ name: ag.name, minSelect: 0, maxSelect: ag.maxSelect, sort: gi }).returning();
+      const cur = await tx.select().from(options).where(eq(options.groupId, g!.id));
+      for (const [i, o] of ag.options.entries()) {
+        const ex = cur.find((c) => norm(c.name) === norm(o.name));
+        if (ex) await tx.update(options).set({ name: o.name, priceCents: o.priceCents, active: true, sort: i }).where(eq(options.id, ex.id));
+        else await tx.insert(options).values({ groupId: g!.id, name: o.name, priceCents: o.priceCents, sort: i });
+      }
+      for (const c of cur) if (!ag.options.some((o) => norm(o.name) === norm(c.name))) await tx.update(options).set({ active: false }).where(eq(options.id, c.id));
+      const catIds = catsNow.filter((c) => ag.categories.some((n) => norm(n) === norm(c.name))).map((c) => c.id);
+      const links = await tx.select().from(productOptionGroups).where(eq(productOptionGroups.groupId, g!.id));
+      for (const p of prodsNow.filter((x) => catIds.includes(x.categoryId))) {
+        if (!links.some((l) => l.productId === p.id)) await tx.insert(productOptionGroups).values({ productId: p.id, groupId: g!.id, sort: gi - 10 });
       }
     }
 

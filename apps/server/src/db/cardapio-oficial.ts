@@ -21,7 +21,7 @@ export interface OfficialCategory {
 const u = (priceCents: number) => [{ name: 'Único', priceCents }];
 
 // muda quando o cardápio muda: o modo loja aplica a correção sozinho uma vez
-export const OFFICIAL_MENU_VERSION = '2026-11-03b';
+export const OFFICIAL_MENU_VERSION = '2026-11-03c';
 
 export const OFFICIAL_STORE = {
   storePhone: '(31) 98841-4429',
@@ -126,3 +126,46 @@ export const EXAMPLE_PRODUCTS = [
 ];
 export const EXAMPLE_CATEGORIES = ['Lanches', 'Combos', 'Bebidas', 'Porções'];
 export const EXAMPLE_GROUPS = ['Adicionais'];
+
+/**
+ * Acréscimos pagos (aparecem em verde ao escolher), passados pelo dono em 03/11/2026.
+ * `maxSelect` 0 = sem limite; 1 = escolhe uma opção (ex.: troca de carne).
+ */
+export interface OfficialAddonGroup {
+  name: string;
+  categories: string[];
+  maxSelect: number;
+  options: { name: string; priceCents: number }[];
+}
+export const OFFICIAL_ADDON_GROUPS: OfficialAddonGroup[] = [
+  {
+    name: 'Acréscimos',
+    categories: ['Hambúrgueres'],
+    maxSelect: 0,
+    options: [
+      { name: 'Carne de picanha', priceCents: 500 },
+      { name: 'Ovo', priceCents: 200 },
+      { name: 'Cheddar', priceCents: 400 },
+      { name: 'Presunto', priceCents: 200 },
+      { name: 'Queijo', priceCents: 200 },
+      { name: 'Bacon', priceCents: 400 },
+      { name: 'Frango', priceCents: 300 },
+      { name: 'Carne de hambúrguer', priceCents: 200 },
+    ],
+  },
+  {
+    name: 'Trocar carne',
+    categories: ['Hambúrgueres'],
+    maxSelect: 1,
+    options: [{ name: 'Trocar carne por picanha', priceCents: 400 }],
+  },
+  {
+    name: 'Acréscimos da porção',
+    categories: ['Porções'],
+    maxSelect: 0,
+    options: [
+      { name: 'Cheddar', priceCents: 900 },
+      { name: 'Queijo e bacon', priceCents: 800 },
+    ],
+  },
+];

@@ -17,7 +17,10 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+d4dc8cd1`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-d4dc8cd1
+- **`0.2.0+31411a78`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-31411a78
+  (`BarDoGuto-Instalador-0.2.0-31411a78.exe`). **Acréscimos do Bar do Guto** já cadastrados (hambúrgueres, troca de
+  carne por picanha e porções), aplicados sozinhos na primeira abertura (cardápio oficial versão 2026-11-03c).
+- `0.2.0+d4dc8cd1` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-d4dc8cd1
   (`BarDoGuto-Instalador-0.2.0-d4dc8cd1.exe`). **Ajustes → Loja → Zerar pedidos de teste** (só admin, digitando
   ZERAR): apaga pedidos, caixas, dias, entregas e despesas de teste, devolve o estoque e guarda uma cópia em
   `%LOCALAPPDATA%\BarDoGuto\loja\zerados`; mantém cardápio, bairros, usuários e ajustes.

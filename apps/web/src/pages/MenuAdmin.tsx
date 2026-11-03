@@ -426,6 +426,7 @@ interface Official {
   imported: boolean;
   store: { storePhone: string; storeAddress: string };
   removals: string[];
+  addons?: { name: string; categories: string[]; maxSelect: number; options: { name: string; priceCents: number }[] }[];
   categories: { name: string; sendToKitchen: boolean; removals?: boolean; products: { code: string; name: string; description?: string; variants: { name: string; priceCents: number }[] }[] }[];
 }
 
@@ -505,7 +506,12 @@ function OfficialImport({ data, onClose }: { data: Official; onClose: () => void
         <label className="check"><input type="checkbox" checked={archive} onChange={(e) => setArchive(e.target.checked)} /> <span>Tirar de venda os produtos e adicionais de <b>exemplo</b> (X-Bacon, Batata frita, Combo… com preços inventados)</span></label>
         <label className="check"><input type="checkbox" checked={store} onChange={(e) => setStore(e.target.checked)} /> <span>Usar telefone e endereço do cardápio na nota: {data.store.storePhone} · {data.store.storeAddress}</span></label>
       </div>
-      <p className="muted" style={{ margin: '6px 0' }}>Hambúrgueres ganham as opções gratuitas: {data.removals.join(', ')}. Não há adicionais pagos nas artes.</p>
+      <p className="muted" style={{ margin: '6px 0' }}>Hambúrgueres ganham as opções gratuitas: {data.removals.join(', ')}.</p>
+      {data.addons?.map((g) => (
+        <p key={g.name} className="acr-line" style={{ margin: '4px 0' }}>
+          <b>{g.name}</b> ({g.categories.join(', ')}): {g.options.map((o) => `${o.name} + ${formatBRL(o.priceCents)}`).join(' · ')}
+        </p>
+      ))}
       <div className="official-list">
         {data.categories.map((c) => (
           <section key={c.name}>

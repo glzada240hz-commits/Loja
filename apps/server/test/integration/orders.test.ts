@@ -440,6 +440,22 @@ describe('cardápio oficial do Bar do Guto', () => {
     expect(again.body.created).toEqual([]);
     expect(((await caixa.get('/api/menu')).body as { products: unknown[] }[]).flatMap((c) => c.products)).toHaveLength(48);
 
+    // acréscimos passados pelo dono, em todos os hambúrgueres e porções
+    const all2 = ((await caixa.get('/api/menu')).body as any[]).flatMap((c) => c.products);
+    const xt = all2.find((x: any) => x.name === 'X-Tudo');
+    const acr = xt.groups.find((g: any) => g.name === 'Acréscimos');
+    expect(acr.options.map((o: any) => [o.name, o.priceCents])).toEqual([
+      ['Carne de picanha', 500], ['Ovo', 200], ['Cheddar', 400], ['Presunto', 200], ['Queijo', 200], ['Bacon', 400], ['Frango', 300], ['Carne de hambúrguer', 200],
+    ]);
+    expect(xt.groups.find((g: any) => g.name === 'Trocar carne').options[0]).toMatchObject({ name: 'Trocar carne por picanha', priceCents: 400 });
+    const fritas = all2.find((x: any) => x.name === 'Fritas');
+    expect(fritas.groups.find((g: any) => g.name === 'Acréscimos da porção').options.map((o: any) => [o.name, o.priceCents])).toEqual([['Cheddar', 900], ['Queijo e bacon', 800]]);
+    expect(all2.filter((x: any) => x.categoryId === xt.categoryId).every((x: any) => x.groups.some((g: any) => g.name === 'Acréscimos'))).toBe(true);
+    const troca = xt.groups.find((g: any) => g.name === 'Trocar carne').options[0].id;
+    const picanha = acr.options.find((o: any) => o.name === 'Carne de picanha').id;
+    const o2 = await caixa.post('/api/orders', { type: 'counter', send: true, items: [{ variantId: xt.variants[0].id, quantity: 1, options: [{ optionId: troca, quantity: 1 }, { optionId: picanha, quantity: 1 }] }] }, { 'idempotency-key': idemKey() });
+    expect(o2.body.totalCents).toBe(2190 + 400 + 500);
+
     // venda: Heineken long neck + X-Tudo sem milho, na mesa
     const heinekenLN = (await caixa.get('/api/menu')).body.flatMap((c: any) => c.products).find((x: any) => x.name === 'Heineken').variants.find((v: any) => v.name === 'Long neck').id;
     const xtudo = (await caixa.get('/api/menu')).body.flatMap((c: any) => c.products).find((x: any) => x.name === 'X-Tudo');

@@ -1030,3 +1030,5 @@ button.conn { cursor: pointer; font-family: inherit; }
 .plan-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
 
 .danger-zone { border-color: #fecaca; margin-top: 12px; }
+
+.acr-line b { color: #15803d; }

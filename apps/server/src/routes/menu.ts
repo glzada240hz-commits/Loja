@@ -8,7 +8,7 @@ import { badRequest, forbidden } from '../lib/errors.js';
 import { can } from '@guto/core';
 import * as menu from '../services/menu.js';
 import { getSettings } from '../services/settings.js';
-import { OFFICIAL_MENU, OFFICIAL_MENU_VERSION, OFFICIAL_REMOVALS, OFFICIAL_STORE } from '../db/cardapio-oficial.js';
+import { OFFICIAL_ADDON_GROUPS, OFFICIAL_MENU, OFFICIAL_MENU_VERSION, OFFICIAL_REMOVALS, OFFICIAL_STORE } from '../db/cardapio-oficial.js';
 import * as stock from '../services/stock.js';
 import { cents, idParam, uuid } from './schemas.js';
 
@@ -85,7 +85,7 @@ export async function menuRoutes(app: FastifyInstance) {
     const ctx = app.ctx(req);
     requirePerm(ctx.actor, 'menu.manage');
     const imported = (await getSettings(ctx.db)).officialMenuVersion === OFFICIAL_MENU_VERSION;
-    return { version: OFFICIAL_MENU_VERSION, imported, store: OFFICIAL_STORE, removals: OFFICIAL_REMOVALS, categories: OFFICIAL_MENU };
+    return { version: OFFICIAL_MENU_VERSION, imported, store: OFFICIAL_STORE, removals: OFFICIAL_REMOVALS, addons: OFFICIAL_ADDON_GROUPS, categories: OFFICIAL_MENU };
   });
   app.post('/api/menu/import-official', async (req) => {
     const body = z.object({ archiveExamples: z.boolean().default(true), updateStore: z.boolean().default(true) }).parse(req.body ?? {});

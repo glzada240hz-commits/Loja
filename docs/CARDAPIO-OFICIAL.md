@@ -30,7 +30,11 @@ cervejas 40–45, drinks e doses 50–58, refrigerantes e sucos 60–70.
 
 Confirmado pelo dono: “Fritas c/ Cheddar e Bacon” leva **cheddar** (a arte dizia muçarela; corrigido na
 versão `2026-11-03b`); caipirinha/caipivodka são feitas no **balcão** (não vão para a cozinha). “Whisk” da arte
-foi escrito “Whisky”. Adicionais pagos: aguardando resposta.
+foi escrito “Whisky”. Acréscimos (passados pelo dono, versão ):
+- **Hambúrgueres — Acréscimos:** Carne de picanha 5,00 · Ovo 2,00 · Cheddar 4,00 · Presunto 2,00 · Queijo 2,00 ·
+  Bacon 4,00 · Frango 3,00 · Carne de hambúrguer 2,00.
+- **Hambúrgueres — Trocar carne:** Trocar carne por picanha + 4,00 (uma por lanche, desmarcável).
+- **Porções — Acréscimos da porção:** Cheddar 9,00 · Queijo e bacon 8,00.
 
 Validação: teste de integração (preços, tamanhos, categorias, cozinha, exemplos fora, item do dono mantido,
 repetição sem duplicar, venda com “Sem milho”) e E2E (conferir → importar → aparece no PDV). Capturas em

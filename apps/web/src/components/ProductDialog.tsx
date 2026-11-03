@@ -129,10 +129,11 @@ export function ProductDialog({
                 const atMax = g.maxSelect > 0 && count >= g.maxSelect && q === 0;
                 return (
                   <div key={o.id} className={'opt-row' + (q > 0 ? ' on' : '')}>
-                    {g.maxSelect === 1 ? (
+                    {/* escolha obrigatória de uma → rádio; opcional de uma (ex.: trocar carne) → caixinha que desmarca */}
+                    {g.maxSelect === 1 && g.minSelect > 0 ? (
                       <input type="radio" aria-label={o.name} name={'g' + g.id} checked={q > 0} disabled={!o.available} onChange={() => setOpt(g.id, o.id, 1)} />
-                    ) : o.priceCents === 0 ? (
-                      <input type="checkbox" aria-label={o.name} checked={q > 0} disabled={!o.available || atMax} onChange={(e) => setOpt(g.id, o.id, e.target.checked ? 1 : 0)} />
+                    ) : o.priceCents === 0 || g.maxSelect === 1 ? (
+                      <input type="checkbox" aria-label={o.name} checked={q > 0} disabled={!o.available || (atMax && g.maxSelect !== 1)} onChange={(e) => setOpt(g.id, o.id, e.target.checked ? 1 : 0)} />
                     ) : null}
                     <span className="grow">
                       {o.name} {!o.available && <span className="badge red">indisponível</span>}
