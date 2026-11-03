@@ -246,3 +246,14 @@ describe('pedido do WhatsApp lançado pelo atendente e acréscimos', () => {
     expect(o.body.totalCents).toBe(1350 + 800);
   });
 });
+
+describe('balcão pelo celular', () => {
+  it('atendente lança pedido para levar sem mesa e sem dados do cliente: vai para a cozinha e o caixa recebe', async () => {
+    const r = await ana.post('/api/orders', { type: 'takeout', send: true, customer: { name: 'Seu João', phone: null }, items: [{ variantId: m.variant('X-Bacon'), quantity: 1 }] }, { 'idempotency-key': idemKey() });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ type: 'takeout', source: 'pos', status: 'open', customerName: 'Seu João', createdByName: 'Atendente Ana (demo)' });
+    expect(r.body.tickets).toHaveLength(1);
+    const pay = await caixa.post(`/api/orders/${r.body.id}/payments`, { method: 'pix_manual', amountCents: r.body.totalCents }, { 'idempotency-key': idemKey() });
+    expect(pay.status).toBe(200);
+  });
+});

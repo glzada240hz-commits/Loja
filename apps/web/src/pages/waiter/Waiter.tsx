@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   LogOut,
   MessageCircle,
+  ShoppingBag,
   Plus,
   ReceiptText,
   RotateCcw,
@@ -46,8 +47,10 @@ export default function Waiter() {
       <Route index element={<Home />} />
       <Route path="pedido/:id" element={<OrderScreen />} />
       <Route path="nova/:kind/:label" element={<OrderScreen />} />
-      <Route path="whatsapp" element={<WhatsAppOrders />} />
-      <Route path="whatsapp/novo" element={<WhatsAppNew />} />
+      <Route path="whatsapp" element={<WhatsAppOrders channel="whatsapp" />} />
+      <Route path="whatsapp/novo" element={<WhatsAppNew channel="whatsapp" />} />
+      <Route path="balcao" element={<WhatsAppOrders channel="balcao" />} />
+      <Route path="balcao/novo" element={<WhatsAppNew channel="balcao" />} />
     </Routes>
   );
 }
@@ -195,10 +198,11 @@ function Home() {
           ['table', 'Mesas', LayoutGrid, `${busyTables}/${tables.length}`],
           ['tab', 'Comandas', Hash, String(tabs.length)],
           ['mine', 'Minhas', UserRound, String(mine.length)],
+          ['balcao', 'Balcão', ShoppingBag, ''],
           ['whatsapp', 'WhatsApp', MessageCircle, ''],
         ] as const
       ).map(([id, label, Ico, n]) => (
-        <button key={id} type="button" aria-pressed={id !== 'whatsapp' && tab === id} onClick={() => (id === 'whatsapp' ? nav('/atendente/whatsapp') : setTab(id))}>
+        <button key={id} type="button" aria-pressed={id !== 'whatsapp' && id !== 'balcao' && tab === id} onClick={() => (id === 'whatsapp' || id === 'balcao' ? nav(`/atendente/${id}`) : setTab(id))}>
           <Ico className="icon" aria-hidden />
           {label}
           {n && (
@@ -802,27 +806,45 @@ const waLink = (phone: string | null, text: string) => {
   return `https://wa.me/${p ?? ''}?text=${encodeURIComponent(text)}`;
 };
 
-function WhatsAppOrders() {
+type Channel = 'whatsapp' | 'balcao';
+const CH = {
+  whatsapp: { title: 'Pedidos do WhatsApp', sub: 'lance aqui o que o cliente pediu no WhatsApp', new: 'Novo pedido do WhatsApp', empty: 'Nenhum pedido do WhatsApp hoje' },
+  balcao: { title: 'Balcão · para levar', sub: 'cliente na loja que vai levar (sem mesa)', new: 'Novo pedido para levar', empty: 'Nenhum pedido para levar hoje' },
+} as const;
+
+function WhatsAppOrders({ channel }: { channel: Channel }) {
   const nav = useNavigate();
+  const { me } = useAuth();
+  const c = CH[channel];
   const day = useDay();
   const dayId = day.data?.day?.id;
   const list = useQuery({
-    queryKey: ['orders', 'whatsapp', dayId],
+    queryKey: ['orders', channel, dayId],
     queryFn: () => get<OrderRow[]>(`/api/orders${qs({ dayId, status: 'pending,open,closed', limit: 100 })}`),
     enabled: !!dayId,
     refetchInterval: 30_000,
   });
-  const rows = (list.data ?? []).filter((o) => o.source === 'whatsapp');
+  // balcão: pedidos para levar lançados pela equipe (não WhatsApp); o atendente vê os dele
+  const rows = (list.data ?? []).filter((o) =>
+    channel === 'whatsapp' ? o.source === 'whatsapp' : o.source === 'pos' && o.type === 'takeout' && (o.createdByName === me?.name || me?.role !== 'waiter'),
+  );
   return (
-    <Shell title="Pedidos do WhatsApp" subtitle="lance aqui o que o cliente pediu no WhatsApp" back="/atendente"
-      foot={<Button variant="primary" size="lg" block icon={Plus} onClick={() => nav('/atendente/whatsapp/novo')} disabled={!dayId}>Novo pedido do WhatsApp</Button>}>
+    <Shell title={c.title} subtitle={c.sub} back="/atendente"
+      foot={<Button variant="primary" size="lg" block icon={Plus} onClick={() => nav(`/atendente/${channel}/novo`)} disabled={!dayId}>{c.new}</Button>}>
       {!dayId && !day.isLoading && <Alert kind="warn">O dia ainda não foi aberto no caixa. Peça para abrir o dia antes de lançar pedidos.</Alert>}
-      <Alert kind="info" icon={MessageCircle}>
-        Cliente pediu no WhatsApp? Toque em <b>Novo pedido do WhatsApp</b>, lance os itens e envie: sai na cozinha na hora. Depois toque em{' '}
-        <b>Avisar no WhatsApp</b> para mandar o resumo ao cliente pelo seu WhatsApp.
-      </Alert>
+      {channel === 'whatsapp' ? (
+        <Alert kind="info" icon={MessageCircle}>
+          Cliente pediu no WhatsApp? Toque em <b>Novo pedido do WhatsApp</b>, lance os itens e envie: sai na cozinha na hora. Depois toque em{' '}
+          <b>Avisar no WhatsApp</b> para mandar o resumo ao cliente pelo seu WhatsApp.
+        </Alert>
+      ) : (
+        <Alert kind="info" icon={ShoppingBag}>
+          Cliente no balcão que vai levar? Toque em <b>Novo pedido para levar</b>, lance os itens e envie: sai na cozinha na hora. O cliente
+          paga no caixa e retira quando ficar pronto.
+        </Alert>
+      )}
       {list.isLoading ? <Loading /> : rows.length === 0 ? (
-        <Empty compact title="Nenhum pedido do WhatsApp hoje" />
+        <Empty compact title={c.empty} />
       ) : (
         <div className="wa-orders">
           {rows.map((o) => (
@@ -832,7 +854,7 @@ function WhatsAppOrders() {
                 <br />
                 <small>{o.status === 'closed' ? 'Finalizado' : ORDER_STAGE_LABEL[o.stage as keyof typeof ORDER_STAGE_LABEL] ?? o.stage} · <b>{formatBRL(o.totalCents)}</b></small>
               </div>
-              <WaNotify orderId={o.id} />
+              {channel === 'whatsapp' && <WaNotify orderId={o.id} />}
             </div>
           ))}
         </div>
@@ -854,7 +876,8 @@ function WaNotify({ orderId, big }: { orderId: string; big?: boolean }) {
   );
 }
 
-function WhatsAppNew() {
+function WhatsAppNew({ channel }: { channel: Channel }) {
+  const wa = channel === 'whatsapp';
   const qc = useQueryClient();
   const menu = useMenu();
   const { busy, go } = useAction();
@@ -870,19 +893,25 @@ function WhatsAppNew() {
   const idem = useRef(newIdemKey());
   const products = useMemo(() => (menu.data ?? []).flatMap((c) => c.products), [menu.data]);
   const total = lines.reduce((a, l) => a + lineTotal(l), 0);
-  const phoneOk = !!normalizePhoneBR(cust.phone);
+  // WhatsApp: nome e telefone obrigatórios (para avisar); balcão: só o nome para chamar na retirada (opcional)
+  const phoneOk = wa ? !!normalizePhoneBR(cust.phone) : !cust.phone.trim() || !!normalizePhoneBR(cust.phone);
+  const nameOk = wa ? !!cust.name.trim() : true;
   const addrOk = !delivery || (cust.street.trim() && cust.number.trim() && cust.neighborhoodId);
-  const ready = lines.length > 0 && cust.name.trim() && phoneOk && addrOk;
-  const missing = [!cust.name.trim() && 'nome', !phoneOk && 'telefone', !addrOk && 'endereço', !lines.length && 'itens'].filter(Boolean).join(', ');
+  const ready = lines.length > 0 && nameOk && phoneOk && addrOk;
+  const missing = [!nameOk && 'nome', !phoneOk && 'telefone', !addrOk && 'endereço', !lines.length && 'itens'].filter(Boolean).join(', ');
 
   if (sent)
     return (
-      <Shell title={`Pedido #${sent.number} na cozinha`} back="/atendente/whatsapp" foot={<WaNotify orderId={sent.id} big />}>
+      <Shell title={`Pedido #${sent.number} na cozinha`} back={`/atendente/${channel}`} foot={wa ? <WaNotify orderId={sent.id} big /> : undefined}>
         <div className="pay-done">
           <CheckCircle2 size={44} color="var(--ok)" aria-hidden />
           <p className="pay-done-total">{formatBRL(sent.totalCents)}</p>
-          <p className="muted">{sent.customerName} · {formatPhoneBR(sent.customerPhone)} · {sent.type === 'delivery' ? 'Entrega' : 'Retirada'}</p>
-          <p>Enviado para a cozinha. Agora avise o cliente pelo WhatsApp (abre o WhatsApp do celular com o resumo pronto).</p>
+          <p className="muted">{[sent.customerName, formatPhoneBR(sent.customerPhone), sent.type === 'delivery' ? 'Entrega' : 'Para levar'].filter(Boolean).join(' · ')}</p>
+          {wa ? (
+            <p>Enviado para a cozinha. Agora avise o cliente pelo WhatsApp (abre o WhatsApp do celular com o resumo pronto).</p>
+          ) : (
+            <p>Enviado para a cozinha. Diga ao cliente o número <b>#{sent.number}</b> e peça para pagar no caixa; ele retira quando ficar pronto.</p>
+          )}
           <Button onClick={() => { setSent(null); setLines([]); setCust(emptyCustomer); setNotes(''); setPay(''); setChangeFor(''); idem.current = newIdemKey(); }}>Lançar outro pedido</Button>
         </div>
       </Shell>
@@ -897,7 +926,7 @@ function WhatsAppNew() {
         notes: notes.trim() || null,
         items: lines.map(lineToItemInput),
         send: true,
-        source: 'whatsapp',
+        source: wa ? 'whatsapp' : 'pos',
         paymentIntent: pay || null,
         changeForCents: pay === 'cash' && cents ? cents : null,
         confirmDuplicate: true,
@@ -910,8 +939,8 @@ function WhatsAppNew() {
 
   return (
     <Shell
-      title="Novo pedido do WhatsApp"
-      back="/atendente/whatsapp"
+      title={CH[channel].new}
+      back={`/atendente/${channel}`}
       foot={
         <div className="wactions wa-send">
           <Button size="lg" icon={Plus} onClick={() => setPicker(true)} aria-label="Adicionar produtos">Produtos</Button>
@@ -922,12 +951,14 @@ function WhatsAppNew() {
       }
     >
       <section className="wsec">
-        <h3>Cliente</h3>
-        <div className="seg-row" role="group" aria-label="Retirada ou entrega">
-          <button type="button" aria-pressed={!delivery} onClick={() => setDelivery(false)}>Retirada</button>
-          <button type="button" aria-pressed={delivery} onClick={() => setDelivery(true)}>Entrega</button>
-        </div>
-        <CustomerFields value={cust} onChange={setCust} delivery={delivery} />
+        <h3>Cliente {!wa && <small className="muted">· opcional (nome para chamar na retirada)</small>}</h3>
+        {wa && (
+          <div className="seg-row" role="group" aria-label="Retirada ou entrega">
+            <button type="button" aria-pressed={!delivery} onClick={() => setDelivery(false)}>Retirada na loja</button>
+            <button type="button" aria-pressed={delivery} onClick={() => setDelivery(true)}>Entrega</button>
+          </div>
+        )}
+        <CustomerFields value={cust} onChange={setCust} delivery={wa && delivery} />
       </section>
       <section className="wsec">
         <h3>Itens {lines.length > 0 && <small className="muted">· {formatBRL(total)}</small>}</h3>
@@ -948,7 +979,7 @@ function WhatsAppNew() {
         )}
       </section>
       <section className="wsec">
-        <h3>Pagamento (na entrega/retirada)</h3>
+        <h3>{wa ? 'Pagamento (na entrega/retirada)' : 'Pagamento (no caixa)'}</h3>
         <select value={pay} onChange={(e) => setPay(e.target.value as PaymentMethod | '')} aria-label="Forma de pagamento">
           <option value="">Não informado</option>
           {(['cash', 'pix_manual', 'debit', 'credit', 'voucher'] as const).map((m) => <option key={m} value={m}>{PAYMENT_METHOD_LABEL[m]}</option>)}

@@ -24,6 +24,13 @@ por conversa, contratados pela loja. O sistema já tem a integração preparada 
 modo demonstrativo), mas não contratei nem ativei nada — é decisão e custo da loja. O lançamento acima
 funciona sem ela, com o WhatsApp que a loja já usa.
 
+## Balcão (para levar) pelo celular
+
+Aba **Balcão** no app do atendente: cliente na loja que vai levar (sem mesa). **Novo pedido para levar** →
+produtos (com acréscimos e “sem”) → nome para chamar (opcional) → **Enviar**: sai na cozinha na hora; o cliente
+paga no caixa e retira quando ficar pronto. A lista mostra os pedidos para levar do dia (o atendente vê os
+dele).
+
 ## Acréscimos (pagos, em verde)
 
 **Cardápio → Adicionais → Acréscimos**: nome e preço de cada um (ex.: Bacon R$ 4,00) e em quais categorias

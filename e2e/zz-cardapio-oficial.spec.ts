@@ -70,3 +70,22 @@ test('acréscimos em verde + atendente lança pedido do WhatsApp no celular e el
   expect(t.items[0].options.map((o: any) => o.name)).toEqual(expect.arrayContaining(['Bacon', 'Sem milho']));
   await ctx.close();
 });
+
+test('atendente lança pedido para levar no balcão pelo celular', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'pt-BR' });
+  const cel = await ctx.newPage();
+  await login(cel, 'atendente2');
+  await cel.getByRole('button', { name: /^Balcão/ }).click();
+  await expect(cel).toHaveURL(/\/atendente\/balcao$/);
+  await cel.getByRole('button', { name: 'Novo pedido para levar' }).click();
+  await cel.getByRole('button', { name: 'Adicionar produtos' }).first().click();
+  await cel.getByRole('button', { name: 'Fritas', exact: true }).click();
+  await cel.getByRole('button', { name: /Concluir · 1 no rascunho/ }).click();
+  await cel.getByLabel('Nome', { exact: true }).first().fill('Seu João');
+  await cel.getByRole('button', { name: /Enviar para a cozinha · R\$ 22,90/ }).click();
+  await expect(cel.getByText(/pagar no caixa/)).toBeVisible();
+  await expect(cel.getByRole('link', { name: 'Avisar no WhatsApp' })).toHaveCount(0);
+  await cel.getByRole('button', { name: 'Voltar' }).or(cel.getByRole('link', { name: 'Voltar' })).first().click();
+  await expect(cel.locator('.wa-order', { hasText: 'Seu João' })).toBeVisible();
+  await ctx.close();
+});
