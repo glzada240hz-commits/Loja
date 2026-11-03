@@ -467,3 +467,16 @@ describe('cardápio oficial automático (modo loja)', () => {
     expect((await find('X-Burguer')).variants[0].priceCents).toBe(1400);
   });
 });
+
+describe('autorização do gerente', () => {
+  it('senha errada do gerente responde 403 (não derruba a sessão do caixa) e a certa autoriza', async () => {
+    const o = await caixa.post('/api/orders', { type: 'counter', send: true, items: [{ variantId: m.variant('X-Burguer'), quantity: 1 }] }, { 'idempotency-key': idemKey() });
+    const bad = await caixa.post(`/api/orders/${o.body.id}/cancel`, { version: o.body.version, reason: 'Teste', supervisor: { username: 'gerente', password: 'errada' } });
+    expect(bad.status).toBe(403);
+    expect(bad.body.error.code).toBe('supervisor_invalid');
+    expect((await caixa.get('/api/auth/me')).status).toBe(200); // caixa continua logado
+    const ok = await caixa.post(`/api/orders/${o.body.id}/cancel`, { version: o.body.version, reason: 'Teste', supervisor: { username: 'Gerente', password: 'demo1234' } });
+    expect(ok.status).toBe(200);
+    expect(ok.body.status).toBe('cancelled');
+  });
+});

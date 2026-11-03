@@ -109,7 +109,11 @@ export async function authorize(
   if (!supervisor) {
     throw new AppError(403, 'supervisor_required', 'Esta ação exige autorização de um gerente', { permission: perm });
   }
-  const sup = await checkCredentials(db, supervisor.username, supervisor.password);
+  // senha errada do gerente NÃO pode responder 401: o aparelho entenderia que a sessão do caixa caiu e o deslogaria
+  const sup = await checkCredentials(db, supervisor.username, supervisor.password).catch((e: unknown) => {
+    if (e instanceof AppError && e.code === 'invalid_credentials') throw new AppError(403, 'supervisor_invalid', 'Usuário ou senha do gerente incorretos. Tente de novo.', { permission: perm });
+    throw e;
+  });
   if (!can(sup.role, perm)) {
     throw new AppError(403, 'forbidden', 'O usuário informado não tem permissão para autorizar esta ação');
   }

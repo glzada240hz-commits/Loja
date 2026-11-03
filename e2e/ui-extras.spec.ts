@@ -126,3 +126,34 @@ test('admin cadastra atendente pelo celular como a pessoa digita ("Ana Paula") e
   await expect(c).toHaveURL(/\/atendente$/);
   await cel.close();
 });
+
+test('caixa cancela pedido com autorização do gerente digitada (sem preenchimento automático)', async ({ page }) => {
+  await login(page, 'caixa');
+  const H = { 'x-requested-with': 'guto' };
+  const menu = await (await page.request.get('/api/menu')).json();
+  const variantId = menu[0].products[0].variants[0].id;
+  const o = await (await page.request.post('/api/orders', { headers: { ...H, 'idempotency-key': `e2e-cancel-${Date.now()}` }, data: { type: 'counter', send: true, items: [{ variantId, quantity: 1 }] } })).json();
+  await page.goto(`/pedidos/${o.id}`);
+  await page.getByRole('button', { name: 'Mais ações' }).click();
+  await page.getByRole('menuitem', { name: /Cancelar pedido/ }).click();
+  const c = page.getByRole('dialog', { name: `Cancelar pedido #${o.number}` });
+  await c.getByLabel('Motivo do cancelamento').fill('Cliente desistiu');
+  await c.getByRole('button', { name: 'Cancelar pedido' }).click();
+  const sup = page.getByRole('dialog', { name: 'Autorização do gerente' });
+  await expect(sup.getByLabel('Usuário do gerente ou administrador')).toHaveValue('');
+  await expect(sup.getByLabel('Senha')).toHaveValue('');
+  // senha errada: avisa e pede de novo, sem deslogar o caixa
+  await sup.getByLabel('Usuário do gerente ou administrador').pressSequentially('gerente');
+  await sup.getByLabel('Senha').pressSequentially('errada123');
+  await expect(sup.getByLabel('Usuário do gerente ou administrador')).toHaveValue('gerente'); // o cursor não volta
+  await expect(sup.getByLabel('Senha')).toHaveValue('errada123');
+  await sup.getByRole('button', { name: 'Autorizar' }).click();
+  await expect(sup).toContainText('senha do gerente incorretos');
+  await expect(page).not.toHaveURL(/\/login/);
+  await sup.getByLabel('Usuário do gerente ou administrador').fill('');
+  await sup.getByLabel('Usuário do gerente ou administrador').pressSequentially('Gerente');
+  await expect(sup.getByLabel('Usuário do gerente ou administrador')).toHaveValue('Gerente');
+  await sup.getByLabel('Senha').pressSequentially('demo1234');
+  await sup.getByRole('button', { name: 'Autorizar' }).click();
+  await expect(page.getByText('Pedido cancelado').first()).toBeVisible();
+});

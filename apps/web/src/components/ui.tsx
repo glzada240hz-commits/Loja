@@ -156,6 +156,10 @@ export function Modal({
 }) {
   const id = useId();
   const ref = useRef<HTMLDivElement>(null);
+  // onClose costuma ser uma função nova a cada render: guardada em ref para o efeito abaixo rodar SÓ ao abrir.
+  // (Antes, cada tecla digitada recriava o efeito e o foco voltava ao primeiro campo — o texto "voltava".)
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     // no celular/tablet não foca campo de texto ao abrir: o teclado cobriria o conteúdo e os botões
@@ -164,14 +168,14 @@ export function Modal({
     if (first) first.focus();
     else ref.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') closeRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
       prev?.focus?.();
     };
-  }, [onClose]);
+  }, []);
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={['modal', wide && 'wide', className].filter(Boolean).join(' ')} role="dialog" aria-modal="true" aria-labelledby={id} ref={ref} tabIndex={-1} style={{ outline: 'none' }}>
@@ -299,6 +303,7 @@ function ConfirmDialog({ title, message, confirmLabel, danger, reasonLabel, onDo
 function SupervisorDialog({ message, onDone }: { message: string; onDone: (v: { username: string; password: string } | null) => void }) {
   const [username, setU] = useState('');
   const [password, setP] = useState('');
+  const [show, setShow] = useState(false);
   return (
     <Modal
       title="Autorização do gerente"
@@ -320,13 +325,17 @@ function SupervisorDialog({ message, onDone }: { message: string; onDone: (v: { 
         }}
       >
         <Alert kind="warn">{message}</Alert>
-        <Field label="Usuário do gerente">
-          <input value={username} onChange={(e) => setU(e.target.value)} autoComplete="off" autoCapitalize="none" />
+        {/* sem preenchimento automático: o navegador punha o login salvo de quem está no caixa */}
+        <Field label="Usuário do gerente ou administrador">
+          <input name="guto-autoriza-usuario" value={username} onChange={(e) => setU(e.target.value)} autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" />
         </Field>
         <Field label="Senha">
-          <input type="password" value={password} onChange={(e) => setP(e.target.value)} autoComplete="off" />
+          <div className="pw-row">
+            <input name="guto-autoriza-senha" type={show ? 'text' : 'password'} value={password} onChange={(e) => setP(e.target.value)} autoComplete="new-password" autoCapitalize="none" autoCorrect="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" />
+            <Button size="sm" variant="ghost" onClick={() => setShow(!show)}>{show ? 'Esconder' : 'Mostrar'}</Button>
+          </div>
         </Field>
-        <small className="muted">A autorização fica registrada na auditoria com o nome do gerente.</small>
+        <small className="muted">A autorização fica registrada na auditoria com o nome de quem autorizou.</small>
       </form>
     </Modal>
   );
@@ -353,7 +362,7 @@ export function useAction() {
             if (opts.success) toast(opts.success, 'ok');
             return r;
           } catch (e) {
-            if (e instanceof ApiError && e.code === 'supervisor_required') {
+            if (e instanceof ApiError && (e.code === 'supervisor_required' || e.code === 'supervisor_invalid')) {
               const s = await supervisor(e.message);
               if (!s) return undefined;
               sup = s;
