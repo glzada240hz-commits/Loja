@@ -15,7 +15,7 @@ function commit() {
     return 'sem-git';
   }
 }
-/** Impressão digital do código (interface, regras e servidor): igual em qualquer máquina (ZIP ou Git, CRLF ou LF). */
+/** Impressão digital do código (interface, regras, servidor e aplicativo do Windows): igual em qualquer máquina (ZIP ou Git, CRLF ou LF). */
 function sourceHash() {
   const h = crypto.createHash('sha256');
   const walk = (dir: string) => {
@@ -31,6 +31,12 @@ function sourceHash() {
   walk(path.join(__dirname, 'src'));
   walk(path.join(__dirname, '../../packages/core/src'));
   walk(path.join(__dirname, '../server/src'));
+  walk(path.join(__dirname, '../../deploy/windows')); // aplicativo e instalador do Windows
+  for (const f of ['loja.mjs', 'pg-windows.mjs']) {
+    const p = path.join(__dirname, '../../scripts', f);
+    h.update('scripts/' + f);
+    h.update(fs.readFileSync(p).toString('latin1').replace(/\r\n/g, '\n'));
+  }
   return h.digest('hex').slice(0, 8);
 }
 const BUILD = { version: pkg.version, commit: commit(), builtAt: new Date().toISOString(), code: sourceHash() };
