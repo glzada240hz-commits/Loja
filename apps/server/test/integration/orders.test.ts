@@ -456,7 +456,7 @@ describe('cardápio oficial do Bar do Guto', () => {
     expect(all2.find((x: any) => x.name === 'Suflair').variants[0].priceCents).toBe(1000);
     expect(menu.find((c) => c.name === 'Guloseimas')!.sendToKitchen).toBe(false);
     const fritas = all2.find((x: any) => x.name === 'Fritas');
-    expect(fritas.groups.find((g: any) => g.name === 'Acréscimos da porção').options.map((o: any) => [o.name, o.priceCents])).toEqual([['Cheddar', 900], ['Queijo e bacon', 800]]);
+    expect(fritas.groups.find((g: any) => g.name === 'Acréscimos da porção').options.map((o: any) => [o.name, o.priceCents])).toEqual([['Cheddar', 900], ['Queijo', 800], ['Bacon', 800]]);
     expect(all2.filter((x: any) => x.categoryId === xt.categoryId).every((x: any) => x.groups.some((g: any) => g.name === 'Acréscimos'))).toBe(true);
     const troca = trocaXt.options[0].id;
     const picanha = acr.options.find((o: any) => o.name === 'Carne de picanha').id;

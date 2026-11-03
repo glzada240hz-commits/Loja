@@ -21,7 +21,7 @@ export interface OfficialCategory {
 const u = (priceCents: number) => [{ name: 'Único', priceCents }];
 
 // muda quando o cardápio muda: o modo loja aplica a correção sozinho uma vez
-export const OFFICIAL_MENU_VERSION = '2026-11-03d';
+export const OFFICIAL_MENU_VERSION = '2026-11-03e';
 
 export const OFFICIAL_STORE = {
   storePhone: '(31) 98841-4429',
@@ -188,8 +188,10 @@ export const OFFICIAL_ADDON_GROUPS: OfficialAddonGroup[] = [
     categories: ['Porções'],
     maxSelect: 0,
     options: [
+      // o dono confirmou: queijo e bacon são separados, R$ 8,00 cada
       { name: 'Cheddar', priceCents: 900 },
-      { name: 'Queijo e bacon', priceCents: 800 },
+      { name: 'Queijo', priceCents: 800 },
+      { name: 'Bacon', priceCents: 800 },
     ],
   },
 ];

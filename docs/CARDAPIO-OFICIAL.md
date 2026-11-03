@@ -36,7 +36,7 @@ foi escrito “Whisky”. Acréscimos (passados pelo dono, versão `2026-11-03c`
 - **Hambúrgueres — Trocar carne:** Trocar carne por picanha + 4,00 (uma por lanche, desmarcável); **X-Tudo**: até
   2 trocas (2 carnes); **X-Picanha**: sem troca (versão `2026-11-03d`).
 - **Guloseimas** (não vai para a cozinha): Trento 5,00 · Kit Kat 6,00 · Trident 4,00 · Halls 3,00 · Suflair 10,00.
-- **Porções — Acréscimos da porção:** Cheddar 9,00 · Queijo e bacon 8,00.
+- **Porções — Acréscimos da porção:** Cheddar 9,00 · Queijo 8,00 · Bacon 8,00 (separados; versão `2026-11-03e`).
 
 Validação: teste de integração (preços, tamanhos, categorias, cozinha, exemplos fora, item do dono mantido,
 repetição sem duplicar, venda com “Sem milho”) e E2E (conferir → importar → aparece no PDV). Capturas em

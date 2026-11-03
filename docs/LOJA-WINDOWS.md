@@ -17,7 +17,10 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+6009ceaf`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-6009ceaf
+- **`0.2.0+ad3f3104`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-ad3f3104
+  (`BarDoGuto-Instalador-0.2.0-ad3f3104.exe`). Acréscimos da porção separados: Cheddar 9,00 · Queijo 8,00 · Bacon 8,00
+  (cardápio oficial `2026-11-03e`).
+- `0.2.0+6009ceaf` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-6009ceaf
   (`BarDoGuto-Instalador-0.2.0-6009ceaf.exe`). Cardápio oficial `2026-11-03d`: X-Tudo com até 2 trocas de carne por
   picanha, X-Picanha sem troca, nova categoria **Guloseimas** (Trento, Kit Kat, Trident, Halls, Suflair).
 - `0.2.0+31411a78` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-31411a78
