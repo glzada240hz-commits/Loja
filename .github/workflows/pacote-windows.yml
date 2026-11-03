@@ -119,13 +119,14 @@ jobs:
             $pk = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/orders -Headers ($h + @{ 'idempotency-key' = [guid]::NewGuid().ToString() }) -WebSession $s -ContentType 'application/json' -Body $bodyK
             $arqs = $null
             for ($i = 0; $i -lt 45; $i++) {
-              $arqs = Get-ChildItem (Join-Path $dados 'impressao\arquivos') -Filter *.pdf -ErrorAction SilentlyContinue
-              if ($arqs) { break }
+              $arqs = Get-ChildItem (Join-Path $dados 'impressao\arquivos') -Filter *.pdf -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 }
+              if ($arqs -and (Test-Path (Join-Path $dados 'impressao\estado.txt'))) { break }
               Start-Sleep -Seconds 1
             }
-            if (-not $arqs) { Get-Content (Join-Path $dados 'impressao\estado.txt') -ErrorAction SilentlyContinue; Show-Registro; throw 'a via da cozinha não foi impressa na impressora escolhida' }
-            Write-Host "OK: via da cozinha do pedido #$($pk.number) impressa em '$pdfNome': $($arqs[0].Name) ($($arqs[0].Length) bytes)"
-            Get-Content (Join-Path $dados 'impressao\estado.txt')
+            if (-not $arqs -or -not (Test-Path (Join-Path $dados 'impressao\estado.txt'))) { Get-Content (Join-Path $dados 'impressao\estado.txt') -ErrorAction SilentlyContinue; Show-Registro; throw 'a via da cozinha não foi impressa na impressora escolhida' }
+            $estado = Get-Content (Join-Path $dados 'impressao\estado.txt') -Raw
+            if ($estado -notlike 'OK*') { Show-Registro; throw "impressão da cozinha com erro: $estado" }
+            Write-Host "OK: via da cozinha do pedido #$($pk.number) impressa em '$pdfNome': $($arqs[0].Name) ($($arqs[0].Length) bytes) — $estado"
             Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/system/kitchen-printer -Headers $h -WebSession $s -ContentType 'application/json' -Body '{"name":""}' | Out-Null
           } else {
             Write-Warning 'Microsoft Print to PDF não existe neste Windows: a impressão na impressora escolhida não foi testada aqui'
