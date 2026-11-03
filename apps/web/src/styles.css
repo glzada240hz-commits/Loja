@@ -961,3 +961,7 @@ button.conn { cursor: pointer; font-family: inherit; }
 .kprint-state.wait { background: #fef3c7; color: #78350f; }
 .kprint-state .err { color: #b91c1c; }
 @media print { .phones .card { box-shadow: none; border: 0; } .sidebar, .topbar { display: none !important; } }
+
+/* estoque: pôr item à venda */
+.sell-toggle { margin-top: 6px; align-items: flex-start; }
+.sell-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 8px; background: var(--surface-2, #fafafa); }

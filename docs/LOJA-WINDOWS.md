@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+87d64419`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-87d64419
+- **`0.2.0+26397939`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-26397939
+  (`BarDoGuto-Instalador-0.2.0-26397939.exe`). **Estoque → Vender**: item cadastrado no estoque (ex.: cerveja,
+  refrigerante) vai para o cardápio com preço e aparece no PDV, nas mesas e no celular; cada venda baixa o
+  estoque. Novo item já pede a quantidade atual.
+- `0.2.0+87d64419` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-87d64419
   (`BarDoGuto-Instalador-0.2.0-87d64419.exe`). **Atendentes no celular** (QR na tela *Celulares e cozinha*) e
   **pedidos impressos na cozinha automaticamente**, direto na impressora padrão — ver
   [CELULARES-E-COZINHA.md](CELULARES-E-COZINHA.md).

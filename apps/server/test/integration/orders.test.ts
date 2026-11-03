@@ -376,3 +376,29 @@ describe('comanda, reabertura e histórico', () => {
     expect((await caixa.get('/api/orders?q=inexistente')).body).toHaveLength(0);
   });
 });
+
+describe('item do estoque à venda', () => {
+  it('cadastrado no estoque e posto à venda aparece no cardápio das mesas e cada venda baixa o estoque', async () => {
+    const item = (await gerente.post('/api/stock', { name: 'Cerveja long neck', unit: 'un', minQuantity: '6', unitCostCents: '450' })).body;
+    await gerente.post('/api/stock/movements', { stockItemId: item.id, type: 'entry', quantity: '24', reason: 'Estoque inicial' });
+    // antes de pôr à venda: não aparece para vender
+    const names = async () => ((await caixa.get('/api/menu')).body as { products: { name: string }[] }[]).flatMap((c) => c.products.map((p) => p.name));
+    expect(await names()).not.toContain('Cerveja long neck');
+
+    const cat = ((await caixa.get('/api/menu')).body as { id: string; name: string }[]).find((c) => c.name === 'Bebidas')!;
+    expect((await caixa.post(`/api/stock/${item.id}/sell`, { categoryId: cat.id, priceCents: 1200 })).status).toBe(403); // caixa não mexe no cardápio
+    const sold = await gerente.post(`/api/stock/${item.id}/sell`, { categoryId: cat.id, priceCents: 1200, code: '77' });
+    expect(sold.status).toBe(200);
+    expect(sold.body.variant.costCents).toBe(450);
+    expect(await names()).toContain('Cerveja long neck');
+    expect(((await gerente.get('/api/stock')).body as { name: string; soldAs: string[] }[]).find((x) => x.name === 'Cerveja long neck')!.soldAs).toEqual(['Cerveja long neck']);
+    // código repetido é recusado
+    expect((await gerente.post(`/api/stock/${item.id}/sell`, { categoryId: cat.id, priceCents: 1200, code: '77' })).status).toBe(422);
+
+    // venda numa mesa baixa 3 unidades
+    const r = await caixa.post('/api/orders', { type: 'table', tableLabel: '3', send: true, items: [{ variantId: sold.body.variant.id, quantity: 3 }] }, { 'idempotency-key': idemKey() });
+    expect(r.status).toBe(200);
+    expect(r.body.totalCents).toBe(3600);
+    expect(Number(await stockOf(gerente, 'Cerveja long neck'))).toBe(21);
+  });
+});

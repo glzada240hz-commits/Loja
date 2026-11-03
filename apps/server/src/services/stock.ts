@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../db/index.js';
-import { orderItemOptions, recipeItems, stockItems, stockMovements, users } from '../db/schema.js';
+import { orderItemOptions, products, productVariants, recipeItems, stockItems, stockMovements, users } from '../db/schema.js';
 import { audit } from '../lib/audit.js';
 import { now } from '../lib/clock.js';
 import { inTx, requirePerm, type Ctx } from '../lib/context.js';
@@ -121,7 +121,16 @@ export async function reverseForItem(tx: DbOrTx, itemId: string, mode: 'return' 
 
 export async function listStock(db: DbOrTx) {
   const rows = await db.select().from(stockItems).where(eq(stockItems.active, true)).orderBy(stockItems.name);
-  return rows.map((r) => ({ ...r, low: toMilli(r.quantity) <= toMilli(r.minQuantity) }));
+  // produtos à venda que baixam este item (para mostrar "vendido como" e oferecer "Vender" quando não há)
+  const sold = rows.length
+    ? await db
+        .selectDistinct({ stockItemId: recipeItems.stockItemId, name: products.name })
+        .from(recipeItems)
+        .innerJoin(productVariants, eq(productVariants.id, recipeItems.variantId))
+        .innerJoin(products, eq(products.id, productVariants.productId))
+        .where(and(eq(products.active, true), eq(productVariants.active, true), inArray(recipeItems.stockItemId, rows.map((r) => r.id))))
+    : [];
+  return rows.map((r) => ({ ...r, low: toMilli(r.quantity) <= toMilli(r.minQuantity), soldAs: sold.filter((s) => s.stockItemId === r.id).map((s) => s.name) }));
 }
 
 export async function saveStockItem(

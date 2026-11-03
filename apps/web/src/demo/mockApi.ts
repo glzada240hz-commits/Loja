@@ -942,7 +942,22 @@ route('PUT', '/api/menu/recipes', ({ a, body }) => {
 // --- estoque
 route('GET', '/api/stock', ({ a }) => {
   need(a(), 'stock.view');
-  return S.stock.map((s) => ({ ...s, quantity: s.quantity.toFixed(3), minQuantity: Number(s.minQuantity).toFixed(3), unitCostCents: s.unitCostCents == null ? null : String(s.unitCostCents), low: s.quantity <= s.minQuantity }));
+  const soldAs = (id: string) => [...new Set(S.recipes.filter((r) => r.stockItemId === id && r.variantId).map((r) => S.products.find((p) => p.active && p.variants.some((v: Any) => v.id === r.variantId && v.active))?.name).filter(Boolean))];
+  return S.stock.map((s) => ({ ...s, quantity: s.quantity.toFixed(3), minQuantity: Number(s.minQuantity).toFixed(3), unitCostCents: s.unitCostCents == null ? null : String(s.unitCostCents), low: s.quantity <= s.minQuantity, soldAs: soldAs(s.id) }));
+});
+route('POST', '/api/stock/:id/sell', ({ a, params, body }) => {
+  need(a(), 'menu.manage');
+  const s = S.stock.find((x) => x.id === params.id);
+  if (!s) throw err(404, 'not_found', 'Item do estoque não encontrado');
+  if (!S.categories.some((c) => c.id === body.categoryId && c.active)) throw err(400, 'bad_request', 'Escolha uma categoria do cardápio');
+  if (!(body.priceCents > 0)) throw err(400, 'bad_request', 'Informe o preço de venda');
+  const v = { id: uid(), name: 'Único', priceCents: body.priceCents, costCents: null, available: true, active: true };
+  const p = { id: uid(), categoryId: body.categoryId, code: body.code || null, name: body.name || s.name, description: null, kind: 'simple', available: true, showOnline: true, imagePath: null, active: true, variants: [v], groupIds: [], combo: [], sort: S.products.length };
+  S.products.push(p);
+  S.recipes.push({ variantId: v.id, optionId: undefined, stockItemId: s.id, quantity: Number(body.quantityPerSale ?? 1) });
+  publish({ type: 'menu.changed' });
+  publish({ type: 'stock.changed' });
+  return { product: p, variant: v };
 });
 route('POST', '/api/stock', ({ a, body }) => {
   need(a(), 'stock.manage');

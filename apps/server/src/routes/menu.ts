@@ -130,6 +130,20 @@ export async function menuRoutes(app: FastifyInstance) {
       .parse(req.body);
     return stock.saveStockItem(app.ctx(req), body);
   });
+  app.post('/api/stock/:id/sell', async (req) => {
+    const { id } = idParam.parse(req.params);
+    const body = z
+      .object({
+        categoryId: uuid,
+        priceCents: cents,
+        name: z.string().max(80).nullish(),
+        code: z.string().max(10).nullish(),
+        quantityPerSale: qtyStr.optional(),
+        showOnline: z.boolean().optional(),
+      })
+      .parse(req.body);
+    return menu.sellStockItem(app.ctx(req), id, body);
+  });
   app.post('/api/stock/movements', async (req) => {
     const body = z
       .object({

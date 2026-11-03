@@ -67,3 +67,28 @@ test('gerente no app do atendente consegue voltar ao sistema (o aplicativo da lo
   await expect(page).not.toHaveURL(/\/atendente/);
   await expect(page.getByRole('navigation', { name: 'Principal' })).toBeVisible();
 });
+
+test('item cadastrado no Estoque com "Vender este item" aparece na hora no celular do atendente (mesas)', async ({ page, browser }) => {
+  await login(page, 'gerente');
+  await page.goto('/estoque');
+  await page.getByRole('button', { name: '+ Novo item' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Novo item do estoque' });
+  await dlg.getByLabel('Nome', { exact: true }).fill('Água com gás');
+  await dlg.getByLabel(/Quantidade que tem agora/).fill('10');
+  await dlg.getByLabel(/Vender este item/).check();
+  await dlg.getByLabel('Categoria no cardápio').selectOption({ label: 'Bebidas' });
+  await dlg.getByLabel('Preço de venda').fill('5,00');
+  await dlg.getByRole('button', { name: 'Salvar' }).click();
+  await expect(page.getByText(/Salvo e à venda/)).toBeVisible();
+  const row = page.getByRole('row', { name: /Água com gás/ });
+  await expect(row).toContainText('10 un');
+  await expect(row).toContainText('Água com gás'); // coluna "Vendido / usado em"
+
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'pt-BR' });
+  const cel = await ctx.newPage();
+  await login(cel, 'atendente2');
+  await cel.getByRole('button', { name: /^Mesa 12/ }).click();
+  await cel.getByRole('button', { name: 'Adicionar produtos' }).click();
+  await expect(cel.getByRole('button', { name: 'Água com gás', exact: true })).toBeVisible();
+  await ctx.close();
+});

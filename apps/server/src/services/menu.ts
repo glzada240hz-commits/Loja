@@ -472,3 +472,41 @@ export async function variantsByIds(db: DbOrTx, ids: string[]) {
   if (!ids.length) return [];
   return db.select().from(productVariants).where(inArray(productVariants.id, ids));
 }
+
+/**
+ * Coloca um item do estoque à venda (ex.: refrigerante, cerveja, água): cria o produto no cardápio, com um
+ * preço, e a ficha técnica que baixa `quantityPerSale` do item a cada venda. Aparece no PDV, nas mesas e no
+ * app do atendente na hora.
+ */
+export async function sellStockItem(
+  ctx: Ctx,
+  stockItemId: string,
+  input: { categoryId: string; priceCents: number; name?: string | null; code?: string | null; quantityPerSale?: string; showOnline?: boolean },
+) {
+  requirePerm(ctx.actor, 'menu.manage');
+  if (!Number.isSafeInteger(input.priceCents) || input.priceCents <= 0) throw badRequest('Informe o preço de venda');
+  const per = input.quantityPerSale ?? '1';
+  if (toMilli(per) <= 0n) throw badRequest('Quantidade por venda deve ser positiva');
+  return inTx(ctx, async (tx, emit) => {
+    const [item] = await tx.select().from(stockItems).where(and(eq(stockItems.id, stockItemId), eq(stockItems.active, true)));
+    if (!item) throw notFound('Item do estoque não encontrado');
+    const [cat] = await tx.select().from(categories).where(and(eq(categories.id, input.categoryId), eq(categories.active, true)));
+    if (!cat) throw badRequest('Escolha uma categoria do cardápio');
+    const code = input.code?.trim() || null;
+    if (code) {
+      const [dup] = await tx.select({ id: products.id }).from(products).where(and(eq(products.code, code), eq(products.active, true)));
+      if (dup) throw unprocessable(`O código ${code} já é de outro produto`);
+    }
+    const unitCost = item.unitCostCents != null ? Math.round(Number(item.unitCostCents) * (Number(toMilli(per)) / 1000)) : null;
+    const [prod] = await tx
+      .insert(products)
+      .values({ categoryId: cat.id, code, name: (input.name?.trim() || item.name).slice(0, 80), kind: 'simple', showOnline: input.showOnline ?? true, updatedAt: now() })
+      .returning();
+    const [variant] = await tx.insert(productVariants).values({ productId: prod!.id, name: 'Único', priceCents: input.priceCents, costCents: unitCost }).returning();
+    await tx.insert(recipeItems).values({ variantId: variant!.id, optionId: null, stockItemId: item.id, quantity: per });
+    await audit(tx, ctx.actor, 'menu.product.create', 'product', prod!.id, { fromStockItem: item.id, name: prod!.name, priceCents: input.priceCents, quantityPerSale: per });
+    emit({ type: 'menu.changed' });
+    emit({ type: 'stock.changed' });
+    return { product: prod!, variant: variant! };
+  });
+}

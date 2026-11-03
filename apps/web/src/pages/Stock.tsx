@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STOCK_MOVEMENT_LABEL } from '@guto/core';
 import { Layout } from '../components/Layout';
-import { Button, Chips, Empty, Field, Loading, Modal, Tabs, useAction } from '../components/ui';
+import { formatBRL } from '@guto/core';
+import { Button, Chips, Empty, Field, Loading, Modal, MoneyInput, Tabs, useAction } from '../components/ui';
+import { useMenu } from '../lib/queries';
 import { get, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { formatDateTime } from '../lib/format';
@@ -17,6 +19,7 @@ export default function Stock() {
   const moves = useQuery({ queryKey: ['stock', 'moves'], queryFn: () => get<any[]>('/api/stock/movements'), enabled: tab === 'moves' });
   const [edit, setEdit] = useState<any | 'new' | null>(null);
   const [mov, setMov] = useState<any | null>(null);
+  const [sell, setSell] = useState<any | null>(null);
   const [onlyLow, setOnlyLow] = useState(false);
   const list = (items.data ?? []).filter((i) => !onlyLow || i.low);
   return (
@@ -27,15 +30,20 @@ export default function Stock() {
           <div className="page-head">
             <label className="check"><input type="checkbox" checked={onlyLow} onChange={(e) => setOnlyLow(e.target.checked)} /> Só estoque baixo</label>
             <div className="grow" />
-            {can('stock.manage') && <Button variant="primary" onClick={() => setEdit('new')}>+ Novo insumo</Button>}
+            {can('stock.manage') && <Button variant="primary" onClick={() => setEdit('new')}>+ Novo item</Button>}
           </div>
+          <p className="muted">
+            <b>Estoque</b> é o que a loja tem guardado; <b>à venda</b> é o que aparece no PDV, nas mesas e no celular dos atendentes. Para vender
+            um item do estoque (ex.: cerveja, refrigerante), use <b>Vender</b>: ele vai para o cardápio com o preço e cada venda baixa o estoque.
+            Lanches com vários ingredientes são cadastrados em <b>Cardápio</b> (ficha técnica).
+          </p>
           <p className="muted">
             A venda baixa o estoque automaticamente pela ficha técnica quando o item é lançado. No cancelamento, itens não iniciados pela cozinha voltam ao estoque; já preparados são registrados como perda. Cada item é baixado uma única vez.
           </p>
           {items.isLoading ? <Loading /> : !list.length ? <Empty title="Nenhum insumo" /> : (
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Insumo</th><th className="right">Quantidade</th><th className="right">Mínimo</th><th className="right">Custo/unid.</th><th></th></tr></thead>
+                <thead><tr><th>Item</th><th className="right">Quantidade</th><th className="right">Mínimo</th><th className="right">Custo/unid.</th><th>Vendido / usado em</th><th></th></tr></thead>
                 <tbody>
                   {list.map((i) => (
                     <tr key={i.id}>
@@ -43,6 +51,15 @@ export default function Stock() {
                       <td className="right num">{fmtQty(i.quantity)} {i.unit}</td>
                       <td className="right num">{fmtQty(i.minQuantity)} {i.unit}</td>
                       <td className="right num">{i.unitCostCents != null ? `R$ ${(Number(i.unitCostCents) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}` : '—'}</td>
+                      <td>
+                        {i.soldAs?.length ? (
+                          i.soldAs.join(', ')
+                        ) : can('menu.manage') ? (
+                          <Button size="sm" variant="primary" onClick={() => setSell(i)}>Vender</Button>
+                        ) : (
+                          <span className="muted">não vendido</span>
+                        )}
+                      </td>
                       <td className="right">
                         {can('stock.manage') && (
                           <div className="hstack" style={{ justifyContent: 'flex-end' }}>
@@ -80,22 +97,79 @@ export default function Stock() {
       ))}
       {edit && <ItemForm item={edit === 'new' ? null : edit} onClose={() => setEdit(null)} />}
       {mov && <MoveForm item={mov} onClose={() => setMov(null)} />}
+      {sell && <SellForm item={sell} onClose={() => setSell(null)} />}
     </Layout>
+  );
+}
+
+const QTY_RE = /^\d+([.,]\d{1,3})?$/;
+type SellState = { on: boolean; categoryId: string; priceCents: number | null; code: string; per: string; name: string };
+
+/** Campos para pôr um item do estoque à venda (categoria, preço, código, quanto baixa por venda). */
+function SellFields({ v, onChange, unit, itemName }: { v: SellState; onChange: (v: SellState) => void; unit: string; itemName: string }) {
+  const menu = useMenu();
+  const cats = menu.data ?? [];
+  return (
+    <div className="sell-box">
+      <Field label="Categoria no cardápio">
+        <select value={v.categoryId} onChange={(e) => onChange({ ...v, categoryId: e.target.value })}>
+          <option value="">Escolha…</option>
+          {cats.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </Field>
+      <div className="row">
+        <Field label="Nome na venda"><input value={v.name} placeholder={itemName || 'mesmo nome do estoque'} onChange={(e) => onChange({ ...v, name: e.target.value })} maxLength={80} /></Field>
+        <Field label="Preço de venda"><MoneyInput value={v.priceCents} onChange={(p) => onChange({ ...v, priceCents: p })} /></Field>
+      </div>
+      <div className="row">
+        <Field label="Código no PDV (opcional)" hint="Número para digitar e tecle Enter"><input value={v.code} inputMode="numeric" maxLength={10} onChange={(e) => onChange({ ...v, code: e.target.value })} /></Field>
+        <Field label={`Baixa do estoque por venda (${unit})`} hint={unit === 'un' ? '1 venda = 1 unidade' : `Ex.: 0,5 ${unit}`}><input inputMode="decimal" value={v.per} onChange={(e) => onChange({ ...v, per: e.target.value })} /></Field>
+      </div>
+    </div>
+  );
+}
+const sellReady = (v: SellState) => !!v.categoryId && !!v.priceCents && v.priceCents > 0 && QTY_RE.test(v.per.trim()) && Number(v.per.replace(',', '.')) > 0;
+const sellBody = (v: SellState) => ({ categoryId: v.categoryId, priceCents: v.priceCents, name: v.name.trim() || null, code: v.code.trim() || null, quantityPerSale: v.per.trim().replace(',', '.') });
+const emptySell = (): SellState => ({ on: true, categoryId: '', priceCents: null, code: '', per: '1', name: '' });
+
+function SellForm({ item, onClose }: { item: any; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [v, setV] = useState<SellState>(emptySell);
+  const { busy, go } = useAction();
+  return (
+    <Modal title={`Vender ${item.name}`} onClose={onClose} footer={
+      <Button variant="primary" busy={busy} disabled={!sellReady(v)} onClick={() => go(async () => {
+        await post(`/api/stock/${item.id}/sell`, sellBody(v));
+        await Promise.all([qc.invalidateQueries({ queryKey: ['stock'] }), qc.invalidateQueries({ queryKey: ['menu'] })]);
+        onClose();
+      }, { success: `${item.name} à venda: já aparece no PDV, nas mesas e no celular` })}>Pôr à venda{v.priceCents ? ` por ${formatBRL(v.priceCents)}` : ''}</Button>
+    }>
+      <p className="muted">O item vai para o cardápio e cada venda baixa o estoque.</p>
+      <SellFields v={v} onChange={setV} unit={item.unit} itemName={item.name} />
+    </Modal>
   );
 }
 
 function ItemForm({ item, onClose }: { item: any | null; onClose: () => void }) {
   const qc = useQueryClient();
-  const [f, setF] = useState({ name: item?.name ?? '', unit: item?.unit ?? 'un', minQuantity: item ? String(Number(item.minQuantity)) : '0', unitCost: item?.unitCostCents != null ? String(Number(item.unitCostCents) / 100).replace('.', ',') : '' });
+  const { can } = useAuth();
+  const [f, setF] = useState({ name: item?.name ?? '', unit: item?.unit ?? 'un', minQuantity: item ? String(Number(item.minQuantity)) : '0', unitCost: item?.unitCostCents != null ? String(Number(item.unitCostCents) / 100).replace('.', ',') : '', initial: '' });
+  const [sell, setSell] = useState<SellState>(() => ({ ...emptySell(), on: false }));
   const { busy, go } = useAction();
   const toCents = (v: string) => (v.trim() ? String(Math.round(Number(v.replace(',', '.')) * 1000000) / 10000) : null);
+  const initialOk = !f.initial.trim() || QTY_RE.test(f.initial.trim());
+  const canSell = !item && can('menu.manage');
+  const valid = !!f.name.trim() && initialOk && (!sell.on || sellReady(sell));
   return (
-    <Modal title={item ? `Editar ${item.name}` : 'Novo insumo'} onClose={onClose} footer={
-      <Button variant="primary" busy={busy} disabled={!f.name.trim()} onClick={() => go(async () => {
-        await post('/api/stock', { id: item?.id, name: f.name, unit: f.unit, minQuantity: f.minQuantity.replace(',', '.') || '0', unitCostCents: toCents(f.unitCost) });
-        await qc.invalidateQueries({ queryKey: ['stock'] });
+    <Modal title={item ? `Editar ${item.name}` : 'Novo item do estoque'} onClose={onClose} footer={
+      <Button variant="primary" busy={busy} disabled={!valid} onClick={() => go(async () => {
+        const saved = await post<{ id: string }>('/api/stock', { id: item?.id, name: f.name, unit: f.unit, minQuantity: f.minQuantity.replace(',', '.') || '0', unitCostCents: toCents(f.unitCost) });
+        if (!item && f.initial.trim() && Number(f.initial.replace(',', '.')) > 0)
+          await post('/api/stock/movements', { stockItemId: saved.id, type: 'entry', quantity: f.initial.trim().replace(',', '.'), reason: 'Estoque inicial' });
+        if (canSell && sell.on) await post(`/api/stock/${saved.id}/sell`, sellBody(sell));
+        await Promise.all([qc.invalidateQueries({ queryKey: ['stock'] }), qc.invalidateQueries({ queryKey: ['menu'] })]);
         onClose();
-      }, { success: 'Insumo salvo' })}>Salvar</Button>
+      }, { success: canSell && sell.on ? 'Salvo e à venda: já aparece no PDV, nas mesas e no celular' : 'Item salvo' })}>Salvar</Button>
     }>
       <Field label="Nome"><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
       <div className="row">
@@ -103,7 +177,20 @@ function ItemForm({ item, onClose }: { item: any | null; onClose: () => void }) 
         <Field label="Estoque mínimo"><input inputMode="decimal" value={f.minQuantity} onChange={(e) => setF({ ...f, minQuantity: e.target.value })} /></Field>
         <Field label="Custo por unidade (R$)" hint="Pode ter frações de centavo (ex.: 0,022 por grama)"><input inputMode="decimal" value={f.unitCost} onChange={(e) => setF({ ...f, unitCost: e.target.value })} /></Field>
       </div>
-      {!item && <small className="muted">A quantidade inicial é lançada como “Entrada” após criar.</small>}
+      {!item && (
+        <Field label={`Quantidade que tem agora (${f.unit})`} hint="Lançada como entrada “Estoque inicial”." error={initialOk ? undefined : 'Use números (até 3 casas)'}>
+          <input inputMode="decimal" value={f.initial} onChange={(e) => setF({ ...f, initial: e.target.value })} placeholder="0" />
+        </Field>
+      )}
+      {canSell && (
+        <>
+          <label className="check sell-toggle">
+            <input type="checkbox" checked={sell.on} onChange={(e) => setSell({ ...sell, on: e.target.checked })} />
+            <span><b>Vender este item</b> — aparece no PDV, nas mesas e no celular dos atendentes (ex.: bebidas)</span>
+          </label>
+          {sell.on && <SellFields v={sell} onChange={setSell} unit={f.unit} itemName={f.name} />}
+        </>
+      )}
     </Modal>
   );
 }
