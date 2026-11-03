@@ -43,7 +43,7 @@ export default function Print() {
       alive = false;
     };
   }, [pix]);
-  const logo: string | null = st?.logoUrl || null;
+  const logo: string | null = st ? st.logoUrl || '/logo-nota.png' : null;
   const [logoOk, setLogoOk] = useState(false);
   useEffect(() => {
     setLogoOk(false);
@@ -119,7 +119,7 @@ function Nota({ o, items, st, qr, pix }: { o: Order; items: Order['items']; st: 
   const lastPay = pays.length ? pays[pays.length - 1]! : null;
   return (
     <>
-      {st.logoUrl && <img className="nota-logo" src={st.logoUrl} alt="" />}
+      <img className={'nota-logo' + (st.logoUrl ? ' enviada' : '')} src={st.logoUrl || '/logo-nota.png'} alt="" />
       <h1>{st.storeName}</h1>
       {st.storeDocument && <div className="c">{st.storeDocument}</div>}
       {st.storeAddress && <div className="c">{st.storeAddress}</div>}

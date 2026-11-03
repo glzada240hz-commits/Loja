@@ -24,7 +24,9 @@ Bobina de 80 mm ou 58 mm (Ajustes → Bobina padrão).
 
 ## Configurar (Ajustes → Loja → Nota não fiscal)
 
-- **Logo da loja** (Ajustes → Loja → Logo da loja): PNG/JPG/WebP. Sai no topo da nota (em preto e branco) e
+- **Logo**: a logo do Bar do Guto já vem no sistema (versão colorida no app; versão preto-e-branco própria
+  para impressora térmica, em `apps/web/public/logo-nota.png`). Para trocar: Ajustes → Loja → Logo da loja
+  (PNG com fundo transparente; logo com fundo escuro sai como um bloco preto na térmica). PNG/JPG/WebP. Sai no topo da nota (em preto e branco) e
   aparece no app: menu lateral, tela de entrada e cardápio digital.
 - **CNPJ ou CPF impresso na nota** (opcional).
 - **Chave Pix para o QR da conta** (opcional): CPF/CNPJ (com dígitos verificadores válidos), e-mail, celular

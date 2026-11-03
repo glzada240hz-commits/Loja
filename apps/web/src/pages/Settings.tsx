@@ -56,7 +56,7 @@ function Store() {
       <Field label="Endereço"><input value={f.storeAddress} onChange={(e) => set({ storeAddress: e.target.value })} /></Field>
       <Field label="Logo da loja" hint="PNG (de preferência com fundo transparente), JPG ou WebP. Aparece no menu, na tela de entrada, no cardápio digital e no topo da nota (em preto e branco na impressora térmica)." group>
         <div className="hstack" style={{ gap: 12, alignItems: 'center' }}>
-          <Logo size={56} />
+          <span className="logo-chip"><Logo size={56} /></span>
           <label className="btn">
             {s.data?.logoUrl ? 'Trocar logo' : 'Enviar logo'}
             <input

@@ -18,8 +18,8 @@ export function Login() {
     <div className="login-page">
       <aside className="login-brand">
         <div className="hstack" style={{ gap: 12 }}>
-          <Logo size={44} />
-          <h2>Bar do Guto</h2>
+          <Logo size={150} />
+          <h2 className="sr-only">Bar do Guto</h2>
         </div>
         <div>
           <p>Pedidos do balcão, das mesas e do delivery num só lugar — caixa, cozinha e atendentes em tempo real.</p>

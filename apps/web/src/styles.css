@@ -160,7 +160,7 @@ kbd { font: 600 var(--fs-2xs) var(--font); padding: 1px 5px; border: 1px solid v
 .topbar .grow { flex: 1; }
 .topbar-status { display: flex; align-items: center; gap: var(--s2); }
 .topbar .top-who { flex: 0 0 auto; text-align: right; }
-.brand-mini { display: inline-flex; }
+.brand-mini, .logo-chip { display: inline-flex; background: var(--g-900); border-radius: 8px; padding: 3px; }
 .btn.menu-toggle { display: none; }
 .btn.menu-toggle.floating { position: absolute; top: 12px; left: 8px; z-index: 30; background: var(--surface); box-shadow: var(--shadow-2); }
 .content { flex: 1; overflow: auto; padding: var(--s5); }
@@ -830,8 +830,10 @@ button.conn { cursor: pointer; font-family: inherit; }
 .print-root .c { text-align: center; }
 .print-root .warn { text-align: center; font-weight: 800; border: 1px solid #000; padding: 3px; margin: 6px 0; }
 .print-root .item { margin-bottom: 3px; }
-.print-root .nota-logo { display: block; max-width: 70%; max-height: 22mm; margin: 0 auto 4px; object-fit: contain; filter: grayscale(1) contrast(1.15); }
-.logo-img { border-radius: 7px; background: #fff; }
+.print-root .nota-logo { display: block; max-width: 62%; max-height: 26mm; margin: 0 auto 4px; object-fit: contain; }
+.print-root .nota-logo.enviada { filter: grayscale(1) contrast(1.15); }
+.logo-img { border-radius: 0; }
+@media (max-width: 1199px) and (min-width: 901px) { .app:not(.no-nav) .brand .logo-img { width: 44px; height: 44px; } }
 .print-root .sub { padding-left: 8px; font-size: 11px; }
 .print-root .l.sub { padding-left: 8px; }
 .print-root .total { font-size: 15px; margin-top: 2px; }

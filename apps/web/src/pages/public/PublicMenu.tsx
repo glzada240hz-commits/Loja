@@ -65,7 +65,7 @@ export default function PublicMenu() {
   return (
     <div className="public">
       <header className="public-hero">
-        <h1><Logo size={44} /> {store.name}</h1>
+        <h1><Logo size={72} /> <span className="sr-only">{store.name}</span></h1>
         <div className="hero-meta">
           {store.open ? <span className="badge green">Aberto para pedidos</span> : <span className="badge red">{store.closedReason}</span>}
           <span><Store aria-hidden className="icon" /> Retirada ~{store.pickupEtaMinutes} min</span>

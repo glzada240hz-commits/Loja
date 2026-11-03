@@ -17,7 +17,10 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+19529aeb`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-19529aeb
+- **`0.2.0+950d6418`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-950d6418
+  (`BarDoGuto-Instalador-0.2.0-950d6418.exe`). Com a **logo do Bar do Guto** (app, ícones do Windows e do
+  celular, topo da nota) e a **nota não fiscal para cobrar**. Capturas em `evidencias/logo/`.
+- `0.2.0+19529aeb` (anterior, sem a logo) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-19529aeb
   (`BarDoGuto-Instalador-0.2.0-19529aeb.exe`). Inclui a **nota não fiscal para cobrar** (conta com QR Pix e
   nota de pagamento com troco) — ver [NOTA-NAO-FISCAL.md](NOTA-NAO-FISCAL.md). Mesmo aplicativo sem janela preta
   da versão abaixo.

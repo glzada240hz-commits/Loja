@@ -131,9 +131,9 @@ export function Layout({ children, title, actions, flush, bare }: { children: Re
       {!noNav && (
         <aside className={'sidebar' + (open ? ' open' : '')} onClick={(e) => (e.target as HTMLElement).closest('a') && setOpen(false)}>
           <div className="brand">
-            <Logo size={30} />
+            <Logo size={64} />
             <span>
-              Bar do Guto
+              <span className="sr-only">Bar do Guto</span>
               <small>Gestão da loja</small>
             </span>
           </div>
