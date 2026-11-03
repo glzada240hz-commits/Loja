@@ -39,6 +39,8 @@ export const storeSettingsSchema = z.object({
     .max(200)
     .default('')
     .refine((v) => v === '' || /^\/uploads\/logo-[A-Za-z0-9_-]+\.(png|jpg|webp)$/.test(v), 'Logo inválida'),
+  /** versão do cardápio oficial já importada (controle interno) */
+  officialMenuVersion: z.string().max(20).default(''),
   /** abre a impressão da nota automaticamente quando o pedido é quitado */
   autoPrintReceipt: z.boolean().default(false),
   /** largura padrão da bobina para impressão pelo navegador */

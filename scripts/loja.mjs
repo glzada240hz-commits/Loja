@@ -282,6 +282,7 @@ async function main() {
     UPLOAD_DIR: path.join(DIR, 'fotos'),
     MIGRATIONS_DIR: path.join(ROOT, 'apps/server/dist/migrations'),
     WHATSAPP_MODE: 'demo',
+    OFFICIAL_MENU_AUTO: '1', // cardápio do Bar do Guto já pronto na aba Cardápio (uma vez por versão)
     LOG_LEVEL: 'warn',
   };
   if (setup) {

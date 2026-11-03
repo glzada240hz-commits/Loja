@@ -22,6 +22,8 @@ const schema = z.object({
    * protocolo do acesso (instalação na rede local da loja, sem HTTPS). Padrão: always em produção, auto fora.
    */
   COOKIE_SECURE: z.enum(['auto', 'always']).optional(),
+  /** modo loja: coloca o cardápio oficial do Bar do Guto sozinho, uma vez por versão do cardápio */
+  OFFICIAL_MENU_AUTO: z.enum(['0', '1']).default('0'),
   /** tentativas de login por minuto por IP */
   LOGIN_RATE_LIMIT: z.coerce.number().int().min(1).default(10),
   /** pedidos pelo cardápio digital a cada 5 minutos por IP */

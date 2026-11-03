@@ -422,6 +422,7 @@ function Categories() {
 
 interface Official {
   version: string;
+  imported: boolean;
   store: { storePhone: string; storeAddress: string };
   removals: string[];
   categories: { name: string; sendToKitchen: boolean; removals?: boolean; products: { code: string; name: string; description?: string; variants: { name: string; priceCents: number }[] }[] }[];
@@ -436,12 +437,20 @@ function OfficialMenuBanner() {
   return (
     <>
       <div className="official-banner">
-        <div>
-          <b>Cardápio do Bar do Guto</b> — {n} itens em {off.data.categories.length} categorias, com os preços das artes enviadas.
-          <br />
-          <small className="muted">Confira os preços e importe. Pode importar de novo depois: não duplica nada.</small>
-        </div>
-        <Button variant="primary" onClick={() => setOpen(true)}>Conferir e importar</Button>
+        {off.data.imported ? (
+          <div>
+            <b>Cardápio do Bar do Guto já está no sistema</b> — {n} itens com os preços das artes enviadas.
+            <br />
+            <small className="muted">Mudou algum preço? Edite o produto abaixo. “Importar de novo” volta aos preços das artes.</small>
+          </div>
+        ) : (
+          <div>
+            <b>Cardápio do Bar do Guto</b> — {n} itens em {off.data.categories.length} categorias, com os preços das artes enviadas.
+            <br />
+            <small className="muted">Confira os preços e importe. Pode importar de novo depois: não duplica nada.</small>
+          </div>
+        )}
+        <Button variant={off.data.imported ? 'ghost' : 'primary'} onClick={() => setOpen(true)}>{off.data.imported ? 'Ver / importar de novo' : 'Conferir e importar'}</Button>
       </div>
       {open && <OfficialImport data={off.data} onClose={() => setOpen(false)} />}
     </>
@@ -480,7 +489,7 @@ function OfficialImport({ data, onClose }: { data: Official; onClose: () => void
             onClick={() =>
               go(async () => {
                 const r = await post('/api/menu/import-official', { archiveExamples: archive, updateStore: store });
-                await Promise.all([qc.invalidateQueries({ queryKey: ['menu'] }), qc.invalidateQueries({ queryKey: ['settings'] }), qc.invalidateQueries({ queryKey: ['groups'] }), qc.invalidateQueries({ queryKey: ['stock'] })]);
+                await Promise.all([qc.invalidateQueries({ queryKey: ['menu'] }), qc.invalidateQueries({ queryKey: ['menu-official'] }), qc.invalidateQueries({ queryKey: ['settings'] }), qc.invalidateQueries({ queryKey: ['groups'] }), qc.invalidateQueries({ queryKey: ['stock'] })]);
                 setResult(r);
                 ui.toast('Cardápio importado', 'ok');
               })

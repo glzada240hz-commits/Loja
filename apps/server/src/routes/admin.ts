@@ -25,6 +25,7 @@ export async function adminRoutes(app: FastifyInstance) {
     requirePerm(ctx.actor, 'settings.manage');
     const patch = storeSettingsSchema.partial().parse(req.body);
     delete patch.logoUrl; // a logo só muda pelo envio/remoção próprios (evita apagar com formulário antigo)
+    delete patch.officialMenuVersion; // controle interno da importação do cardápio
     const s = await updateSettings(ctx.db, patch, ctx.actor.userId);
     await audit(ctx.db, ctx.actor, 'settings.update', 'settings', 'store', patch);
     ctx.bus.publish({ type: 'menu.changed' });

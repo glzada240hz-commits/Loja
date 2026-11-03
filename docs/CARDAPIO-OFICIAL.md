@@ -1,8 +1,9 @@
 # Cardápio oficial do Bar do Guto
 
 Transcrito das artes enviadas pelo dono em 03/11/2026 (“Cardápio” e “Bebidas”). Dados em
-`apps/server/src/db/cardapio-oficial.ts`. Para levar ao sistema da loja: **Cardápio → Conferir e importar**
-(gerente/admin). Pode importar de novo: produtos são localizados pelo nome e nada é duplicado.
+`apps/server/src/db/cardapio-oficial.ts`. No **modo loja** (instalador do Windows) o cardápio entra **sozinho** na primeira abertura da versão que o
+traz, uma única vez (); o que a loja mudar depois fica como está. Também dá para
+importar de novo em **Cardápio → Ver / importar de novo** (gerente/admin). Pode importar de novo: produtos são localizados pelo nome e nada é duplicado.
 
 O que a importação faz:
 - cria/atualiza 6 categorias e 47 produtos com os preços das artes (cervejas com dois tamanhos);

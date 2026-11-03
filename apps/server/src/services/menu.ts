@@ -11,13 +11,15 @@ import {
   productVariants,
   recipeItems,
   stockItems,
+  users,
 } from '../db/schema.js';
 import { audit } from '../lib/audit.js';
 import { now } from '../lib/clock.js';
 import { inTx, requirePerm, type Ctx } from '../lib/context.js';
 import { badRequest, notFound, unprocessable } from '../lib/errors.js';
 import { toMilli } from './stock.js';
-import { updateSettings } from './settings.js';
+import { getSettings, updateSettings } from './settings.js';
+import type { Deps } from '../lib/context.js';
 import { EXAMPLE_CATEGORIES, EXAMPLE_GROUPS, EXAMPLE_PRODUCTS, OFFICIAL_MENU, OFFICIAL_MENU_VERSION, OFFICIAL_REMOVALS, OFFICIAL_STORE } from '../db/cardapio-oficial.js';
 
 export interface MenuOption {
@@ -643,6 +645,7 @@ export async function importOfficialMenu(ctx: Ctx, opts: { archiveExamples: bool
       await updateSettings(tx, OFFICIAL_STORE, ctx.actor.userId);
       res.storeUpdated = true;
     }
+    await updateSettings(tx, { officialMenuVersion: OFFICIAL_MENU_VERSION }, ctx.actor.userId);
     const after = await tx.select({ name: products.name }).from(products).where(eq(products.active, true));
     res.kept = after.map((p) => p.name).filter((n) => !official.has(norm(n))).sort();
     await audit(tx, ctx.actor, 'menu.import_official', 'menu', OFFICIAL_MENU_VERSION, {
@@ -651,4 +654,18 @@ export async function importOfficialMenu(ctx: Ctx, opts: { archiveExamples: bool
     emit({ type: 'menu.changed' });
     return res;
   });
+}
+
+/**
+ * Modo loja: na primeira abertura de uma versão nova do cardápio oficial, importa sozinho (o dono pediu o
+ * cardápio já pronto na aba Cardápio). Roda uma única vez por versão; depois disso, o que a loja mudar no
+ * cardápio fica como está. Telefone/endereço só entram se ainda forem os de exemplo ou vazios.
+ */
+export async function autoImportOfficialMenu(deps: Deps): Promise<OfficialImportResult | null> {
+  const s = await getSettings(deps.db);
+  if (s.officialMenuVersion === OFFICIAL_MENU_VERSION) return null;
+  const [admin] = await deps.db.select().from(users).where(and(eq(users.role, 'admin'), eq(users.active, true))).limit(1);
+  if (!admin) return null;
+  const exampleStore = !s.storePhone.trim() || s.storePhone.startsWith('(11) 9000') || !s.storeAddress.trim() || /demonstrativo/i.test(s.storeAddress);
+  return importOfficialMenu({ ...deps, actor: { userId: admin.id, role: 'admin', name: admin.name } }, { archiveExamples: true, updateStore: exampleStore });
 }

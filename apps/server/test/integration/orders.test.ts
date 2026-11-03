@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { autoImportOfficialMenu } from '../../src/services/menu.js';
 import { as, idemKey, menuIndex, openStore, resetDb, startApp, type Client, type MenuIndex } from '../helpers.js';
 
 let h: Awaited<ReturnType<typeof startApp>>;
@@ -446,5 +447,23 @@ describe('cardápio oficial do Bar do Guto', () => {
     const o = await caixa.post('/api/orders', { type: 'table', tableLabel: '2', send: true, items: [{ variantId: heinekenLN, quantity: 2 }, { variantId: xtudo.variants[0].id, quantity: 1, options: [{ optionId: semMilho, quantity: 1 }] }] }, { 'idempotency-key': idemKey() });
     expect(o.status).toBe(200);
     expect(o.body.totalCents).toBe(2 * 1200 + 2190);
+  });
+});
+
+describe('cardápio oficial automático (modo loja)', () => {
+  it('na primeira abertura coloca o cardápio sozinho, uma única vez; mudanças da loja depois são mantidas', async () => {
+    const first = await autoImportOfficialMenu(h.deps);
+    expect(first).not.toBeNull();
+    expect(first!.storeUpdated).toBe(true); // telefone/endereço eram os de exemplo
+    const find = async (n: string) => ((await caixa.get('/api/menu')).body as any[]).flatMap((c) => c.products).find((p: any) => p.name === n);
+    expect((await find('Contra Filé c/ Fritas')).variants[0].priceCents).toBe(6490);
+    expect(await find('X-Bacon')).toBeUndefined();
+    expect((await gerente.get('/api/menu/official')).body.imported).toBe(true);
+
+    // a loja muda um preço; reabrir o sistema não desfaz
+    const xb = await find('X-Burguer');
+    await gerente.post('/api/menu/products', { id: xb.id, categoryId: xb.categoryId, name: xb.name, code: xb.code, variants: [{ id: xb.variants[0].id, name: 'Único', priceCents: 1400 }] });
+    expect(await autoImportOfficialMenu(h.deps)).toBeNull();
+    expect((await find('X-Burguer')).variants[0].priceCents).toBe(1400);
   });
 });

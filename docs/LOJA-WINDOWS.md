@@ -17,7 +17,10 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+4fcd8399`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-4fcd8399
+- **`0.2.0+108b1c19`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-108b1c19
+  (`BarDoGuto-Instalador-0.2.0-108b1c19.exe`). O **cardápio do Bar do Guto entra sozinho** na primeira abertura desta
+  versão (uma vez; mudanças feitas depois pela loja são mantidas).
+- `0.2.0+4fcd8399` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-4fcd8399
   (`BarDoGuto-Instalador-0.2.0-4fcd8399.exe`). **Cardápio oficial do Bar do Guto** (47 itens das artes enviadas):
   Cardápio → *Conferir e importar*. Ver [CARDAPIO-OFICIAL.md](CARDAPIO-OFICIAL.md).
 - `0.2.0+26397939` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-26397939
