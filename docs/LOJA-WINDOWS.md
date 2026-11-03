@@ -17,7 +17,10 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+26397939`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-26397939
+- **`0.2.0+4fcd8399`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-4fcd8399
+  (`BarDoGuto-Instalador-0.2.0-4fcd8399.exe`). **Cardápio oficial do Bar do Guto** (47 itens das artes enviadas):
+  Cardápio → *Conferir e importar*. Ver [CARDAPIO-OFICIAL.md](CARDAPIO-OFICIAL.md).
+- `0.2.0+26397939` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-26397939
   (`BarDoGuto-Instalador-0.2.0-26397939.exe`). **Estoque → Vender**: item cadastrado no estoque (ex.: cerveja,
   refrigerante) vai para o cardápio com preço e aparece no PDV, nas mesas e no celular; cada venda baixa o
   estoque. Novo item já pede a quantidade atual.

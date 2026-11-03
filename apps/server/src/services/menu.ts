@@ -17,6 +17,8 @@ import { now } from '../lib/clock.js';
 import { inTx, requirePerm, type Ctx } from '../lib/context.js';
 import { badRequest, notFound, unprocessable } from '../lib/errors.js';
 import { toMilli } from './stock.js';
+import { updateSettings } from './settings.js';
+import { EXAMPLE_CATEGORIES, EXAMPLE_GROUPS, EXAMPLE_PRODUCTS, OFFICIAL_MENU, OFFICIAL_MENU_VERSION, OFFICIAL_REMOVALS, OFFICIAL_STORE } from '../db/cardapio-oficial.js';
 
 export interface MenuOption {
   id: string;
@@ -508,5 +510,145 @@ export async function sellStockItem(
     emit({ type: 'menu.changed' });
     emit({ type: 'stock.changed' });
     return { product: prod!, variant: variant! };
+  });
+}
+
+const norm = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+export interface OfficialImportResult {
+  version: string;
+  created: string[];
+  updated: string[];
+  archived: string[];
+  kept: string[];
+  codesSkipped: string[];
+  storeUpdated: boolean;
+}
+
+/**
+ * Importa o cardápio oficial do Bar do Guto (db/cardapio-oficial.ts). Pode ser repetido sem duplicar: produtos
+ * são localizados pelo nome. Com `archiveExamples`, tira de venda os produtos/adicionais de EXEMPLO (preços
+ * inventados) e as fichas técnicas de exemplo dos lanches de mesmo nome. Nada é apagado: pedidos antigos
+ * continuam com seus próprios dados e produtos do dono que não estão no cardápio continuam à venda.
+ */
+export async function importOfficialMenu(ctx: Ctx, opts: { archiveExamples: boolean; updateStore: boolean }): Promise<OfficialImportResult> {
+  requirePerm(ctx.actor, 'menu.manage');
+  return inTx(ctx, async (tx, emit) => {
+    const res: OfficialImportResult = { version: OFFICIAL_MENU_VERSION, created: [], updated: [], archived: [], kept: [], codesSkipped: [], storeUpdated: false };
+    const official = new Set(OFFICIAL_MENU.flatMap((c) => c.products.map((p) => norm(p.name))));
+    const exampleNames = new Set(EXAMPLE_PRODUCTS.map(norm));
+    let active = await tx.select().from(products).where(eq(products.active, true));
+
+    if (opts.archiveExamples) {
+      for (const p of active) {
+        if (exampleNames.has(norm(p.name)) && !official.has(norm(p.name))) {
+          await tx.update(products).set({ active: false, code: null, updatedAt: now() }).where(eq(products.id, p.id));
+          res.archived.push(p.name);
+        }
+      }
+      const groups = await tx.select().from(optionGroups).where(eq(optionGroups.active, true));
+      for (const g of groups.filter((g) => EXAMPLE_GROUPS.map(norm).includes(norm(g.name)))) {
+        await tx.update(optionGroups).set({ active: false }).where(eq(optionGroups.id, g.id));
+        await tx.delete(productOptionGroups).where(eq(productOptionGroups.groupId, g.id));
+        res.archived.push(`Adicionais de exemplo (${g.name})`);
+      }
+      active = active.filter((p) => !res.archived.includes(p.name));
+    }
+
+    const byName = new Map<string, (typeof active)[number]>();
+    for (const p of active) if (!byName.has(norm(p.name))) byName.set(norm(p.name), p);
+    // os códigos serão reatribuídos: libera os dos produtos que serão atualizados (evita troca circular)
+    for (const n of official) {
+      const ex = byName.get(n);
+      if (ex?.code) await tx.update(products).set({ code: null }).where(eq(products.id, ex.id));
+    }
+
+    // grupo gratuito "Retirar ingredientes" dos hambúrgueres
+    let [retirar] = await tx.select().from(optionGroups).where(and(eq(optionGroups.active, true), eq(optionGroups.name, 'Retirar ingredientes')));
+    if (!retirar) [retirar] = await tx.insert(optionGroups).values({ name: 'Retirar ingredientes', minSelect: 0, maxSelect: 0, sort: 2 }).returning();
+    const curOpts = await tx.select().from(options).where(eq(options.groupId, retirar!.id));
+    for (const o of curOpts) if (!OFFICIAL_REMOVALS.map(norm).includes(norm(o.name))) await tx.update(options).set({ active: false }).where(eq(options.id, o.id));
+    for (const [i, name] of OFFICIAL_REMOVALS.entries()) {
+      const ex = curOpts.find((o) => norm(o.name) === norm(name));
+      if (ex) await tx.update(options).set({ name, priceCents: 0, active: true, available: true, sort: i }).where(eq(options.id, ex.id));
+      else await tx.insert(options).values({ groupId: retirar!.id, name, priceCents: 0, costCents: 0, sort: i });
+    }
+
+    const cats = await tx.select().from(categories).where(eq(categories.active, true));
+    let cSort = 0;
+    for (const oc of OFFICIAL_MENU) {
+      const found = cats.find((c) => norm(c.name) === norm(oc.name));
+      const [cat] = found
+        ? await tx.update(categories).set({ name: oc.name, sendToKitchen: oc.sendToKitchen, sort: cSort }).where(eq(categories.id, found.id)).returning()
+        : await tx.insert(categories).values({ name: oc.name, sendToKitchen: oc.sendToKitchen, sort: cSort }).returning();
+      cSort++;
+      let pSort = 0;
+      for (const op of oc.products) {
+        const ex = byName.get(norm(op.name));
+        const values = { categoryId: cat!.id, name: op.name, description: op.description ?? null, kind: 'simple' as const, active: true, sort: pSort++, updatedAt: now() };
+        let prodId: string;
+        if (ex) {
+          await tx.update(products).set(values).where(eq(products.id, ex.id));
+          prodId = ex.id;
+          res.updated.push(op.name);
+        } else {
+          const [np] = await tx.insert(products).values({ ...values, showOnline: true, available: true }).returning();
+          prodId = np!.id;
+          res.created.push(op.name);
+        }
+        // código do PDV, se livre
+        const [taken] = await tx.select({ id: products.id }).from(products).where(and(eq(products.code, op.code), eq(products.active, true)));
+        if (taken && taken.id !== prodId) res.codesSkipped.push(`${op.name} (código ${op.code} já usado)`);
+        else await tx.update(products).set({ code: op.code }).where(eq(products.id, prodId));
+
+        // preços: atualiza a variante de mesmo nome (ou a única), cria as que faltam, desativa as demais
+        const vars = ex ? await tx.select().from(productVariants).where(and(eq(productVariants.productId, prodId), eq(productVariants.active, true))) : [];
+        const used = new Set<string>();
+        let vSort = 0;
+        for (const ov of op.variants) {
+          const match = vars.find((v) => !used.has(v.id) && norm(v.name) === norm(ov.name)) ?? (op.variants.length === 1 && vars.length === 1 ? vars[0] : undefined);
+          const exampleCost = ex && exampleNames.has(norm(ex.name)) && opts.archiveExamples;
+          if (match) {
+            used.add(match.id);
+            await tx.update(productVariants).set({ name: ov.name, priceCents: ov.priceCents, sort: vSort++, ...(exampleCost ? { costCents: null } : {}) }).where(eq(productVariants.id, match.id));
+            if (exampleCost) await tx.delete(recipeItems).where(eq(recipeItems.variantId, match.id)); // ficha técnica de exemplo
+          } else {
+            const [nv] = await tx.insert(productVariants).values({ productId: prodId, name: ov.name, priceCents: ov.priceCents, sort: vSort++ }).returning();
+            used.add(nv!.id);
+          }
+        }
+        for (const v of vars) if (!used.has(v.id)) await tx.update(productVariants).set({ active: false }).where(eq(productVariants.id, v.id));
+        if (ex) await tx.delete(comboItems).where(eq(comboItems.comboProductId, prodId));
+        if (oc.removals) {
+          await tx.delete(productOptionGroups).where(eq(productOptionGroups.productId, prodId));
+          await tx.insert(productOptionGroups).values({ productId: prodId, groupId: retirar!.id, sort: 0 });
+        }
+      }
+    }
+
+    // categorias que não são do cardápio oficial (ex.: as do dono) ficam depois das oficiais
+    let extra = 100;
+    for (const c of cats) if (!OFFICIAL_MENU.some((oc) => norm(oc.name) === norm(c.name))) await tx.update(categories).set({ sort: extra++ }).where(eq(categories.id, c.id));
+
+    if (opts.archiveExamples) {
+      // categorias de exemplo que ficaram vazias saem do cardápio
+      const now2 = await tx.select({ id: products.id, categoryId: products.categoryId }).from(products).where(eq(products.active, true));
+      for (const c of cats) {
+        if (EXAMPLE_CATEGORIES.map(norm).includes(norm(c.name)) && !OFFICIAL_MENU.some((oc) => norm(oc.name) === norm(c.name)) && !now2.some((p) => p.categoryId === c.id)) {
+          await tx.update(categories).set({ active: false }).where(eq(categories.id, c.id));
+        }
+      }
+    }
+    if (opts.updateStore) {
+      await updateSettings(tx, OFFICIAL_STORE, ctx.actor.userId);
+      res.storeUpdated = true;
+    }
+    const after = await tx.select({ name: products.name }).from(products).where(eq(products.active, true));
+    res.kept = after.map((p) => p.name).filter((n) => !official.has(norm(n))).sort();
+    await audit(tx, ctx.actor, 'menu.import_official', 'menu', OFFICIAL_MENU_VERSION, {
+      created: res.created.length, updated: res.updated.length, archived: res.archived, archiveExamples: opts.archiveExamples, storeUpdated: res.storeUpdated,
+    });
+    emit({ type: 'menu.changed' });
+    return res;
   });
 }

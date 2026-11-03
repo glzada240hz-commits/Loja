@@ -402,3 +402,49 @@ describe('item do estoque à venda', () => {
     expect(Number(await stockOf(gerente, 'Cerveja long neck'))).toBe(21);
   });
 });
+
+describe('cardápio oficial do Bar do Guto', () => {
+  it('importa com os preços das artes, tira os exemplos, mantém o que o dono cadastrou e pode repetir sem duplicar', async () => {
+    // item que o dono pôs à venda pelo estoque continua
+    const item = (await gerente.post('/api/stock', { name: 'Gelo', unit: 'un', minQuantity: '0' })).body;
+    const bebidas = ((await caixa.get('/api/menu')).body as { id: string; name: string }[]).find((c) => c.name === 'Bebidas')!;
+    await gerente.post(`/api/stock/${item.id}/sell`, { categoryId: bebidas.id, priceCents: 300 });
+
+    expect((await caixa.post('/api/menu/import-official', {})).status).toBe(403);
+    const r = await gerente.post('/api/menu/import-official', { archiveExamples: true, updateStore: true });
+    expect(r.status).toBe(200);
+    expect(r.body.archived).toEqual(expect.arrayContaining(['X-Bacon', 'Batata frita', 'Combo X-Burguer + Batata + Refri']));
+    expect(r.body.kept).toEqual(['Gelo']);
+    expect(r.body.codesSkipped).toEqual([]);
+
+    const menu = (await caixa.get('/api/menu')).body as { name: string; sendToKitchen: boolean; products: { name: string; code: string; description: string; variants: { name: string; priceCents: number }[] }[] }[];
+    const all = menu.flatMap((c) => c.products);
+    expect(all).toHaveLength(48); // 47 do cardápio + Gelo
+    const p = (n: string) => all.find((x) => x.name === n)!;
+    expect(p('X-Burguer')).toMatchObject({ code: '1', description: 'Pão, carne, presunto, muçarela e salada.' });
+    expect(p('X-Burguer').variants.map((v) => v.priceCents)).toEqual([1350]);
+    expect(p('X-Picanha').variants[0]!.priceCents).toBe(2590);
+    expect(p('Contra Filé c/ Fritas').variants[0]!.priceCents).toBe(6490);
+    expect(p('Heineken').variants.map((v) => [v.name, v.priceCents])).toEqual([['600ml', 1600], ['Long neck', 1200]]);
+    expect(p('Refrigerante Lata').variants[0]!.priceCents).toBe(800);
+    expect(p('Whisky').variants[0]!.priceCents).toBe(2000);
+    expect(all.find((x) => x.name === 'X-Bacon')).toBeUndefined();
+    expect(menu.map((c) => c.name)).toEqual(['Hambúrgueres', 'Porções', 'Pratos', 'Cervejas', 'Drinks e doses', 'Refrigerantes e sucos', 'Bebidas']);
+    expect(menu.find((c) => c.name === 'Cervejas')!.sendToKitchen).toBe(false);
+    expect(menu.find((c) => c.name === 'Hambúrgueres')!.sendToKitchen).toBe(true);
+    expect((await caixa.get('/api/settings')).body.storePhone).toBe('(31) 98841-4429');
+
+    // repetir não duplica
+    const again = await gerente.post('/api/menu/import-official', { archiveExamples: true, updateStore: false });
+    expect(again.body.created).toEqual([]);
+    expect(((await caixa.get('/api/menu')).body as { products: unknown[] }[]).flatMap((c) => c.products)).toHaveLength(48);
+
+    // venda: Heineken long neck + X-Tudo sem milho, na mesa
+    const heinekenLN = (await caixa.get('/api/menu')).body.flatMap((c: any) => c.products).find((x: any) => x.name === 'Heineken').variants.find((v: any) => v.name === 'Long neck').id;
+    const xtudo = (await caixa.get('/api/menu')).body.flatMap((c: any) => c.products).find((x: any) => x.name === 'X-Tudo');
+    const semMilho = xtudo.groups.flatMap((g: any) => g.options).find((o: any) => o.name === 'Sem milho').id;
+    const o = await caixa.post('/api/orders', { type: 'table', tableLabel: '2', send: true, items: [{ variantId: heinekenLN, quantity: 2 }, { variantId: xtudo.variants[0].id, quantity: 1, options: [{ optionId: semMilho, quantity: 1 }] }] }, { 'idempotency-key': idemKey() });
+    expect(o.status).toBe(200);
+    expect(o.body.totalCents).toBe(2 * 1200 + 2190);
+  });
+});

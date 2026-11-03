@@ -13,6 +13,7 @@ export default function MenuAdmin() {
   return (
     <Layout title="Cardápio">
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'products', label: 'Produtos' }, { id: 'groups', label: 'Adicionais' }, { id: 'categories', label: 'Categorias' }]} />
+      {tab === 'products' && <OfficialMenuBanner />}
       {tab === 'products' && <Products />}
       {tab === 'groups' && <Groups />}
       {tab === 'categories' && <Categories />}
@@ -416,5 +417,105 @@ function Categories() {
         </tbody>
       </table>
     </section>
+  );
+}
+
+interface Official {
+  version: string;
+  store: { storePhone: string; storeAddress: string };
+  removals: string[];
+  categories: { name: string; sendToKitchen: boolean; removals?: boolean; products: { code: string; name: string; description?: string; variants: { name: string; priceCents: number }[] }[] }[];
+}
+
+/** Cardápio oficial do Bar do Guto (artes enviadas pelo dono): conferir e importar com um clique. */
+function OfficialMenuBanner() {
+  const [open, setOpen] = useState(false);
+  const off = useQuery({ queryKey: ['menu-official'], queryFn: () => get<Official>('/api/menu/official') });
+  if (!off.data) return null;
+  const n = off.data.categories.reduce((a, c) => a + c.products.length, 0);
+  return (
+    <>
+      <div className="official-banner">
+        <div>
+          <b>Cardápio do Bar do Guto</b> — {n} itens em {off.data.categories.length} categorias, com os preços das artes enviadas.
+          <br />
+          <small className="muted">Confira os preços e importe. Pode importar de novo depois: não duplica nada.</small>
+        </div>
+        <Button variant="primary" onClick={() => setOpen(true)}>Conferir e importar</Button>
+      </div>
+      {open && <OfficialImport data={off.data} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+function OfficialImport({ data, onClose }: { data: Official; onClose: () => void }) {
+  const qc = useQueryClient();
+  const ui = useUi();
+  const [archive, setArchive] = useState(true);
+  const [store, setStore] = useState(true);
+  const [result, setResult] = useState<any | null>(null);
+  const { busy, go } = useAction();
+  if (result)
+    return (
+      <Modal title="Cardápio importado" onClose={onClose} footer={<Button variant="primary" onClick={onClose}>Concluir</Button>}>
+        <p><b>{result.created.length}</b> produtos criados e <b>{result.updated.length}</b> atualizados com os preços do cardápio.</p>
+        {result.archived.length > 0 && <p>Tirados de venda (exemplo): {result.archived.join(', ')}.</p>}
+        {result.kept.length > 0 && <p>Continuam à venda (cadastrados por vocês, fora do cardápio): <b>{result.kept.join(', ')}</b>. Se algum repetir um item do cardápio, arquive-o.</p>}
+        {result.codesSkipped.length > 0 && <p>Códigos não aplicados: {result.codesSkipped.join('; ')}.</p>}
+        {result.storeUpdated && <p>Telefone e endereço da loja atualizados (aparecem na nota).</p>}
+        <p className="muted">Já aparece no PDV, nas mesas e nos celulares. Ingredientes por lanche (ficha técnica) não estão nas artes: cadastre em cada produto se quiser baixar estoque.</p>
+      </Modal>
+    );
+  return (
+    <Modal
+      title="Conferir o cardápio antes de importar"
+      onClose={onClose}
+      className="official-modal"
+      footer={
+        <>
+          <Button onClick={onClose}>Cancelar</Button>
+          <Button
+            variant="primary"
+            busy={busy}
+            onClick={() =>
+              go(async () => {
+                const r = await post('/api/menu/import-official', { archiveExamples: archive, updateStore: store });
+                await Promise.all([qc.invalidateQueries({ queryKey: ['menu'] }), qc.invalidateQueries({ queryKey: ['settings'] }), qc.invalidateQueries({ queryKey: ['groups'] }), qc.invalidateQueries({ queryKey: ['stock'] })]);
+                setResult(r);
+                ui.toast('Cardápio importado', 'ok');
+              })
+            }
+          >
+            Importar cardápio
+          </Button>
+        </>
+      }
+    >
+      <div className="official-opts">
+        <label className="check"><input type="checkbox" checked={archive} onChange={(e) => setArchive(e.target.checked)} /> <span>Tirar de venda os produtos e adicionais de <b>exemplo</b> (X-Bacon, Batata frita, Combo… com preços inventados)</span></label>
+        <label className="check"><input type="checkbox" checked={store} onChange={(e) => setStore(e.target.checked)} /> <span>Usar telefone e endereço do cardápio na nota: {data.store.storePhone} · {data.store.storeAddress}</span></label>
+      </div>
+      <p className="muted" style={{ margin: '6px 0' }}>Hambúrgueres ganham as opções gratuitas: {data.removals.join(', ')}. Não há adicionais pagos nas artes.</p>
+      <div className="official-list">
+        {data.categories.map((c) => (
+          <section key={c.name}>
+            <h3>{c.name} <small className="muted">· {c.sendToKitchen ? 'vai para a cozinha' : 'não vai para a cozinha'}</small></h3>
+            <table className="table">
+              <tbody>
+                {c.products.map((p) => (
+                  <tr key={p.name}>
+                    <td className="num muted" style={{ width: 40 }}>{p.code}</td>
+                    <td><b>{p.name}</b>{p.description && <><br /><small className="muted">{p.description}</small></>}</td>
+                    <td className="right num" style={{ whiteSpace: 'nowrap' }}>
+                      {p.variants.map((v) => <div key={v.name}>{v.name !== 'Único' ? `${v.name} ` : ''}<b>{formatBRL(v.priceCents)}</b></div>)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ))}
+      </div>
+    </Modal>
   );
 }

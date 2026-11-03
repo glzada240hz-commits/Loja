@@ -7,6 +7,7 @@ import { randomToken } from '../lib/crypto.js';
 import { badRequest, forbidden } from '../lib/errors.js';
 import { can } from '@guto/core';
 import * as menu from '../services/menu.js';
+import { OFFICIAL_MENU, OFFICIAL_MENU_VERSION, OFFICIAL_REMOVALS, OFFICIAL_STORE } from '../db/cardapio-oficial.js';
 import * as stock from '../services/stock.js';
 import { cents, idParam, uuid } from './schemas.js';
 
@@ -77,6 +78,16 @@ export async function menuRoutes(app: FastifyInstance) {
   });
 
   app.delete('/api/menu/products/:id/image', async (req) => menu.setProductImage(app.ctx(req), idParam.parse(req.params).id, null));
+
+  // cardápio oficial do Bar do Guto: prévia e importação (botão em Cardápio)
+  app.get('/api/menu/official', async (req) => {
+    requirePerm(app.ctx(req).actor, 'menu.manage');
+    return { version: OFFICIAL_MENU_VERSION, store: OFFICIAL_STORE, removals: OFFICIAL_REMOVALS, categories: OFFICIAL_MENU };
+  });
+  app.post('/api/menu/import-official', async (req) => {
+    const body = z.object({ archiveExamples: z.boolean().default(true), updateStore: z.boolean().default(true) }).parse(req.body ?? {});
+    return menu.importOfficialMenu(app.ctx(req), body);
+  });
 
   app.get('/api/menu/groups', async (req) => {
     const ctx = app.ctx(req);

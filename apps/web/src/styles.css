@@ -965,3 +965,11 @@ button.conn { cursor: pointer; font-family: inherit; }
 /* estoque: pôr item à venda */
 .sell-toggle { margin-top: 6px; align-items: flex-start; }
 .sell-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 8px; background: var(--surface-2, #fafafa); }
+
+/* cardápio oficial */
+.official-banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 1px solid #fed7aa; background: #fff7ed; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+.official-modal { width: min(760px, 96vw); }
+.official-opts { display: grid; gap: 6px; }
+.official-list { max-height: 52vh; overflow: auto; border-top: 1px solid var(--line); margin-top: 6px; }
+.official-list h3 { margin: 12px 0 4px; font-size: var(--fs-md); }
+.official-list .table td { padding: 6px 8px; vertical-align: top; }
