@@ -11,50 +11,9 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { get } from './api';
 
-export interface PrintItem {
-  productName: string;
-  variantName: string | null;
-  quantity: number;
-  notes: string | null;
-  status: string;
-  comboComponents: unknown;
-  options: { name: string; group?: string; quantity: number }[];
-}
-export interface PrintTicket {
-  id: string;
-  round: number;
-  status: string;
-  createdAt: string;
-  changedAt: string | null;
-  changeNote: string | null;
-  orderNumber: number;
-  orderStatus: string;
-  place: string;
-  createdByName: string | null;
-  customerName: string | null;
-  orderNotes: string | null;
-  items: PrintItem[];
-}
-export type PrintKind = 'novo' | 'alterado' | 'cancelado';
-export type PrintedMap = Record<string, { at: number; changedAt: string | null; cancelled?: boolean }>;
-
-/** O que falta imprimir, na ordem de chegada. Função pura (testada). */
-export function pendingPrints(tickets: PrintTicket[], printed: PrintedMap, since: number): { ticket: PrintTicket; kind: PrintKind }[] {
-  const out: { ticket: PrintTicket; kind: PrintKind }[] = [];
-  for (const t of [...tickets].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
-    const p = printed[t.id];
-    if (t.orderStatus === 'cancelled') {
-      if (p && !p.cancelled) out.push({ ticket: t, kind: 'cancelado' });
-      continue;
-    }
-    if (!p) {
-      if (Date.parse(t.createdAt) >= since && (t.status === 'received' || t.status === 'preparing')) out.push({ ticket: t, kind: 'novo' });
-      continue;
-    }
-    if (t.changedAt && t.changedAt !== p.changedAt && t.status !== 'ready') out.push({ ticket: t, kind: 'alterado' });
-  }
-  return out;
-}
+import { pendingPrints, testTicket, type PrintKind, type PrintTicket, type PrintedMap } from '@guto/core';
+export { pendingPrints, testTicket };
+export type { PrintKind, PrintTicket, PrintedMap };
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
@@ -193,13 +152,6 @@ export function printHtml(html: string): Promise<void> {
   });
 }
 
-/** Folha de teste para conferir a impressora. */
-export const testTicket = (): PrintTicket => ({
-  id: 'teste', round: 1, status: 'received', createdAt: new Date().toISOString(), changedAt: null, changeNote: null,
-  orderNumber: 0, orderStatus: 'open', place: 'Teste de impressão', createdByName: null, customerName: null,
-  orderNotes: 'Se esta folha saiu, a impressão da cozinha está funcionando.',
-  items: [{ productName: 'X-Burguer', variantName: null, quantity: 1, notes: 'sem cebola', status: 'active', comboComponents: null, options: [{ name: 'Bacon', quantity: 1 }] }],
-});
 
 /**
  * Estação de impressão: roda enquanto este aparelho estiver marcado e o usuário puder ver a cozinha.

@@ -38,6 +38,11 @@ podem ser usadas juntas:
    - Liga/desliga **por aparelho**: só esse computador imprime. Mesmo com várias janelas abertas, só uma
      imprime. O que já existia antes de ligar não é impresso de novo.
    - Se a rede oscilar, o sistema confere a fila a cada 20 s e imprime o que faltou.
+   **Duas impressoras (caixa e cozinha):** deixe a do **caixa** como impressora padrão do Windows (nota do
+   cliente) e, em *Celulares e cozinha → Impressora da cozinha*, escolha a da **cozinha** na lista e clique em
+   **Usar esta impressora** e **Imprimir teste na cozinha**. A partir daí a via da cozinha é impressa pelo
+   aplicativo Bar do Guto direto nessa impressora (fila em ; o
+   resultado da última impressão aparece na tela; vias que falharem 3 vezes vão para ).
 2. **Tela** — tablet ou celular na cozinha com usuário de perfil **Cozinha** (QR na mesma página):
    fila na ordem de chegada, som a cada pedido, botões *Iniciar preparo* e *Pronto* (o atendente é avisado).
 

@@ -42,7 +42,7 @@ test.describe.serial('Atendente + caixa + cozinha em três aparelhos simultâneo
     await caixa.goto('/celulares');
     await expect(caixa.getByRole('img', { name: /QR code: http:\/\/.*\/atendente/ })).toBeVisible();
     await caixa.getByRole('button', { name: 'Ligar impressão neste computador' }).click();
-    await expect(caixa.getByText('Ligada neste computador')).toBeVisible();
+    await expect(caixa.getByText('Imprimindo na impressora padrão deste computador')).toBeVisible();
     await caixa.goto('/mesas');
     await expect(caixa.getByRole('link', { name: /Impressora cozinha/ })).toBeVisible();
     await cozinha.goto('/cozinha');

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { randomToken } from '../lib/crypto.js';
 import { badRequest } from '../lib/errors.js';
 import { imageExt } from './menu.js';
+import { queueTestPrint, readPrinterInfo } from '../services/kitchenPrintAgent.js';
 import { ROLES } from '@guto/core';
 import { requirePerm } from '../lib/context.js';
 import * as admin from '../services/admin.js';
@@ -70,6 +71,33 @@ export async function adminRoutes(app: FastifyInstance) {
     const pub = app.deps.config.PUBLIC_BASE_URL;
     const urls = [...new Set([...lan.map((ip) => `http://${ip}:${port}`), ...(pub && !/localhost|127\.0\.0\.1/.test(pub) ? [pub.replace(/\/$/, '')] : [])])];
     return { urls };
+  });
+
+  // impressora da cozinha (duas impressoras: a via da cozinha sai pelo BarDoGuto.exe na impressora escolhida)
+  app.get('/api/system/printers', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'cash.open');
+    const s = await getSettings(ctx.db);
+    return { enabled: !!app.deps.config.PRINT_DIR, kitchenPrinter: s.kitchenPrinterName, ...readPrinterInfo(app.deps.config.PRINT_DIR) };
+  });
+  app.post('/api/system/kitchen-printer', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'cash.open');
+    const body = z.object({ name: z.string().max(200) }).parse(req.body);
+    const s = await updateSettings(ctx.db, { kitchenPrinterName: body.name.trim() }, ctx.actor.userId);
+    await audit(ctx.db, ctx.actor, 'settings.kitchen_printer', 'settings', 'store', { name: s.kitchenPrinterName });
+    ctx.bus.publish({ type: 'menu.changed' }); // aparelhos atualizam (e a impressão pelo navegador desliga)
+    return { kitchenPrinter: s.kitchenPrinterName };
+  });
+  app.post('/api/system/printers/test', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'cash.open');
+    const dir = app.deps.config.PRINT_DIR;
+    const s = await getSettings(ctx.db);
+    if (!dir) throw badRequest('Impressão por impressora escolhida só funciona no aplicativo da loja (Windows)');
+    if (!s.kitchenPrinterName) throw badRequest('Escolha a impressora da cozinha primeiro');
+    queueTestPrint(dir, s.kitchenPrinterName, s.printWidth);
+    return { ok: true };
   });
 
   // ---------- usuários ----------

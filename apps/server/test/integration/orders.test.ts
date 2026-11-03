@@ -480,3 +480,48 @@ describe('autorização do gerente', () => {
     expect(ok.body.status).toBe('cancelled');
   });
 });
+
+describe('impressora da cozinha escolhida (fila para o BarDoGuto.exe)', () => {
+  it('cada envio vira um arquivo para a impressora da cozinha, uma vez; cancelado avisa; o que existia antes não', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { startKitchenPrintAgent, readPrinterInfo } = await import('../../src/services/kitchenPrintAgent.js');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guto-print-'));
+    const jobs = () => (fs.existsSync(path.join(dir, 'fila')) ? fs.readdirSync(path.join(dir, 'fila')).sort().map((f) => fs.readFileSync(path.join(dir, 'fila', f), 'utf8')) : []);
+    const agent = startKitchenPrintAgent(h.deps, dir, { warn: () => undefined });
+    try {
+      // pedido feito antes de escolher a impressora: não imprime
+      await caixa.post('/api/orders', { type: 'counter', send: true, items: [{ variantId: m.variant('X-Burguer'), quantity: 1 }] }, { 'idempotency-key': idemKey() });
+      expect((await caixa.post('/api/system/kitchen-printer', { name: 'ELGIN i9 Cozinha' })).status).toBe(200);
+      await agent.check();
+      expect(jobs()).toHaveLength(0);
+
+      const o = await caixa.post('/api/orders', { type: 'table', tableLabel: '4', send: true, items: [{ variantId: m.variant('X-Tudo'), quantity: 2, notes: 'bem passado' }] }, { 'idempotency-key': idemKey() });
+      await agent.check();
+      await agent.check(); // conferir de novo não duplica
+      const [job] = jobs();
+      expect(jobs()).toHaveLength(1);
+      expect(job).toContain('IMPRESSORA\tELGIN i9 Cozinha');
+      expect(job).toContain('T\tNOVO PEDIDO');
+      expect(job).toContain(`B\t#${o.body.number}`);
+      expect(job).toContain('P\tMESA 4');
+      expect(job).toContain('I\t2x X-Tudo');
+      expect(job).toContain('M\tOBS: bem passado');
+      expect(job).not.toMatch(/R\$/);
+
+      await caixa.post(`/api/orders/${o.body.id}/cancel`, { version: o.body.version, reason: 'Teste', supervisor: { username: 'gerente', password: 'demo1234' } });
+      await agent.check();
+      expect(jobs()).toHaveLength(2);
+      expect(jobs()[1]).toContain('T\tCANCELADO — NÃO FAZER');
+
+      // o aplicativo informa impressoras e resultado
+      fs.writeFileSync(path.join(dir, 'impressoras.txt'), 'PADRAO\tEPSON Caixa\r\nIMPRESSORA\tEPSON Caixa\r\nIMPRESSORA\tELGIN i9 Cozinha\r\n');
+      fs.writeFileSync(path.join(dir, 'estado.txt'), 'OK\t2026-11-03T20:00:00Z\tPedido #2');
+      expect(readPrinterInfo(dir)).toMatchObject({ agent: true, defaultPrinter: 'EPSON Caixa', printers: ['EPSON Caixa', 'ELGIN i9 Cozinha'], last: { ok: true } });
+    } finally {
+      agent.stop();
+      await caixa.post('/api/system/kitchen-printer', { name: '' });
+    }
+  });
+});

@@ -7,12 +7,15 @@
 //    --kiosk-printing: imprime direto na impressora padrão, sem diálogo (nota e pedidos da cozinha);
 //  - fica como ícone perto do relógio: abrir, endereço para celulares, cópias de segurança, registro, encerrar;
 //  - uma única cópia aberta; abrir de novo só traz a janela; "--encerrar" fecha com segurança (instalador/testes);
-//  - registro do funcionamento em <dados>\registros (para suporte), sem senhas.
+//  - registro do funcionamento em <dados>\registros (para suporte), sem senhas;
+//  - impressora da cozinha: imprime a fila <dados>\impressao\fila na impressora escolhida (duas impressoras:
+//    a nota sai na padrão do Windows pelo navegador; a via da cozinha sai aqui, na impressora pelo nome).
 // Compilado com o csc do .NET Framework (C# 5): csc /target:winexe /win32icon:BarDoGuto.ico BarDoGuto.cs
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -190,6 +193,7 @@ class AppLoja : ApplicationContext
         espera.IsBackground = true;
         espera.Start();
         SystemEvents.SessionEnding += delegate { Registrar("Windows encerrando a sessão."); EncerrarSistema(); };
+        new ImpressoraCozinha(Path.Combine(pastaDados, "impressao"), Registrar).Iniciar();
         return true;
     }
 
@@ -694,5 +698,203 @@ class TelaPrimeiraAbertura : Form
         Exemplo = exemplo.Checked;
         DialogResult = DialogResult.OK;
         Close();
+    }
+}
+
+/// Imprime as vias da cozinha deixadas pelo servidor em <dados>\impressao\fila na impressora indicada em cada
+/// arquivo (pelo nome do Windows). Informa as impressoras instaladas (impressoras.txt) e o resultado (estado.txt).
+class ImpressoraCozinha
+{
+    readonly string pasta;
+    readonly Action<string> log;
+    readonly Dictionary<string, int> falhas = new Dictionary<string, int>();
+
+    public ImpressoraCozinha(string pasta, Action<string> log)
+    {
+        this.pasta = pasta;
+        this.log = log;
+    }
+
+    public void Iniciar()
+    {
+        Thread t = new Thread(Laco);
+        t.IsBackground = true;
+        t.Start();
+    }
+
+    void Laco()
+    {
+        DateTime ultimaLista = DateTime.MinValue;
+        for (;;)
+        {
+            try
+            {
+                if ((DateTime.Now - ultimaLista).TotalSeconds >= 60)
+                {
+                    GravarImpressoras();
+                    ultimaLista = DateTime.Now;
+                }
+                string fila = Path.Combine(pasta, "fila");
+                if (Directory.Exists(fila))
+                {
+                    string[] arqs = Directory.GetFiles(fila, "*.txt");
+                    Array.Sort(arqs, StringComparer.Ordinal);
+                    foreach (string a in arqs) Processar(a);
+                }
+            }
+            catch (Exception e) { log("Impressão da cozinha: " + e.Message); }
+            Thread.Sleep(1000);
+        }
+    }
+
+    void GravarImpressoras()
+    {
+        StringBuilder sb = new StringBuilder();
+        try
+        {
+            string padrao = new PrinterSettings().PrinterName;
+            if (!string.IsNullOrEmpty(padrao)) sb.Append("PADRAO\t").Append(padrao).Append("\r\n");
+        }
+        catch { }
+        foreach (string p in PrinterSettings.InstalledPrinters) sb.Append("IMPRESSORA\t").Append(p).Append("\r\n");
+        Directory.CreateDirectory(pasta);
+        string f = Path.Combine(pasta, "impressoras.txt");
+        File.WriteAllText(f + ".tmp", sb.ToString(), new UTF8Encoding(false));
+        if (File.Exists(f)) File.Delete(f);
+        File.Move(f + ".tmp", f);
+    }
+
+    void Estado(bool ok, string msg)
+    {
+        try
+        {
+            string limpo = (msg ?? "").Replace("\t", " ").Replace("\r", " ").Replace("\n", " ");
+            File.WriteAllText(Path.Combine(pasta, "estado.txt"), (ok ? "OK" : "ERRO") + "\t" + DateTime.UtcNow.ToString("o") + "\t" + limpo, new UTF8Encoding(false));
+        }
+        catch { }
+    }
+
+    void Processar(string arq)
+    {
+        string[] linhas;
+        try { linhas = File.ReadAllLines(arq, Encoding.UTF8); }
+        catch { return; } // ainda sendo gravado: tenta no próximo ciclo
+        string impressora = "";
+        int largura = 80;
+        List<string[]> corpo = new List<string[]>();
+        foreach (string l in linhas)
+        {
+            string[] p = l.Split(new char[] { '\t' }, 2);
+            if (p.Length < 2) continue;
+            string k = p[0].Trim('\uFEFF', ' ');
+            if (k == "IMPRESSORA") impressora = p[1];
+            else if (k == "LARGURA") int.TryParse(p[1], out largura);
+            else corpo.Add(new string[] { k, p[1] });
+        }
+        string desc = Descricao(corpo);
+        try
+        {
+            Imprimir(impressora, largura, corpo, Path.GetFileNameWithoutExtension(arq));
+            File.Delete(arq);
+            falhas.Remove(arq);
+            Estado(true, desc);
+            log("Cozinha: " + desc + " impresso em " + impressora);
+        }
+        catch (Exception e)
+        {
+            int n;
+            falhas.TryGetValue(arq, out n);
+            n++;
+            falhas[arq] = n;
+            Estado(false, "Impressora \"" + impressora + "\": " + e.Message);
+            log("Cozinha: falha ao imprimir " + desc + " em " + impressora + " (tentativa " + n + "): " + e.Message);
+            if (n >= 3)
+            {
+                // não trava a fila: guarda para conferência
+                string erros = Path.Combine(pasta, "erros");
+                Directory.CreateDirectory(erros);
+                try { File.Move(arq, Path.Combine(erros, Path.GetFileName(arq))); } catch { }
+                falhas.Remove(arq);
+            }
+            else Thread.Sleep(2000);
+        }
+    }
+
+    static string Descricao(List<string[]> corpo)
+    {
+        foreach (string[] l in corpo) if (l[0] == "B") return "pedido " + l[1];
+        return "teste";
+    }
+
+    void Imprimir(string impressora, int largura, List<string[]> corpo, string nome)
+    {
+        using (PrintDocument doc = new PrintDocument())
+        {
+            doc.PrintController = new StandardPrintController(); // sem janela "Imprimindo..."
+            doc.DocumentName = "Bar do Guto - cozinha";
+            if (!string.IsNullOrEmpty(impressora)) doc.PrinterSettings.PrinterName = impressora;
+            if (!doc.PrinterSettings.IsValid) throw new Exception("impressora não encontrada");
+            // impressoras de arquivo (testes): grava sem perguntar o nome do arquivo
+            if (impressora.StartsWith("Microsoft Print to PDF") || impressora.StartsWith("Microsoft XPS"))
+            {
+                string d = Path.Combine(pasta, "arquivos");
+                Directory.CreateDirectory(d);
+                doc.PrinterSettings.PrintToFile = true;
+                doc.PrinterSettings.PrintFileName = Path.Combine(d, nome + (impressora.Contains("PDF") ? ".pdf" : ".xps"));
+            }
+            doc.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
+            int i = 0;
+            bool estreita = largura == 58;
+            Font fTitulo = new Font("Arial", estreita ? 9f : 11f, FontStyle.Bold);
+            Font fGrande = new Font("Arial", estreita ? 24f : 30f, FontStyle.Bold);
+            Font fLocal = new Font("Arial", estreita ? 13f : 16f, FontStyle.Bold);
+            Font fCentro = new Font("Arial", estreita ? 8f : 9f, FontStyle.Regular);
+            Font fItem = new Font("Arial", estreita ? 10f : 12f, FontStyle.Bold);
+            Font fMod = new Font("Arial", estreita ? 9f : 10f, FontStyle.Regular);
+            try
+            {
+                doc.PrintPage += delegate(object s, PrintPageEventArgs e)
+                {
+                    Graphics g = e.Graphics;
+                    // largura útil da bobina (1/100 pol): 80 mm ≈ 72 mm imprimíveis; 58 mm ≈ 48 mm
+                    float util = (estreita ? 48f : 72f) / 25.4f * 100f;
+                    float w = Math.Min(util, e.PageBounds.Width) - 4f;
+                    float x = 2f, y = 2f, limite = e.PageBounds.Height - 6f;
+                    StringFormat centro = new StringFormat();
+                    centro.Alignment = StringAlignment.Center;
+                    StringFormat esq = new StringFormat();
+                    Pen tracejado = new Pen(Color.Black, 1f);
+                    tracejado.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                    while (i < corpo.Count)
+                    {
+                        string k = corpo[i][0], t = corpo[i][1];
+                        Font f = k == "T" ? fTitulo : k == "B" ? fGrande : k == "P" ? fLocal : k == "C" ? fCentro : k == "I" ? fItem : fMod;
+                        float recuo = k == "M" ? 10f : 0f;
+                        StringFormat fmt = (k == "T" || k == "B" || k == "P" || k == "C") ? centro : esq;
+                        float h = k == "R" ? 8f : g.MeasureString(t, f, (int)(w - recuo), fmt).Height + (k == "T" ? 6f : k == "I" ? 3f : 1f);
+                        if (y + h > limite && y > 20f)
+                        {
+                            e.HasMorePages = true;
+                            return;
+                        }
+                        if (k == "R") g.DrawLine(tracejado, x, y + 4f, x + w, y + 4f);
+                        else
+                        {
+                            RectangleF r = new RectangleF(x + recuo, y + (k == "T" ? 3f : 0f), w - recuo, h);
+                            g.DrawString(t, f, Brushes.Black, r, fmt);
+                            if (k == "T") g.DrawRectangle(Pens.Black, x, y, w, h);
+                        }
+                        y += h;
+                        i++;
+                    }
+                    e.HasMorePages = false;
+                };
+                doc.Print();
+            }
+            finally
+            {
+                fTitulo.Dispose(); fGrande.Dispose(); fLocal.Dispose(); fCentro.Dispose(); fItem.Dispose(); fMod.Dispose();
+            }
+        }
     }
 }

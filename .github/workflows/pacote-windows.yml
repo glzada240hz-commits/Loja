@@ -53,7 +53,7 @@ jobs:
           & $csc.FullName /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 /r:System.Windows.Forms.dll /r:System.Drawing.dll "/win32icon:deploy\windows\BarDoGuto.ico" "/out:dist-windows\BarDoGuto\BarDoGuto.exe" deploy\windows\BarDoGuto.cs
           if ($LASTEXITCODE -ne 0) { throw "falha ao compilar o lançador" }
 
-      - name: Teste no Windows — aplicativo sem console, primeira abertura, login, pedido, encerramento seguro, reabertura e cópia de segurança
+      - name: Teste no Windows — aplicativo sem console, primeira abertura, login, pedido, impressora da cozinha, encerramento seguro, reabertura e cópia de segurança
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -104,6 +104,33 @@ jobs:
           $body = @{ type = 'counter'; send = $true; items = @(@{ variantId = $variant; quantity = 2 }) } | ConvertTo-Json -Depth 5
           $pedido = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/orders -Headers ($h + @{ 'idempotency-key' = [guid]::NewGuid().ToString() }) -WebSession $s -ContentType 'application/json' -Body $body
           Write-Host "Pedido #$($pedido.number) total $($pedido.totalCents) centavos"
+          # duas impressoras: a via da cozinha sai pelo BarDoGuto.exe na impressora escolhida (aqui: Microsoft Print to PDF)
+          $listaImp = Get-Content (Join-Path $dados 'impressao\impressoras.txt') -ErrorAction SilentlyContinue
+          Write-Host 'Impressoras vistas pelo aplicativo:'; $listaImp
+          if (-not $listaImp) { Show-Registro; throw 'o aplicativo não listou as impressoras' }
+          $pdfLinha = $listaImp | Where-Object { $_ -like 'IMPRESSORA*Microsoft Print to PDF*' } | Select-Object -First 1
+          if ($pdfLinha) {
+            $pdfNome = $pdfLinha.Split("`t")[1]
+            Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/system/kitchen-printer -Headers $h -WebSession $s -ContentType 'application/json' -Body (@{ name = $pdfNome } | ConvertTo-Json) | Out-Null
+            Start-Sleep -Seconds 2
+            $menu2 = Invoke-RestMethod -Uri http://127.0.0.1:3500/api/menu -WebSession $s
+            $cozinhaCat = $menu2 | Where-Object { $_.sendToKitchen } | Select-Object -First 1
+            $bodyK = @{ type = 'table'; tableLabel = '7'; send = $true; items = @(@{ variantId = $cozinhaCat.products[0].variants[0].id; quantity = 1 }) } | ConvertTo-Json -Depth 5
+            $pk = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/orders -Headers ($h + @{ 'idempotency-key' = [guid]::NewGuid().ToString() }) -WebSession $s -ContentType 'application/json' -Body $bodyK
+            $arqs = $null
+            for ($i = 0; $i -lt 45; $i++) {
+              $arqs = Get-ChildItem (Join-Path $dados 'impressao\arquivos') -Filter *.pdf -ErrorAction SilentlyContinue
+              if ($arqs) { break }
+              Start-Sleep -Seconds 1
+            }
+            if (-not $arqs) { Get-Content (Join-Path $dados 'impressao\estado.txt') -ErrorAction SilentlyContinue; Show-Registro; throw 'a via da cozinha não foi impressa na impressora escolhida' }
+            Write-Host "OK: via da cozinha do pedido #$($pk.number) impressa em '$pdfNome': $($arqs[0].Name) ($($arqs[0].Length) bytes)"
+            Get-Content (Join-Path $dados 'impressao\estado.txt')
+            Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3500/api/system/kitchen-printer -Headers $h -WebSession $s -ContentType 'application/json' -Body '{"name":""}' | Out-Null
+          } else {
+            Write-Warning 'Microsoft Print to PDF não existe neste Windows: a impressão na impressora escolhida não foi testada aqui'
+          }
+
           $html = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3500/).Content
           if ($html -notlike '*Bar do Guto*') { throw 'interface não carregou' }
           # abrir de novo não cria segunda cópia: só pede para mostrar a janela e sai

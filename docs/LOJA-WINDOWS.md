@@ -17,7 +17,10 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+504501f9`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-504501f9
+- **`0.2.0+eb149b04`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-eb149b04
+  (`BarDoGuto-Instalador-0.2.0-eb149b04.exe`). **Duas impressoras**: em *Celulares e cozinha* escolhe-se a
+  **impressora da cozinha** (a via sai nela pelo aplicativo do Windows); a nota sai na impressora padrão (caixa).
+- `0.2.0+504501f9` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-504501f9
   (`BarDoGuto-Instalador-0.2.0-504501f9.exe`). Corrige: nas janelas (cadastro de usuário, autorização do gerente ao
   cancelar…) o cursor voltava ao primeiro campo a cada tecla; senha errada do gerente deslogava o caixa.
 - `0.2.0+481cf00f` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-481cf00f

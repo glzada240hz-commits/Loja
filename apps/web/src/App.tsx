@@ -45,9 +45,11 @@ function KitchenPrinterStation() {
   const brand = useBrand();
   const loc = useLocation();
   useEffect(() => {
-    if (brand.data && can('kitchen.view')) autoEnableOnStoreComputer(!!brand.data.storeMode);
-  }, [brand.data, can]);
-  useKitchenPrinterStation(can('kitchen.view') && !loc.pathname.startsWith('/imprimir'), s.data?.printWidth ?? 80);
+    if (brand.data && s.data && !s.data.kitchenPrinterName && can('kitchen.view')) autoEnableOnStoreComputer(!!brand.data.storeMode);
+  }, [brand.data, s.data, can]);
+  // com impressora da cozinha escolhida, quem imprime é o aplicativo do Windows (não o navegador)
+  const agent = !!s.data?.kitchenPrinterName;
+  useKitchenPrinterStation(!agent && can('kitchen.view') && !loc.pathname.startsWith('/imprimir'), s.data?.printWidth ?? 80);
   return null;
 }
 

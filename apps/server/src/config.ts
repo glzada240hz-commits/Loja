@@ -26,6 +26,8 @@ const schema = z.object({
   OFFICIAL_MENU_AUTO: z.enum(['0', '1']).default('0'),
   /** modo loja (instalador do Windows): o computador do sistema imprime os pedidos da cozinha sem configurar */
   STORE_MODE: z.enum(['0', '1']).default('0'),
+  /** pasta da fila de impressão da cozinha lida pelo BarDoGuto.exe (duas impressoras); vazio = desligado */
+  PRINT_DIR: z.string().optional(),
   /** tentativas de login por minuto por IP */
   LOGIN_RATE_LIMIT: z.coerce.number().int().min(1).default(10),
   /** pedidos pelo cardápio digital a cada 5 minutos por IP */

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChefHat, Printer, Smartphone, Wifi } from 'lucide-react';
 import { Layout } from '../components/Layout';
-import { Alert, Button, Loading, useUi } from '../components/ui';
+import { Alert, Button, Field, Loading, useAction, useUi } from '../components/ui';
+import { post } from '../lib/api';
 import { get } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { printHtml, setKitchenPrinting, testTicket, ticketHtml, useKitchenPrinterStatus } from '../lib/kitchenPrinter';
@@ -24,10 +25,8 @@ function Qr({ text, size = 180 }: { text: string; size?: number }) {
 /** Colocar os atendentes no celular e fazer os pedidos saírem na cozinha (tela ou impressora). */
 export default function Phones() {
   const { can } = useAuth();
-  const ui = useUi();
   const settings = useSettings();
   const width = settings.data?.printWidth ?? 80;
-  const printer = useKitchenPrinterStatus();
   const addr = useQuery({ queryKey: ['addresses'], queryFn: () => get<{ urls: string[] }>('/api/system/addresses') });
   const users = useQuery({ queryKey: ['users'], queryFn: () => get<{ id: string; name: string; username: string; role: string; active: boolean }[]>('/api/users'), enabled: can('users.manage') });
   const [pick, setPick] = useState(0);
@@ -96,33 +95,7 @@ export default function Phones() {
           <h2 className="hstack" style={{ gap: 8 }}><ChefHat size={20} aria-hidden /> Pedidos saindo na cozinha</h2>
           <p>Tudo o que os atendentes enviam vai para a cozinha na hora. Escolha uma ou as duas formas:</p>
           <div className="kopts">
-            <div className="kopt">
-              <h3>1. Impressora (papel)</h3>
-              <p>Este computador imprime cada pedido assim que é enviado: número, mesa, itens, observações e atendente. Acréscimos saem como <b>ACRÉSCIMO</b>; alterações como <b>ALTERADO</b>; pedidos cancelados como <b>CANCELADO</b>.</p>
-              <div className={'kprint-state ' + (printer.on ? (printer.active ? 'on' : 'wait') : 'off')} role="status">
-                {printer.on ? (printer.active ? 'Ligada neste computador' : 'Ligada (outra janela deste computador está imprimindo)') : 'Desligada neste computador'}
-                {printer.last && <small> · último: {printer.last}</small>}
-                {printer.error && <small className="err"> · {printer.error}</small>}
-              </div>
-              <div className="hstack" style={{ gap: 8, flexWrap: 'wrap' }}>
-                <Button
-                  variant={printer.on ? 'ghost' : 'primary'}
-                  icon={Printer}
-                  onClick={() => {
-                    setKitchenPrinting(!printer.on);
-                    ui.toast(printer.on ? 'Impressão da cozinha desligada neste computador' : 'Impressão da cozinha ligada: os próximos pedidos saem na impressora', 'ok');
-                  }}
-                >
-                  {printer.on ? 'Desligar impressão aqui' : 'Ligar impressão neste computador'}
-                </Button>
-                <Button onClick={() => void printHtml(ticketHtml(testTicket(), 'novo', width))}>Imprimir teste</Button>
-              </div>
-              <small className="muted">
-                No aplicativo Bar do Guto (Windows), o computador da loja já vem com a impressão <b>ligada</b> e imprime direto, sem
-                perguntar, na <b>impressora padrão</b> do Windows (deixe a térmica como padrão). O sistema precisa ficar aberto nele.
-                Em outro computador, ligue aqui só se ele tiver a impressora.
-              </small>
-            </div>
+            <KitchenPrinterBox width={width} />
             <div className="kopt">
               <h3>2. Tela (tablet ou celular na cozinha)</h3>
               {base ? (
@@ -139,5 +112,87 @@ export default function Phones() {
         </section>
       </div>
     </Layout>
+  );
+}
+
+interface PrintersInfo {
+  enabled: boolean;
+  agent: boolean;
+  kitchenPrinter: string;
+  printers: string[];
+  defaultPrinter: string | null;
+  last: { ok: boolean; at: string; message: string } | null;
+}
+
+/**
+ * Impressora da cozinha. Com o aplicativo da loja (Windows), escolhe-se a impressora pelo nome e a via da cozinha
+ * sai nela (a nota continua na impressora padrão = caixa). Sem escolher, imprime pelo navegador na padrão.
+ */
+function KitchenPrinterBox({ width }: { width: number }) {
+  const qc = useQueryClient();
+  const ui = useUi();
+  const { busy, go } = useAction();
+  const printer = useKitchenPrinterStatus();
+  const info = useQuery({ queryKey: ['printers'], queryFn: () => get<PrintersInfo>('/api/system/printers'), refetchInterval: 10_000 });
+  const [pick, setPick] = useState<string | null>(null);
+  const d = info.data;
+  const chosen = d?.kitchenPrinter ?? '';
+  const sel = pick ?? chosen;
+  const save = (name: string) =>
+    go(async () => {
+      await post('/api/system/kitchen-printer', { name });
+      await Promise.all([qc.invalidateQueries({ queryKey: ['printers'] }), qc.invalidateQueries({ queryKey: ['settings'] })]);
+      setPick(null);
+    }, { success: name ? `Via da cozinha vai sair em: ${name}` : 'Via da cozinha volta para a impressora padrão' });
+  return (
+    <div className="kopt">
+      <h3>1. Impressora (papel)</h3>
+      <p>Cada pedido enviado sai impresso na hora: número, mesa, itens, observações e atendente. Acréscimos saem como <b>ACRÉSCIMO</b>; alterações como <b>ALTERADO</b>; cancelados como <b>CANCELADO</b>.</p>
+      {d?.enabled ? (
+        <>
+          <Field label="Impressora da cozinha" hint={d.agent ? `Nota do cliente sai na impressora padrão do Windows${d.defaultPrinter ? ` (${d.defaultPrinter})` : ''} — deixe a do caixa como padrão.` : undefined}>
+            <select value={sel} onChange={(e) => setPick(e.target.value)}>
+              <option value="">Mesma impressora do caixa (padrão do Windows)</option>
+              {(d.printers.length ? d.printers : chosen ? [chosen] : []).map((p) => <option key={p} value={p}>{p}{p === d.defaultPrinter ? ' (padrão)' : ''}</option>)}
+            </select>
+          </Field>
+          {!d.agent && <Alert kind="warn">O aplicativo Bar do Guto não respondeu ainda com a lista de impressoras. Abra o sistema pelo ícone do Bar do Guto neste computador e espere alguns segundos.</Alert>}
+          <div className="hstack" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <Button variant="primary" busy={busy} disabled={sel === chosen} onClick={() => save(sel)}>Usar esta impressora</Button>
+            {chosen && <Button busy={busy} onClick={() => go(() => post('/api/system/printers/test', {}), { success: 'Teste enviado para a impressora da cozinha' })}>Imprimir teste na cozinha</Button>}
+            {!chosen && <Button onClick={() => void printHtml(ticketHtml(testTicket(), 'novo', width))}>Imprimir teste</Button>}
+          </div>
+          {chosen ? (
+            <div className={'kprint-state ' + (d.last ? (d.last.ok ? 'on' : 'err') : 'wait')} role="status">
+              Via da cozinha → <b>{chosen}</b>
+              {d.last && <small> · {d.last.ok ? 'última impressão OK' : 'ERRO'} {d.last.at ? `às ${new Date(d.last.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}{d.last.message ? ` — ${d.last.message}` : ''}</small>}
+            </div>
+          ) : (
+            <BrowserPrintState printer={printer} />
+          )}
+        </>
+      ) : (
+        <>
+          <BrowserPrintState printer={printer} />
+          <div className="hstack" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <Button variant={printer.on ? 'ghost' : 'primary'} icon={Printer} onClick={() => { setKitchenPrinting(!printer.on); ui.toast(printer.on ? 'Impressão da cozinha desligada neste computador' : 'Impressão da cozinha ligada', 'ok'); }}>
+              {printer.on ? 'Desligar impressão aqui' : 'Ligar impressão neste computador'}
+            </Button>
+            <Button onClick={() => void printHtml(ticketHtml(testTicket(), 'novo', width))}>Imprimir teste</Button>
+          </div>
+          <small className="muted">Escolher uma impressora só para a cozinha é possível no aplicativo Bar do Guto (Windows). Aqui a via sai na impressora padrão.</small>
+        </>
+      )}
+    </div>
+  );
+}
+
+function BrowserPrintState({ printer }: { printer: ReturnType<typeof useKitchenPrinterStatus> }) {
+  return (
+    <div className={'kprint-state ' + (printer.on ? (printer.active ? 'on' : 'wait') : 'off')} role="status">
+      {printer.on ? (printer.active ? 'Imprimindo na impressora padrão deste computador' : 'Ligada (outra janela deste computador está imprimindo)') : 'Impressão automática desligada neste computador'}
+      {printer.last && <small> · último: {printer.last}</small>}
+      {printer.error && <small className="err"> · {printer.error}</small>}
+    </div>
   );
 }
