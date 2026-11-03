@@ -830,6 +830,8 @@ button.conn { cursor: pointer; font-family: inherit; }
 .print-root .c { text-align: center; }
 .print-root .warn { text-align: center; font-weight: 800; border: 1px solid #000; padding: 3px; margin: 6px 0; }
 .print-root .item { margin-bottom: 3px; }
+.print-root .nota-logo { display: block; max-width: 70%; max-height: 22mm; margin: 0 auto 4px; object-fit: contain; filter: grayscale(1) contrast(1.15); }
+.logo-img { border-radius: 7px; background: #fff; }
 .print-root .sub { padding-left: 8px; font-size: 11px; }
 .print-root .l.sub { padding-left: 8px; }
 .print-root .total { font-size: 15px; margin-top: 2px; }

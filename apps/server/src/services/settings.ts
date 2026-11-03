@@ -33,6 +33,12 @@ export const storeSettingsSchema = z.object({
     .refine((v) => !v.trim() || normalizePixKey(v) !== null, 'Chave Pix inválida: use CPF/CNPJ, e-mail, celular com +55 ou chave aleatória'),
   /** cidade de quem recebe, exigida pelo padrão do Pix */
   pixCity: z.string().max(40).default(''),
+  /** logo da loja (enviada em Ajustes; só aceita arquivos enviados pelo próprio sistema) */
+  logoUrl: z
+    .string()
+    .max(200)
+    .default('')
+    .refine((v) => v === '' || /^\/uploads\/logo-[A-Za-z0-9_-]+\.(png|jpg|webp)$/.test(v), 'Logo inválida'),
   /** abre a impressão da nota automaticamente quando o pedido é quitado */
   autoPrintReceipt: z.boolean().default(false),
   /** largura padrão da bobina para impressão pelo navegador */

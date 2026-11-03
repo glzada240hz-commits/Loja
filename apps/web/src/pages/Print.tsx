@@ -43,7 +43,16 @@ export default function Print() {
       alive = false;
     };
   }, [pix]);
-  const qrReady = !pix || qr !== null;
+  const logo: string | null = st?.logoUrl || null;
+  const [logoOk, setLogoOk] = useState(false);
+  useEffect(() => {
+    setLogoOk(false);
+    if (!logo) return;
+    const img = new Image();
+    img.onload = img.onerror = () => setLogoOk(true);
+    img.src = logo;
+  }, [logo]);
+  const qrReady = (!pix || qr !== null) && (!logo || logoOk);
   useEffect(() => {
     if (!(q.data && s.data && qrReady && p.get('auto') === '1')) return;
     // janela aberta pelo sistema: fecha sozinha depois de imprimir (ou cancelar)
@@ -110,6 +119,7 @@ function Nota({ o, items, st, qr, pix }: { o: Order; items: Order['items']; st: 
   const lastPay = pays.length ? pays[pays.length - 1]! : null;
   return (
     <>
+      {st.logoUrl && <img className="nota-logo" src={st.logoUrl} alt="" />}
       <h1>{st.storeName}</h1>
       {st.storeDocument && <div className="c">{st.storeDocument}</div>}
       {st.storeAddress && <div className="c">{st.storeAddress}</div>}

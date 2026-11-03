@@ -239,4 +239,26 @@ describe('6/7/16. cardápio digital → cozinha → entrega → acerto do entreg
     expect((await caixa.get('/api/settings')).body.pixKey).toBe('+55 11 99999-8888');
     expect((await gerente.put('/api/settings', { pixKey: '' })).status).toBe(200);
   });
+
+  it('logo da loja: envio só de imagem, rota pública, formulário antigo não apaga', async () => {
+    const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8ffff3f0005fe02fea7d6a4c00000000049454e44ae426082', 'hex');
+    const send = (buf: Buffer, who = gerente) => {
+      const boundary = '----guto' + Date.now();
+      const body = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="logo.png"\r\nContent-Type: image/png\r\n\r\n`), buf, Buffer.from(`\r\n--${boundary}--\r\n`)]);
+      return h.app.inject({ method: 'POST', url: '/api/settings/logo', payload: body, headers: { 'content-type': `multipart/form-data; boundary=${boundary}`, 'x-requested-with': 'guto', cookie: who.cookie } });
+    };
+    expect((await send(png, caixa)).statusCode).toBe(403);
+    expect((await send(Buffer.from('<svg onload=alert(1)>'))).statusCode).toBe(400);
+    const ok = await send(png);
+    expect(ok.statusCode).toBe(200);
+    const logoUrl = JSON.parse(ok.body).logoUrl as string;
+    expect(logoUrl).toMatch(/^\/uploads\/logo-[\w-]+\.png$/);
+    expect((await new Client(h.app).get('/api/public/brand')).body).toEqual({ name: expect.any(String), logoUrl });
+    expect((await h.app.inject({ method: 'GET', url: logoUrl })).statusCode).toBe(200);
+    // salvar Ajustes com dados antigos (logoUrl vazio ou forjado) não muda a logo
+    await gerente.put('/api/settings', { logoUrl: '' });
+    expect((await gerente.put('/api/settings', { logoUrl: 'https://evil.example/x.png' })).status).toBe(400);
+    expect((await gerente.get('/api/settings')).body.logoUrl).toBe(logoUrl);
+    expect((await gerente.req('DELETE', '/api/settings/logo')).body.logoUrl).toBe('');
+  });
 });

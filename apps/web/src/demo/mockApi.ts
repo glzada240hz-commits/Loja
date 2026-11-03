@@ -1814,6 +1814,7 @@ function storeStatus() {
     paymentMethods: S.settings.onlinePaymentMethods, pixKeyDisplay: S.settings.pixKeyDisplay,
   };
 }
+route('GET', '/api/public/brand', () => ({ name: S.settings.storeName, logoUrl: null }));
 route('GET', '/api/public/menu', () => ({
   store: storeStatus(),
   menu: menuView(true),

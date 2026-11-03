@@ -4,6 +4,8 @@ import type { MenuCategory, Neighborhood, Order } from './types';
 
 export const useMenu = () => useQuery({ queryKey: ['menu'], queryFn: () => get<MenuCategory[]>('/api/menu'), staleTime: 60000 });
 export const useNeighborhoods = () => useQuery({ queryKey: ['neighborhoods'], queryFn: () => get<Neighborhood[]>('/api/neighborhoods'), staleTime: 60000 });
+/** Nome e logo da loja (rota pública: serve também à tela de login e ao cardápio digital). */
+export const useBrand = () => useQuery({ queryKey: ['brand'], queryFn: () => get<{ name: string; logoUrl: string | null }>('/api/public/brand'), staleTime: 300000, retry: false });
 export const useSettings = () => useQuery({ queryKey: ['settings'], queryFn: () => get<any>('/api/settings'), staleTime: 60000 });
 export const useDay = () => useQuery({ queryKey: ['day'], queryFn: () => get<{ day: any; cash: any }>('/api/day') });
 export const useOrder = (id: string | null | undefined) =>

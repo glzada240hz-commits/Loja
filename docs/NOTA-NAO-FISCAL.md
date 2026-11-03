@@ -24,6 +24,8 @@ Bobina de 80 mm ou 58 mm (Ajustes → Bobina padrão).
 
 ## Configurar (Ajustes → Loja → Nota não fiscal)
 
+- **Logo da loja** (Ajustes → Loja → Logo da loja): PNG/JPG/WebP. Sai no topo da nota (em preto e branco) e
+  aparece no app: menu lateral, tela de entrada e cardápio digital.
 - **CNPJ ou CPF impresso na nota** (opcional).
 - **Chave Pix para o QR da conta** (opcional): CPF/CNPJ (com dígitos verificadores válidos), e-mail, celular
   com **+55** (ex.: `+5511999999999`) ou chave aleatória. O sistema mostra como reconheceu a chave e o

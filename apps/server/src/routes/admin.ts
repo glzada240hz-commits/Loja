@@ -1,5 +1,10 @@
 import type { FastifyInstance } from 'fastify';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { z } from 'zod';
+import { randomToken } from '../lib/crypto.js';
+import { badRequest } from '../lib/errors.js';
+import { imageExt } from './menu.js';
 import { ROLES } from '@guto/core';
 import { requirePerm } from '../lib/context.js';
 import * as admin from '../services/admin.js';
@@ -18,9 +23,34 @@ export async function adminRoutes(app: FastifyInstance) {
     const ctx = app.ctx(req);
     requirePerm(ctx.actor, 'settings.manage');
     const patch = storeSettingsSchema.partial().parse(req.body);
+    delete patch.logoUrl; // a logo só muda pelo envio/remoção próprios (evita apagar com formulário antigo)
     const s = await updateSettings(ctx.db, patch, ctx.actor.userId);
     await audit(ctx.db, ctx.actor, 'settings.update', 'settings', 'store', patch);
     ctx.bus.publish({ type: 'menu.changed' });
+    return s;
+  });
+
+  // logo da loja: aparece no app (menu, login, cardápio digital) e no topo da nota não fiscal
+  app.post('/api/settings/logo', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'settings.manage');
+    const file = await req.file();
+    if (!file) throw badRequest('Envie a imagem da logo');
+    const buf = await file.toBuffer();
+    const ext = imageExt(buf);
+    if (!ext) throw badRequest('Formato não suportado (use PNG, JPG ou WebP)');
+    const name = `logo-${randomToken(8)}${ext}`;
+    await fs.writeFile(path.join(path.resolve(app.deps.config.UPLOAD_DIR), name), buf);
+    const s = await updateSettings(ctx.db, { logoUrl: '/uploads/' + name }, ctx.actor.userId);
+    await audit(ctx.db, ctx.actor, 'settings.logo', 'settings', 'store', { logoUrl: s.logoUrl });
+    ctx.bus.publish({ type: 'menu.changed' });
+    return s;
+  });
+  app.delete('/api/settings/logo', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'settings.manage');
+    const s = await updateSettings(ctx.db, { logoUrl: '' }, ctx.actor.userId);
+    await audit(ctx.db, ctx.actor, 'settings.logo', 'settings', 'store', { logoUrl: '' });
     return s;
   });
 
