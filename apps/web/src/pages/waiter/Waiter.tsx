@@ -81,11 +81,11 @@ function Shell({ title, subtitle, back, children, foot, nav, action }: { title: 
         </div>
         <ConnectionPill />
         {action}
-        {!back && (
-          <button type="button" className="waiter-logout" onClick={() => void logout()} aria-label="Sair" title="Sair">
-            <LogOut size={20} aria-hidden />
-          </button>
-        )}
+        {/* sair em todas as telas (antes só na inicial e só com ícone): trocar de conta no celular */}
+        <button type="button" className="waiter-logout" onClick={() => void logout()} aria-label="Sair" title="Sair (trocar de usuário)">
+          <LogOut size={18} aria-hidden />
+          <span>Sair</span>
+        </button>
       </header>
       {conn === 'offline' && (
         <div className="offline-banner" role="alert">

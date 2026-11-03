@@ -187,8 +187,9 @@ export function Layout({ children, title, actions, flush, bare }: { children: Re
               <button type="button" className="side-btn" title="Sobre e versão" aria-label="Sobre e versão" onClick={() => setAbout(true)}>
                 <Info size={16} aria-hidden />
               </button>
-              <button type="button" className="side-btn" title="Sair" aria-label="Sair" onClick={() => void logout()}>
+              <button type="button" className="side-btn side-logout" title="Sair (trocar de usuário)" aria-label="Sair" onClick={() => void logout()}>
                 <LogOut size={16} aria-hidden />
+                <span className="lbl">Sair</span>
               </button>
             </span>
           </div>

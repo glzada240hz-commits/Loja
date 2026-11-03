@@ -157,3 +157,25 @@ test('caixa cancela pedido com autorização do gerente digitada (sem preenchime
   await sup.getByRole('button', { name: 'Autorizar' }).click();
   await expect(page.getByText('Pedido cancelado').first()).toBeVisible();
 });
+
+test('celular: sair de dentro do Delivery e entrar com outra conta cai na tela da nova conta', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, locale: 'pt-BR' });
+  const p = await ctx.newPage();
+  await login(p, 'atendente1');
+  await p.goto('/atendente/whatsapp/novo');
+  await p.getByRole('button', { name: 'Sair' }).click();
+  await expect(p).toHaveURL(/\/login$/);
+  await p.getByLabel('Usuário').fill('caixa');
+  await p.getByLabel('Senha').fill('demo1234');
+  await p.getByRole('button', { name: 'Entrar' }).click();
+  await expect(p).toHaveURL(/\/pdv$/); // tela do caixa, não a do atendente que saiu
+  await p.getByRole('button', { name: 'Abrir menu' }).first().click();
+  await p.getByRole('button', { name: 'Sair' }).first().click();
+  await expect(p).toHaveURL(/\/login$/);
+  await p.getByLabel('Usuário').fill('atendente2');
+  await p.getByLabel('Senha').fill('demo1234');
+  await p.getByRole('button', { name: 'Entrar' }).click();
+  await expect(p).toHaveURL(/\/atendente$/);
+  await expect(p.locator('.waiter-title small')).toHaveText('Atendente Beto (demo)');
+  await ctx.close();
+});

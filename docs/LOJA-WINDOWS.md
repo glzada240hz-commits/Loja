@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+17e16311`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-17e16311
+- **`0.2.0+ee6340f7`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-ee6340f7
+  (`BarDoGuto-Instalador-0.2.0-ee6340f7.exe`). Corrige trocar de conta no celular: botão **Sair** escrito em todas as
+  telas; ao sair, quem entra depois cai na própria tela inicial (não na de quem saiu) e nada da conta anterior
+  fica carregado.
+- `0.2.0+17e16311` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-17e16311
   (`BarDoGuto-Instalador-0.2.0-17e16311.exe`). X-Cabuloso com até 4 trocas de carne por picanha; X-Guto com 1
   (cardápio oficial `2026-11-03f`).
 - `0.2.0+ad3f3104` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-ad3f3104

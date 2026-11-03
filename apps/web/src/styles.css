@@ -1032,3 +1032,8 @@ button.conn { cursor: pointer; font-family: inherit; }
 .danger-zone { border-color: #fecaca; margin-top: 12px; }
 
 .acr-line b { color: #15803d; }
+
+/* sair visível (texto + ícone) */
+.waiter-logout { flex-direction: column; gap: 1px; font: inherit; font-size: 10px; font-weight: 700; padding: 2px 6px; }
+.side-logout { width: auto !important; gap: 4px; padding: 0 8px !important; font-size: var(--fs-xs); font-weight: 650; }
+@media (max-width: 1199px) and (min-width: 901px) { .app:not(.no-nav) .side-logout .lbl { display: none; } }

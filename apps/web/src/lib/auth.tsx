@@ -64,8 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // primeiro avisa que este aparelho saiu (o caixa não recebe alerta de "perdeu a conexão")
       await post('/api/presence/bye', { device: deviceId() }).catch(() => undefined);
       await post('/api/auth/logout').catch(() => undefined);
-      setMe(null);
-      setPerms(new Set());
+      // recarrega direto na tela de entrada (sem passar pelo "volte para onde estava"): limpa tudo o que a
+      // conta anterior carregou, e quem entrar em seguida cai na PRÓPRIA tela inicial, não na de quem saiu
+      window.history.replaceState(null, '', '/login');
+      window.location.replace('/login');
     },
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
