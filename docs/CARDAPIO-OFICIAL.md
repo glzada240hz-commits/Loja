@@ -41,6 +41,17 @@ foi escrito “Whisky”. Acréscimos (passados pelo dono, versão `2026-11-03c`
 - **Pratos — Acréscimos do prato:** Frango 4,00 · Bacon 4,00 · Cheddar 4,00; **Retirar do prato** (grátis): sem
   cebolinha, presunto, muçarela, queijo, bacon ou cheddar (versão `2026-11-04a`).
 
+Bairros e taxas de entrega (passados pelo dono, versão `2026-11-04b`; a taxa é cobrada do cliente):
+- **R$ 4,00:** Bom Sossego, Campos Silveira (Campo S.), Novo União, Porto Seguro, Rosana, Santa Marta, Santa Martinha,
+  São Geraldo, Tânia, Vila.
+- **R$ 5,00:** Centro, Esplanada, Santa Paula, Hospital São Judas, Santo Antônio, São Pedro, Savassi, Sevilha A,
+  Sevilha B, Status, Iolanda.
+- **R$ 6,00:** Barcelona, Presídio José Abranches, Rosaneves, Santinho, São Judas, São Luiz.
+- **R$ 7,00:** Colonial, Neviana.
+
+Os bairros de exemplo (Vila Nova, Jardim das Flores) saem; bairros cadastrados pela loja continuam. Repasse ao
+motoboy e previsão de cada bairro ficam como estavam (ajustáveis em Bairros e taxas).
+
 Validação: teste de integração (preços, tamanhos, categorias, cozinha, exemplos fora, item do dono mantido,
 repetição sem duplicar, venda com “Sem milho”) e E2E (conferir → importar → aparece no PDV). Capturas em
 [`evidencias/cardapio/`](evidencias/cardapio/).

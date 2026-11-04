@@ -21,12 +21,23 @@ export interface OfficialCategory {
 const u = (priceCents: number) => [{ name: 'Único', priceCents }];
 
 // muda quando o cardápio muda: o modo loja aplica a correção sozinho uma vez
-export const OFFICIAL_MENU_VERSION = '2026-11-04a';
+export const OFFICIAL_MENU_VERSION = '2026-11-04b';
 
 export const OFFICIAL_STORE = {
   storePhone: '(31) 98841-4429',
   storeAddress: 'R. Roberto Bernardes de Lima, 299 - Santa Martinha',
 };
+
+/** Bairros e taxas de entrega (cobradas do cliente), passados pelo dono em 04/11/2026. */
+const bairros = (feeCents: number, names: string[]) => names.map((name) => ({ name, feeCents }));
+export const OFFICIAL_NEIGHBORHOODS: { name: string; feeCents: number }[] = [
+  ...bairros(400, ['Bom Sossego', 'Campos Silveira (Campo S.)', 'Novo União', 'Porto Seguro', 'Rosana', 'Santa Marta', 'Santa Martinha', 'São Geraldo', 'Tânia', 'Vila']),
+  ...bairros(500, ['Centro', 'Esplanada', 'Santa Paula', 'Hospital São Judas', 'Santo Antônio', 'São Pedro', 'Savassi', 'Sevilha A', 'Sevilha B', 'Status', 'Iolanda']),
+  ...bairros(600, ['Barcelona', 'Presídio José Abranches', 'Rosaneves', 'Santinho', 'São Judas', 'São Luiz']),
+  ...bairros(700, ['Colonial', 'Neviana']),
+];
+/** Bairros do cadastro de exemplo (taxas inventadas): saem quando a loja tira os exemplos. */
+export const EXAMPLE_NEIGHBORHOODS = ['Vila Nova', 'Jardim das Flores'];
 
 /** Opções gratuitas para os hambúrgueres (sem preço: não altera valores). */
 export const OFFICIAL_REMOVALS = ['Sem salada', 'Sem milho', 'Sem batata', 'Sem ovo', 'Sem presunto', 'Sem bacon', 'Sem cheddar'];

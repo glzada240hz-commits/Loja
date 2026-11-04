@@ -4,6 +4,7 @@ import type { DbOrTx } from '../db/index.js';
 import {
   categories,
   comboItems,
+  neighborhoods,
   optionGroups,
   options,
   productOptionGroups,
@@ -20,7 +21,7 @@ import { badRequest, notFound, unprocessable } from '../lib/errors.js';
 import { toMilli } from './stock.js';
 import { getSettings, updateSettings } from './settings.js';
 import type { Deps } from '../lib/context.js';
-import { EXAMPLE_CATEGORIES, EXAMPLE_GROUPS, EXAMPLE_PRODUCTS, OFFICIAL_ADDON_GROUPS, OFFICIAL_MENU, OFFICIAL_MENU_VERSION, OFFICIAL_REMOVALS, OFFICIAL_STORE } from '../db/cardapio-oficial.js';
+import { EXAMPLE_CATEGORIES, EXAMPLE_GROUPS, EXAMPLE_NEIGHBORHOODS, EXAMPLE_PRODUCTS, OFFICIAL_ADDON_GROUPS, OFFICIAL_MENU, OFFICIAL_MENU_VERSION, OFFICIAL_NEIGHBORHOODS, OFFICIAL_REMOVALS, OFFICIAL_STORE } from '../db/cardapio-oficial.js';
 
 export interface MenuOption {
   id: string;
@@ -525,6 +526,7 @@ export interface OfficialImportResult {
   kept: string[];
   codesSkipped: string[];
   storeUpdated: boolean;
+  neighborhoods?: number;
 }
 
 /**
@@ -668,6 +670,22 @@ export async function importOfficialMenu(ctx: Ctx, opts: { archiveExamples: bool
         }
       }
     }
+    // bairros e taxas de entrega: atualiza a taxa pelo nome (mantém repasse e previsão), cria os que faltam
+    const nbs = await tx.select().from(neighborhoods);
+    for (const on of OFFICIAL_NEIGHBORHOODS) {
+      const ex = nbs.find((n) => norm(n.name) === norm(on.name));
+      if (ex) await tx.update(neighborhoods).set({ name: on.name, feeCents: on.feeCents, active: true }).where(eq(neighborhoods.id, ex.id));
+      else await tx.insert(neighborhoods).values({ name: on.name, feeCents: on.feeCents });
+    }
+    if (opts.archiveExamples) {
+      for (const n of nbs) {
+        if (EXAMPLE_NEIGHBORHOODS.map(norm).includes(norm(n.name)) && !OFFICIAL_NEIGHBORHOODS.some((o) => norm(o.name) === norm(n.name))) {
+          await tx.update(neighborhoods).set({ active: false }).where(eq(neighborhoods.id, n.id));
+        }
+      }
+    }
+    res.neighborhoods = OFFICIAL_NEIGHBORHOODS.length;
+
     if (opts.updateStore) {
       await updateSettings(tx, OFFICIAL_STORE, ctx.actor.userId);
       res.storeUpdated = true;

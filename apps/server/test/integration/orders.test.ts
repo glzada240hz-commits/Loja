@@ -462,6 +462,12 @@ describe('cardápio oficial do Bar do Guto', () => {
     const fritas = all2.find((x: any) => x.name === 'Fritas');
     expect(fritas.groups.find((g: any) => g.name === 'Acréscimos da porção').options.map((o: any) => [o.name, o.priceCents])).toEqual([['Cheddar', 900], ['Queijo', 800], ['Bacon', 800]]);
     expect(all2.filter((x: any) => x.categoryId === xt.categoryId).every((x: any) => x.groups.some((g: any) => g.name === 'Acréscimos'))).toBe(true);
+    // bairros e taxas de entrega do dono; exemplos saem
+    const nbs = ((await caixa.get('/api/neighborhoods')).body as any[]).filter((x) => x.active);
+    const fee = (n: string) => nbs.find((x) => x.name === n)?.feeCents;
+    expect(nbs).toHaveLength(29);
+    expect([fee('Bom Sossego'), fee('Vila'), fee('Centro'), fee('Iolanda'), fee('Presídio José Abranches'), fee('Neviana'), fee('Campos Silveira (Campo S.)')]).toEqual([400, 400, 500, 500, 600, 700, 400]);
+    expect(nbs.some((x) => x.name === 'Vila Nova' || x.name === 'Jardim das Flores')).toBe(false);
     // pratos: acréscimos pagos (frango, bacon, cheddar 4,00) e retirar ingredientes (grátis) em todos
     const pratosCat = menu.find((c) => c.name === 'Pratos') as any;
     const pratos = all2.filter((x: any) => x.categoryId === pratosCat.id);
