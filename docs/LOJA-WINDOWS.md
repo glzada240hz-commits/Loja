@@ -17,7 +17,9 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+1f0d5ea5`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-1f0d5ea5
+- **`0.2.0+bceeccc1`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-bceeccc1
+  (`BarDoGuto-Instalador-0.2.0-bceeccc1.exe`). **Nota sem QR Pix** (o Pix é cobrado na maquininha).
+- `0.2.0+1f0d5ea5` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-1f0d5ea5
   (`BarDoGuto-Instalador-0.2.0-1f0d5ea5.exe`). **Bairros e taxas de entrega** do Bar do Guto (29 bairros, R$ 4 a
   R$ 7), aplicados sozinhos na primeira abertura (cardápio oficial `2026-11-04b`).
 - `0.2.0+8da51326` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-8da51326
