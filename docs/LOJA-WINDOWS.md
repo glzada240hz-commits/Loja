@@ -17,7 +17,10 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+76ed108f`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-76ed108f
+- **`0.2.0+8da51326`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-8da51326
+  (`BarDoGuto-Instalador-0.2.0-8da51326.exe`). **Nº da entrega para a sacola**: cada entrega do dia ganha 1, 2, 3…,
+  em destaque na via da cozinha, na cozinha, na expedição e na tela do entregador.
+- `0.2.0+76ed108f` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-76ed108f
   (`BarDoGuto-Instalador-0.2.0-76ed108f.exe`). **Pratos** com acréscimos (Frango, Bacon, Cheddar 4,00) e “Retirar do
   prato” grátis (sem cebolinha, presunto, muçarela, queijo, bacon, cheddar), cardápio oficial `2026-11-04a`; delivery
   do celular sem o “0” solto no total.
