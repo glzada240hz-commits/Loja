@@ -179,3 +179,31 @@ test('celular: sair de dentro do Delivery e entrar com outra conta cai na tela d
   await expect(p.locator('.waiter-title small')).toHaveText('Atendente Beto (demo)');
   await ctx.close();
 });
+
+test('caixa divide a conta da mesa por itens: Cliente A paga os dele, Cliente B paga o resto', async ({ page }) => {
+  await login(page, 'caixa');
+  const H = { 'x-requested-with': 'guto' };
+  const menu = await (await page.request.get('/api/menu')).json();
+  const v = (n: string) => menu.flatMap((c: any) => c.products).find((p: any) => p.name === n).variants[0].id;
+  const o = await (await page.request.post('/api/orders', { headers: { ...H, 'idempotency-key': `e2e-split-${Date.now()}` }, data: { type: 'table', tableLabel: '7', send: true, items: [{ variantId: v('X-Burguer'), quantity: 2 }, { variantId: v('Refrigerante lata'), quantity: 2 }] } })).json();
+  await page.goto(`/pedidos/${o.id}`);
+  await page.getByRole('button', { name: /^Receber R\$ 39,00/ }).click();
+  const dlg = page.getByRole('dialog', { name: /Receber/ });
+  await dlg.getByLabel('Dividir conta').selectOption({ label: 'Por itens (cada um paga o seu)' });
+  const items = dlg.getByRole('group', { name: 'Itens desta pessoa' });
+  await expect(items).toContainText('Itens de Cliente A');
+  await items.getByRole('button', { name: 'Aumentar X-Burguer' }).click();
+  await items.getByRole('button', { name: 'Aumentar Refrigerante lata' }).click();
+  await expect(dlg.getByLabel('Valor deste pagamento')).toHaveValue('19,50');
+  await dlg.getByRole('button', { name: 'Pix (conferido manualmente)' }).click();
+  await dlg.getByRole('button', { name: /^Registrar R\$ 19,50/ }).click();
+  // próxima pessoa: os itens do A aparecem como pagos
+  await expect(items).toContainText('Itens de Cliente B');
+  await expect(items).toContainText('pago 1 (Cliente A)');
+  await items.getByRole('button', { name: 'Aumentar X-Burguer' }).click();
+  await items.getByRole('button', { name: 'Aumentar Refrigerante lata' }).click();
+  await expect(items.getByRole('button', { name: 'Aumentar X-Burguer' })).toBeDisabled(); // não dá para pagar o que já foi pago
+  await dlg.getByRole('button', { name: 'Dinheiro' }).click();
+  await dlg.getByRole('button', { name: /^Registrar R\$ 19,50/ }).click();
+  await expect(page.getByRole('dialog', { name: /pago$/ })).toBeVisible();
+});

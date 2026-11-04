@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatBRL, PAYMENT_METHOD_LABEL, splitEvenly, type PaymentMethod } from '@guto/core';
 import { newIdemKey, post } from '../lib/api';
 import type { Order } from '../lib/types';
@@ -6,7 +6,7 @@ import { Banknote, CheckCircle2, CreditCard, Printer, QrCode, Ticket, Wallet, ty
 import { openNota } from '../lib/print';
 import { formatPlan } from './PaymentPlan';
 import { useSettings } from '../lib/queries';
-import { Alert, Button, Field, Modal, MoneyInput, useAction } from './ui';
+import { Alert, Button, Field, Modal, MoneyInput, Stepper, useAction } from './ui';
 
 const METHODS: PaymentMethod[] = ['cash', 'pix_manual', 'debit', 'credit', 'voucher'];
 const METHOD_ICON: Partial<Record<PaymentMethod, LucideIcon>> = { cash: Banknote, pix_manual: QrCode, debit: CreditCard, credit: Wallet, voucher: Ticket };
@@ -22,6 +22,32 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
   const [tendered, setTendered] = useState<number | null>(order.changeForCents ?? null);
   const [payer, setPayer] = useState('');
   const [ways, setWays] = useState(1);
+  // conta dividida por itens (ways = 0): cada pessoa paga os itens dela
+  const byItems = ways === 0;
+  const [pick, setPick] = useState<Record<string, number>>({});
+  const activeItems = order.items.filter((i) => i.status === 'active');
+  const paidBy = useMemo(() => {
+    const m = new Map<string, { qty: number; who: string[] }>();
+    for (const p of order.payments.filter((x) => x.status === 'confirmed'))
+      for (const it of p.items ?? []) {
+        const cur = m.get(it.itemId) ?? { qty: 0, who: [] };
+        cur.qty += it.quantity;
+        if (p.payerLabel && !cur.who.includes(p.payerLabel)) cur.who.push(p.payerLabel);
+        m.set(it.itemId, cur);
+      }
+    return m;
+  }, [order.payments]);
+  const splitPeople = new Set(order.payments.filter((p) => p.status === 'confirmed' && p.items?.length).map((p) => p.payerLabel ?? '')).size;
+  const nextPerson = `Cliente ${String.fromCharCode(65 + Math.min(splitPeople, 25))}`;
+  // desconto do pedido dividido na mesma proporção dos itens
+  const factor = order.subtotalCents > 0 ? (order.subtotalCents - order.discountCents) / order.subtotalCents : 1;
+  const pickSum = Math.round(activeItems.reduce((a, i) => a + (pick[i.id] ?? 0) * (i.totalCents / i.quantity), 0) * factor);
+  useEffect(() => {
+    if (!byItems) return;
+    setAmount(Math.min(pickSum, balance) || null);
+    if (!payer) setPayer(nextPerson);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [byItems, pickSum, balance]);
   const key = useRef(newIdemKey());
   const { busy, go } = useAction();
   const settings = useSettings();
@@ -44,10 +70,17 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
             amountCents: amount,
             tenderedCents: method === 'cash' ? (tendered ?? amount) : null,
             payerLabel: payer || null,
+            items: byItems ? activeItems.filter((i) => (pick[i.id] ?? 0) > 0).map((i) => ({ itemId: i.id, quantity: pick[i.id]! })) : null,
           },
           { idempotencyKey: key.current },
         );
         key.current = newIdemKey();
+        if (byItems) {
+          // próxima pessoa
+          setPick({});
+          setPayer('');
+          setTendered(null);
+        }
         if (r.order.balanceCents <= 0) {
           setDone({ order: r.order, change: r.result.changeCents });
           if (settings.data?.autoPrintReceipt) openNota(r.order.id, width);
@@ -154,14 +187,40 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
             </Field>
             <Field label="Dividir conta">
               <select value={ways} onChange={(e) => setWays(Number(e.target.value))}>
-                {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
+                {[1, 0, 2, 3, 4, 5, 6, 8, 10].map((n) => (
                   <option key={n} value={n}>
-                    {n === 1 ? 'Não dividir' : `${n} pessoas`}
+                    {n === 1 ? 'Não dividir' : n === 0 ? 'Por itens (cada um paga o seu)' : `${n} pessoas (partes iguais)`}
                   </option>
                 ))}
               </select>
             </Field>
           </div>
+          {byItems && (
+            <div className="split-items" role="group" aria-label="Itens desta pessoa">
+              <b>Itens de {payer || nextPerson}</b>
+              {activeItems.map((i) => {
+                const paid = paidBy.get(i.id);
+                const left = i.quantity - (paid?.qty ?? 0);
+                const q = pick[i.id] ?? 0;
+                return (
+                  <div key={i.id} className={'split-row' + (left <= 0 ? ' done' : q > 0 ? ' on' : '')}>
+                    <span className="grow">
+                      {i.quantity}x {i.productName}
+                      {i.options.length > 0 && <small className="muted"> · {i.options.map((o) => o.optionName).join(', ')}</small>}
+                      {paid && <small className="split-paid"> · pago {paid.qty} ({paid.who.join(', ')})</small>}
+                    </span>
+                    <span className="num">{formatBRL(Math.round(i.totalCents / i.quantity))}</span>
+                    {left > 0 ? (
+                      <Stepper label={i.productName} value={q} min={0} max={left} onChange={(v) => setPick({ ...pick, [i.id]: v })} />
+                    ) : (
+                      <span className="badge green">pago</span>
+                    )}
+                  </div>
+                );
+              })}
+              <small className="muted">Total desta pessoa: <b>{formatBRL(pickSum)}</b>{order.discountCents > 0 ? ' (com o desconto do pedido dividido)' : ''}</small>
+            </div>
+          )}
           {parts.length > 0 && (
             <div className="pay-quick" style={{ marginTop: -6 }}>
               <small className="muted" style={{ alignSelf: 'center' }}>Partes:</small>
@@ -173,7 +232,7 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
             </div>
           )}
           <small className="muted">Parte em dinheiro e parte no Pix/cartão? Registre a primeira parte com o valor dela; a janela continua aberta com o que falta.</small>
-          <Field label="Identificação (opcional)" hint="Ex.: Pessoa 1, João">
+          <Field label={byItems ? 'Quem está pagando' : 'Identificação (opcional)'} hint="Ex.: Cliente A, João">
             <input value={payer} onChange={(e) => setPayer(e.target.value)} maxLength={60} />
           </Field>
         </div>

@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+ee6340f7`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-ee6340f7
+- **`0.2.0+f0a40d5d`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-f0a40d5d
+  (`BarDoGuto-Instalador-0.2.0-f0a40d5d.exe`). **Conta da mesa dividida por itens**: em Receber → Dividir conta → “Por
+  itens (cada um paga o seu)”, marca os itens de cada pessoa (Cliente A, B, C…); itens já pagos aparecem como
+  “pago por …” e não podem ser cobrados de novo; estorno libera o item.
+- `0.2.0+ee6340f7` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-ee6340f7
   (`BarDoGuto-Instalador-0.2.0-ee6340f7.exe`). Corrige trocar de conta no celular: botão **Sair** escrito em todas as
   telas; ao sair, quem entra depois cai na própria tela inicial (não na de quem saiu) e nada da conta anterior
   fica carregado.

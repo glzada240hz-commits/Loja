@@ -30,6 +30,7 @@ export interface OrderItem {
 export interface Payment {
   id: string; method: PaymentMethod; amountCents: number; tenderedCents: number | null; changeCents: number; status: 'confirmed' | 'refunded';
   payerLabel: string | null; createdAt: string; userName: string | null; refundReason: string | null;
+  items?: { itemId: string; quantity: number }[] | null;
 }
 export interface OrderEvent { id: number; type: string; data: any; createdAt: string; userName: string | null; authorizedByName: string | null }
 export interface Ticket {

@@ -140,6 +140,7 @@ export async function orderRoutes(app: FastifyInstance) {
         tenderedCents: cents.nullish(),
         payerLabel: z.string().max(60).nullish(),
         note: z.string().max(200).nullish(),
+        items: z.array(z.object({ itemId: uuid, quantity: z.number().int().min(1).max(999) })).max(100).nullish(),
       })
       .parse(req.body);
     const result = await svc.addPayment(ctx, id, body, idem(req, `payments.create:${id}`, body));

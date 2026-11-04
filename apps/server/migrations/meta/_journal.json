@@ -22,6 +22,13 @@
       "when": 1793681013200,
       "tag": "0002_pagamento_dividido",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793754160227,
+      "tag": "0003_conta_por_itens",
+      "breakpoints": true
     }
   ]
 }

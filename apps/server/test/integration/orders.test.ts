@@ -588,3 +588,30 @@ describe('zerar pedidos de teste', () => {
     expect(n.body.number).toBe(1);
   });
 });
+
+describe('conta da mesa dividida por itens', () => {
+  it('cada pessoa paga os seus itens; item já pago não é cobrado de novo; estorno libera o item', async () => {
+    const o = await caixa.post('/api/orders', { type: 'table', tableLabel: '9', send: true, items: [
+      { variantId: m.variant('X-Burguer'), quantity: 2 }, // 2 x 13,50
+      { variantId: m.variant('Refrigerante lata'), quantity: 3 }, // 3 x 6,00
+    ] }, { 'idempotency-key': idemKey() });
+    const [xb, refri] = o.body.items;
+    // Cliente A: 1 X-Burguer + 1 refri = 19,50
+    const a = await caixa.post(`/api/orders/${o.body.id}/payments`, { method: 'pix_manual', amountCents: 1950, payerLabel: 'Cliente A', items: [{ itemId: xb.id, quantity: 1 }, { itemId: refri.id, quantity: 1 }] }, { 'idempotency-key': idemKey() });
+    expect(a.status).toBe(200);
+    expect(a.body.order.payments[0]).toMatchObject({ payerLabel: 'Cliente A', items: [{ itemId: xb.id, quantity: 1 }, { itemId: refri.id, quantity: 1 }] });
+    // Cliente B tenta pagar 2 X-Burguer (só sobrou 1)
+    const b1 = await caixa.post(`/api/orders/${o.body.id}/payments`, { method: 'pix_manual', amountCents: 2000, payerLabel: 'Cliente B', items: [{ itemId: xb.id, quantity: 2 }] }, { 'idempotency-key': idemKey() });
+    expect(b1.status).toBe(409);
+    // Cliente B: 1 X-Burguer + 2 refri = 25,50 em dinheiro com troco
+    const b = await caixa.post(`/api/orders/${o.body.id}/payments`, { method: 'cash', amountCents: 2550, tenderedCents: 3000, payerLabel: 'Cliente B', items: [{ itemId: xb.id, quantity: 1 }, { itemId: refri.id, quantity: 2 }] }, { 'idempotency-key': idemKey() });
+    expect(b.status).toBe(200);
+    expect(b.body.result.changeCents).toBe(450);
+    expect(b.body.order.balanceCents).toBe(0);
+    // estorno do Cliente A libera os itens dele
+    const pa = b.body.order.payments.find((p: any) => p.payerLabel === 'Cliente A');
+    expect((await gerente.post(`/api/payments/${pa.id}/refund`, { reason: 'trocou a forma' }, { 'idempotency-key': idemKey() })).status).toBe(200);
+    const again = await caixa.post(`/api/orders/${o.body.id}/payments`, { method: 'debit', amountCents: 1950, payerLabel: 'Cliente A', items: [{ itemId: xb.id, quantity: 1 }, { itemId: refri.id, quantity: 1 }] }, { 'idempotency-key': idemKey() });
+    expect(again.status).toBe(200);
+  });
+});

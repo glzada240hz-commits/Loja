@@ -876,6 +876,8 @@ export interface PaymentInput {
   payerLabel?: string | null;
   note?: string | null;
   providerRef?: string | null;
+  /** conta dividida por itens */
+  items?: { itemId: string; quantity: number }[] | null;
 }
 
 export async function addPayment(ctx: Ctx, orderId: string, input: PaymentInput, idem?: IdemKey) {
@@ -910,6 +912,22 @@ export async function addPayment(ctx: Ctx, orderId: string, input: PaymentInput,
       } else if (applied > balance) {
         throw unprocessable('Valor maior que o saldo do pedido (troco só existe em dinheiro)');
       }
+      // conta dividida por itens: confere que os itens são do pedido e ainda não foram pagos por outra pessoa
+      let paidItems: { itemId: string; quantity: number }[] | null = null;
+      if (input.items?.length) {
+        const its = await tx.select().from(orderItems).where(eq(orderItems.orderId, o.id));
+        const prev = await tx.select({ items: payments.items }).from(payments).where(and(eq(payments.orderId, o.id), eq(payments.status, 'confirmed')));
+        const taken = new Map<string, number>();
+        for (const p of prev) for (const it of p.items ?? []) taken.set(it.itemId, (taken.get(it.itemId) ?? 0) + it.quantity);
+        paidItems = [];
+        for (const it of input.items) {
+          const row = its.find((x) => x.id === it.itemId && x.status === 'active');
+          if (!row) throw unprocessable('Item não pertence a este pedido');
+          if (!Number.isSafeInteger(it.quantity) || it.quantity <= 0) throw badRequest('Quantidade inválida');
+          if ((taken.get(it.itemId) ?? 0) + it.quantity > row.quantity) throw conflict(`${row.productName}: já foi pago por outra pessoa`);
+          paidItems.push({ itemId: it.itemId, quantity: it.quantity });
+        }
+      }
       const at = now();
       const [p] = await tx
         .insert(payments)
@@ -920,6 +938,7 @@ export async function addPayment(ctx: Ctx, orderId: string, input: PaymentInput,
           tenderedCents: tendered,
           changeCents: change,
           payerLabel: input.payerLabel?.trim().slice(0, 60) || null,
+          items: paidItems,
           note: input.note?.trim().slice(0, 200) || null,
           providerRef: input.providerRef ?? null,
           cashSessionId: cash.id,

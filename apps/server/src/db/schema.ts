@@ -641,6 +641,8 @@ export const payments = pgTable(
     changeCents: integer('change_cents').notNull().default(0),
     status: paymentStatusEnum('status').notNull().default('confirmed'),
     payerLabel: text('payer_label'),
+    /** conta dividida por itens: quais itens (e quantos) este pagamento cobriu */
+    items: jsonb('items').$type<{ itemId: string; quantity: number }[]>(),
     providerRef: text('provider_ref'),
     note: text('note'),
     cashSessionId: uuid('cash_session_id')
