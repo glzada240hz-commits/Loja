@@ -1025,7 +1025,7 @@ function WhatsAppNew({ channel }: { channel: Channel }) {
                 <dd>{formatBRL(Math.max(0, total - paidNow))}</dd>
               </>
             )}
-            {cashDue && changeForCents > cashDue && (
+            {cashDue > 0 && changeForCents > cashDue && (
               <>
                 <dt>Troco (dinheiro {formatBRL(cashDue)}, paga com {formatBRL(changeForCents)})</dt>
                 <dd>{formatBRL(changeForCents - cashDue)}</dd>
