@@ -5,12 +5,13 @@ import { Layout } from '../components/Layout';
 import { formatPlan } from '../components/PaymentPlan';
 import { OrderDrawer } from '../components/OrderDrawer';
 import { DeliveryBadge, StageBadge } from '../components/status';
-import { Bike, Clock, MapPin, X } from 'lucide-react';
+import { Bike, Clock, MapPin, X, Printer } from 'lucide-react';
 import { Alert, Button, Empty, ErrorBox, Field, Loading, Modal, Money, MoneyInput, Tabs, useAction, useUi } from '../components/ui';
 import { get, newIdemKey, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { formatDateTime, formatTime, minutesSince } from '../lib/format';
 import { BagNumber } from '../components/BagNumber';
+import { useReprintKitchen } from '../lib/reprint';
 
 interface BoardOrder {
   id: string; number: number; deliveryNumber?: number | null; status: string; stage: any; customerName: string | null; customerPhone: string | null;
@@ -41,6 +42,7 @@ function Board() {
   const [courierId, setCourier] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const { busy, go } = useAction();
+  const reprint = useReprintKitchen();
   const refresh = () => qc.invalidateQueries({ queryKey: ['deliveries'] });
 
   if (board.isLoading) return <Loading />;
@@ -96,6 +98,9 @@ function Board() {
             <b>{o.neighborhoodName}</b> · {o.addrStreet}, {o.addrNumber}
             {o.addrComplement ? ` (${o.addrComplement})` : ''}
           </span>
+          <button type="button" className="btn sm ghost icon-only" title="Imprimir 2ª via da comanda (com o endereço)" aria-label={`Imprimir 2ª via do pedido ${o.number}`} onClick={() => void reprint({ orderId: o.id })}>
+            <Printer className="icon" aria-hidden />
+          </button>
           <a className="btn sm ghost icon-only" href={mapsLink(`${o.addrStreet}, ${o.addrNumber} - ${o.neighborhoodName}`)} target="_blank" rel="noreferrer" title="Abrir no mapa" aria-label={`Abrir endereço do pedido ${o.number} no mapa`}>
             <MapPin className="icon" aria-hidden />
           </a>

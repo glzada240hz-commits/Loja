@@ -298,6 +298,30 @@ describe('nº da entrega (sacola)', () => {
     const board = (await caixa.get('/api/deliveries')).body.orders;
     expect(board.map((o: any) => o.deliveryNumber).sort()).toEqual([1, 2, 3]);
   });
+
+  it('via da cozinha leva o endereço para o motoboy; 2ª via de pedido já pronto vai para o computador da cozinha', async () => {
+    const addr = { street: 'Av. Brasil', number: '450', complement: 'apto 2', reference: 'perto da padaria', neighborhoodId: m.neighborhood('Centro') };
+    const d = await caixa.post('/api/orders', { type: 'delivery', send: true, customer: { name: 'Carla', phone: '11 98877-1020' }, address: addr, items: [{ variantId: m.variant('X-Burguer'), quantity: 1 }], paymentIntent: 'cash', changeForCents: 5000 }, { 'idempotency-key': idemKey() });
+    const k = await as(h, 'cozinha');
+    const t = (await k.get('/api/kitchen')).body.tickets.find((x: any) => x.orderNumber === d.body.number);
+    expect(t.delivery).toMatchObject({ address: 'Av. Brasil, 450 - apto 2', neighborhood: 'Centro', reference: 'perto da padaria', phone: '(11) 98877-1020' });
+    expect(t.delivery.collect).toMatch(/^COBRAR R\$ .* — dinheiro · troco p\/ R\$ 50,00/);
+    // fica pronto e sai da fila; a 2ª via ainda funciona
+    await k.post(`/api/kitchen/tickets/${t.id}/status`, { status: 'ready' });
+    const events: any[] = [];
+    const on = (e: any) => e.type === 'kitchen.reprint' && events.push(e);
+    h.deps.bus.on('event', on);
+    const r = await caixa.post('/api/kitchen/reprint', { orderId: d.body.id });
+    h.deps.bus.off('event', on);
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ via: 'computador', count: 1, orderNumber: d.body.number });
+    expect(events[0].ticketIds).toEqual([t.id]);
+    const got = (await k.get(`/api/kitchen/tickets?ids=${t.id}`)).body.tickets;
+    expect(got[0].delivery.address).toBe('Av. Brasil, 450 - apto 2');
+    // entregador não pede 2ª via; pedido sem cozinha avisa
+    expect((await (await as(h, 'moto1')).post('/api/kitchen/reprint', { orderId: d.body.id })).status).toBe(403);
+    expect((await caixa.post('/api/kitchen/reprint', {})).status).toBe(400);
+  });
 });
 
 describe('cardápio na internet: porteiro', () => {

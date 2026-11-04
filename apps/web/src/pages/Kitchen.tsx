@@ -1,29 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import {
-  AlertTriangle,
-  Ban,
-  Bell,
-  BellOff,
-  Check,
-  CheckCircle2,
-  Clock,
-  Flame,
-  Inbox,
-  Maximize,
-  MessageSquareText,
-  Pencil,
-  PlusCircle,
-  Sparkles,
-  Undo2,
-  ZoomIn,
-  ZoomOut,
-} from 'lucide-react';
+import { AlertTriangle, Ban, Bell, BellOff, Check, CheckCircle2, Clock, Flame, Inbox, Maximize, MessageSquareText, Pencil, PlusCircle, Sparkles, Undo2, ZoomIn, ZoomOut, Printer } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KITCHEN_STATUS_LABEL, ORDER_TYPE_LABEL, type KitchenStatus } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { Button, ErrorBox, Loading, useAction, useUi } from '../components/ui';
 import { get, post } from '../lib/api';
 import { formatTime, minutesSince } from '../lib/format';
+import { useReprintKitchen } from '../lib/reprint';
 import { BagNumber } from '../components/BagNumber';
 
 interface KTicket {
@@ -192,6 +175,7 @@ export default function Kitchen() {
 
 function ReadyRow({ t }: { t: KTicket }) {
   const qc = useQueryClient();
+  const reprint = useReprintKitchen();
   const { busy, go } = useAction();
   const label = t.orderType === 'table' ? t.place : ORDER_TYPE_LABEL[t.orderType];
   return (
@@ -200,6 +184,8 @@ function ReadyRow({ t }: { t: KTicket }) {
       <small>
         #{t.orderNumber} · pronto {formatTime(t.readyAt)} · {t.items.reduce((a, i) => a + (i.status === 'cancelled' ? 0 : i.quantity), 0)} item(ns)
       </small>
+      <span className="rd-acts">
+      <Button size="sm" icon={Printer} aria-label={`Imprimir 2ª via do pedido ${t.orderNumber}`} title="Imprimir 2ª via da comanda" onClick={() => void reprint({ ticketId: t.id })} />
       <Button
         size="sm"
         icon={Undo2}
@@ -213,6 +199,7 @@ function ReadyRow({ t }: { t: KTicket }) {
           })
         }
       />
+      </span>
       <span className="sr-only">Pronto</span>
     </article>
   );
@@ -249,6 +236,7 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
     });
   };
   const label = t.orderType === 'table' ? t.place : ORDER_TYPE_LABEL[t.orderType];
+  const reprint = useReprintKitchen();
   const bandText = cancelled ? 'Cancelado — não preparar' : late ? 'Atrasado' : t.status === 'preparing' ? 'Em preparo' : fresh ? 'Novo' : 'Na fila';
   const BandIcon = cancelled ? Ban : late ? AlertTriangle : t.status === 'preparing' ? Flame : fresh ? Sparkles : Inbox;
   return (
@@ -261,7 +249,14 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
         <span>
           <BandIcon className="icon" aria-hidden /> {bandText}
         </span>
-        <span>#{t.orderNumber}{t.round > 1 ? ` · rodada ${t.round}` : ''}</span>
+        <span className="tk-band-r">
+          #{t.orderNumber}{t.round > 1 ? ` · rodada ${t.round}` : ''}
+          {!cancelled && (
+            <button type="button" className="tk-reprint" title="Imprimir 2ª via da comanda" aria-label={`Imprimir 2ª via do pedido ${t.orderNumber}`} onClick={() => void reprint({ ticketId: t.id })}>
+              <Printer aria-hidden /> 2ª via
+            </button>
+          )}
+        </span>
       </div>
       <div className="tk-head">
         <span style={{ minWidth: 0 }}>

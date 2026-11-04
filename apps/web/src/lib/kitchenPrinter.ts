@@ -11,29 +11,32 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { get } from './api';
 
-import { pendingPrints, testTicket, type PrintKind, type PrintTicket, type PrintedMap } from '@guto/core';
+import { pendingPrints, testTicket, ticketLines, type PrintKind, type PrintTicket, type PrintedMap } from '@guto/core';
 export { pendingPrints, testTicket };
 export type { PrintKind, PrintTicket, PrintedMap };
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+const hhmm = (iso: string): string => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
 
-/** Via da cozinha em HTML completo (bobina 58/80 mm), letras grandes, sem preços. */
+/** Via da cozinha em HTML completo (bobina 58/80 mm), letras grandes, sem preços (exceto o que cobrar na entrega).
+ * O conteúdo vem de `ticketLines` (o mesmo usado pelo aplicativo do Windows). */
 export function ticketHtml(t: PrintTicket, kind: PrintKind, width: number = 80): string {
   const w = width === 58 ? 58 : 80;
-  const head = kind === 'cancelado' ? 'CANCELADO — NÃO FAZER' : kind === 'alterado' ? 'ALTERADO' : t.round > 1 ? `ACRÉSCIMO · RODADA ${t.round}` : 'NOVO PEDIDO';
-  const items = t.items
-    .filter((i) => i.status === 'active' || kind === 'cancelado')
-    .map((i) => {
-      const opts = i.options
-        .map((o) => `<div class="m">${/^sem /i.test(o.name) ? esc(o.name.toUpperCase()) : `+ ${o.quantity > 1 ? `${o.quantity}x ` : ''}${esc(o.name)}`}</div>`)
-        .join('');
-      const combo = Array.isArray(i.comboComponents) && i.comboComponents.length
-        ? `<div class="m">${(i.comboComponents as { quantity: number; label: string }[]).map((c) => `${c.quantity}x ${esc(c.label)}`).join(' + ')}</div>`
-        : '';
-      return `<div class="i"><b>${i.quantity}x ${esc(i.productName)}${i.variantName ? ` (${esc(i.variantName)})` : ''}</b>${combo}${opts}${i.notes ? `<div class="m">OBS: ${esc(i.notes)}</div>` : ''}</div>`;
+  const body = ticketLines(t, kind)
+    .map((l) => {
+      const x = esc(l.text);
+      switch (l.style) {
+        case 'title': return `<div class="h">${x}</div>`;
+        case 'big': return `<div class="n">${x}</div>`;
+        case 'place': return `<div class="p">${x}</div>`;
+        case 'center': return `<div class="c">${x}</div>`;
+        case 'rule': return '<hr>';
+        case 'item': return `<div class="i"><b>${x}</b></div>`;
+        case 'mod': return `<div class="m">${x}</div>`;
+        default: return `<div>${x}</div>`;
+      }
     })
-    .join('');
+    .join('\n');
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Cozinha #${t.orderNumber}</title><style>
 @page { size: ${w}mm auto; margin: 0; }
 * { box-sizing: border-box; }
@@ -47,15 +50,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
 .m { padding-left: 10px; }
 ${kind === 'cancelado' ? '.i b { text-decoration: line-through; }' : ''}
 </style></head><body>
-<div class="h">${head}</div>
-<div class="n">#${t.orderNumber}</div>
-<div class="p">${esc(t.place.toUpperCase())}</div>
-<div class="c">${hhmm(t.createdAt)}${t.createdByName ? ` · ${esc(t.createdByName)}` : ''}</div>
-${t.customerName ? `<div class="c">${esc(t.customerName)}</div>` : ''}
-<hr>${items}
-${kind === 'alterado' && t.changeNote ? `<hr><div><b>ALTERAÇÃO:</b> ${esc(t.changeNote)}</div>` : ''}
-${t.orderNotes ? `<hr><div>OBS DO PEDIDO: ${esc(t.orderNotes)}</div>` : ''}
-<hr><div class="c">impresso ${hhmm(new Date().toISOString())}</div>
+${body}
 </body></html>`;
 }
 
@@ -199,8 +194,27 @@ export function useKitchenPrinterStation(enabled: boolean, width: number) {
 
     let timer: ReturnType<typeof setInterval> | null = null;
     let debounce: ReturnType<typeof setTimeout> | null = null;
+    // 2ª via pedida por alguém da equipe (celular, caixa, expedição)
+    const reprint = async (ids: string[]) => {
+      try {
+        const { tickets } = await get<{ tickets: PrintTicket[] }>(`/api/kitchen/tickets?ids=${ids.join(',')}`);
+        for (const t of tickets) {
+          if (stop) break;
+          await printHtml(ticketHtml(t, 'reimpressao', width));
+          setStatus({ last: `#${t.orderNumber} (2ª via) às ${hhmm(new Date().toISOString())}`, error: null });
+          await new Promise((r) => setTimeout(r, 800));
+        }
+      } catch (err) {
+        setStatus({ error: (err as Error).message || 'Falha ao imprimir a 2ª via' });
+      }
+    };
     const onLive = (e: Event) => {
-      const type = (e as CustomEvent<{ type: string }>).detail?.type;
+      const detail = (e as CustomEvent<{ type: string; ticketIds?: string[] }>).detail;
+      if (detail?.type === 'kitchen.reprint' && detail.ticketIds?.length) {
+        void reprint(detail.ticketIds);
+        return;
+      }
+      const type = detail?.type;
       if (type === 'kitchen.changed' || type === 'order.changed') {
         if (debounce) clearTimeout(debounce);
         debounce = setTimeout(() => void check(), 400);

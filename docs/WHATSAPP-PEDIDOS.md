@@ -39,6 +39,28 @@ funciona sem ela, com o WhatsApp que a loja já usa.
 - O combinado aparece no pedido do caixa, em Entregas, no celular do motoboy, na nota e no resumo do WhatsApp.
   No **Receber** do caixa há botões com cada parte combinada; registre uma parte e a janela continua com o resto.
 
+## Endereço: colar e buscar o bairro
+
+- **Colar endereço do cliente**: cole o endereço como o cliente mandou no WhatsApp (uma linha ou várias). O sistema
+  separa rua, número, complemento (apto, casa, bloco…) e ponto de referência (perto, próximo, em frente…) e
+  **identifica o bairro**, já com a taxa. Aparece “Bairro identificado: … (taxa …)”; confira os campos. Colar o
+  endereço inteiro direto no campo **Rua** faz o mesmo.
+- **Bairro com busca**: digite parte do nome, sem acento (“sao jud”, “marti”); a lista mostra a taxa de cada um.
+- Se o texto cita dois bairros (ex.: “Rua Santo Antônio, 50 - Centro”), vale o que vem depois; “bairro X” escrito
+  por extenso tem prioridade.
+
+## Comanda da cozinha com o endereço (vai com o motoboy)
+
+Em pedidos de entrega, a via da cozinha traz, no fim: **ENTREGA**, o bairro em letra grande, rua/número/
+complemento, referência, nome e telefone do cliente e **o que cobrar** (ex.: “COBRAR R$ 41,90 — dinheiro · troco
+p/ R$ 50,00 (levar R$ 8,10)” ou “PAGO — nada a cobrar”).
+
+**2ª via** (perdeu a comanda): botão **2ª via** no cartão da Cozinha (e na lista de prontos), ícone de impressora
+no cartão da Expedição e, no detalhe do pedido, menu → “2ª via da comanda”. Sai na impressora da cozinha com
+o título “2ª VIA (REIMPRESSÃO)”, mesmo se o pedido já estiver pronto. Com o aplicativo da loja e a impressora
+da cozinha escolhida, imprime direto nela; senão vai para o computador que imprime a cozinha pelo navegador.
+Capturas em [`evidencias/endereco/`](evidencias/endereco/).
+
 ## Nº da entrega (para marcar a sacola)
 
 Cada entrega do dia ganha um número próprio, em sequência: **1, 2, 3…** (recomeça quando abre o dia). Pedido do

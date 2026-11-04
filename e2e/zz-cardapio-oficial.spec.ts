@@ -97,11 +97,25 @@ test('atendente do celular: entrega com bairro mostra o total com a taxa antes d
   await cel.getByRole('button', { name: /Concluir · 1 no rascunho/ }).click();
   await cel.getByLabel('Telefone', { exact: true }).first().fill('(31) 97777-1212');
   await cel.getByLabel('Nome', { exact: true }).first().fill('Pedro');
-  await cel.getByLabel('Rua').fill('Rua das Flores');
-  await cel.getByLabel('Número').fill('10');
   const box = cel.getByLabel('Valor total');
   await expect(box).toContainText('escolha o bairro');
-  await cel.getByLabel('Bairro').selectOption({ label: 'Centro — R$ 5,00' });
+  // endereço colado do WhatsApp: separa rua/número e acha o bairro (taxa)
+  await cel.getByLabel('Colar endereço do cliente').evaluate((el, text) => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', text);
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, 'Rua das Flores, 10\napto 3\nsanta martinha');
+  await expect(cel.getByText('Bairro identificado: Santa Martinha')).toBeVisible();
+  await expect(cel.getByLabel('Rua', { exact: true })).toHaveValue('Rua das Flores');
+  await expect(cel.getByLabel('Número', { exact: true })).toHaveValue('10');
+  await expect(cel.getByLabel('Complemento', { exact: true })).toHaveValue('apto 3');
+  await expect(box).toContainText('Taxa de entrega (Santa Martinha)');
+  // busca do bairro (sem acento, pedaço do nome)
+  const bairro = cel.getByRole('combobox', { name: /^Bairro/ });
+  await bairro.click();
+  await bairro.fill('centr');
+  await cel.getByRole('option', { name: /^Centro/ }).click();
+  await expect(bairro).toHaveValue('Centro — R$ 5,00');
   await expect(box).toContainText('Taxa de entrega (Centro)');
   await expect(box.locator('dd.grand')).toHaveText('R$ 22,00');
   // pagamento dividido: R$ 20 em dinheiro (troco para 50) + o resto no Pix

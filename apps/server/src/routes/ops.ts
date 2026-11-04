@@ -1,11 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { DELIVERY_STATUSES, KITCHEN_STATUSES } from '@guto/core';
+import { can, DELIVERY_STATUSES, KITCHEN_STATUSES, ticketLines, type PrintTicket } from '@guto/core';
 import { requirePerm } from '../lib/context.js';
 import { authorize } from '../services/auth.js';
 import { closeDay, currentDay, listDays, openDay } from '../services/businessDay.js';
 import { addCashMovement, closeCash, currentCash, getCashView, listCashSessions, openCash } from '../services/cash.js';
-import { kitchenQueue, setTicketStatus } from '../services/kitchen.js';
+import { kitchenQueue, setTicketStatus, ticketsForReprint } from '../services/kitchen.js';
+import { jobText, readPrinterInfo, writeJob } from '../services/kitchenPrintAgent.js';
+import { audit } from '../lib/audit.js';
+import { forbidden, notFound } from '../lib/errors.js';
 import * as del from '../services/delivery.js';
 import { getSettings } from '../services/settings.js';
 import { cents, idem, idParam, supervisor, uuid } from './schemas.js';
@@ -69,6 +72,43 @@ export async function opsRoutes(app: FastifyInstance) {
     requirePerm(ctx.actor, 'kitchen.view');
     const s = await getSettings(ctx.db);
     return { lateMinutes: s.kitchenLateMinutes, tickets: await kitchenQueue(ctx.db) };
+  });
+  /**
+   * 2ª via da comanda (perdeu a via): com o aplicativo da loja e impressora da cozinha escolhida, imprime direto
+   * nela; senão avisa o computador que imprime a cozinha pelo navegador. Imprime mesmo pedidos já prontos.
+   */
+  app.post('/api/kitchen/reprint', async (req) => {
+    const ctx = app.ctx(req);
+    if (!can(ctx.actor.role, 'kitchen.view') && !can(ctx.actor.role, 'orders.view')) throw forbidden();
+    const body = z.object({ ticketId: uuid.optional(), orderId: uuid.optional() }).refine((b) => !!b.ticketId || !!b.orderId).parse(req.body);
+    const tickets = await ticketsForReprint(ctx.db, body);
+    if (!tickets.length) throw notFound('Nada para imprimir: este pedido não tem itens da cozinha');
+    const s = await getSettings(ctx.db);
+    const dir = app.deps.config.PRINT_DIR;
+    let via: 'impressora' | 'computador';
+    if (dir && s.kitchenPrinterName.trim() && readPrinterInfo(dir).agent) {
+      const iso = (d: unknown) => (d instanceof Date ? d.toISOString() : d == null ? null : String(d));
+      for (const t of tickets) {
+        const pt = { ...t, createdAt: iso(t.createdAt)!, changedAt: iso(t.changedAt) } as unknown as PrintTicket;
+        writeJob(dir, `${t.orderNumber}-reimpressao`, jobText(s.kitchenPrinterName.trim(), s.printWidth, ticketLines(pt, 'reimpressao')));
+      }
+      via = 'impressora';
+    } else {
+      app.deps.bus.publish({ type: 'kitchen.reprint', ticketIds: tickets.map((t) => t.id) });
+      via = 'computador';
+    }
+    await audit(ctx.db, ctx.actor, 'kitchen.reprint', 'order', tickets[0]!.orderId, { tickets: tickets.length, via });
+    return { via, count: tickets.length, orderNumber: tickets[0]!.orderNumber };
+  });
+  /** tickets pedidos numa 2ª via (o computador que imprime a cozinha busca por aqui) */
+  app.get('/api/kitchen/tickets', async (req) => {
+    const ctx = app.ctx(req);
+    requirePerm(ctx.actor, 'kitchen.view');
+    const { ids } = z.object({ ids: z.string().max(2000) }).parse(req.query);
+    const list = ids.split(',').filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 20);
+    const out = [];
+    for (const id of list) out.push(...(await ticketsForReprint(ctx.db, { ticketId: id })));
+    return { tickets: out };
   });
   app.post('/api/kitchen/tickets/:id/status', async (req) => {
     const ctx = app.ctx(req);

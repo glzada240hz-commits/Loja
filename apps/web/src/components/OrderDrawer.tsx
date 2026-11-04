@@ -24,6 +24,7 @@ import { formatPlan } from './PaymentPlan';
 import { notaUrl, openNota } from '../lib/print';
 import { DeliveryBadge, StageBadge, StatusBadge, TypeBadge } from './status';
 import { Alert, Button, Chips, ErrorBox, Field, Loading, Modal, Money, MoneyInput, MoreMenu, Stepper, useAction, useUi } from './ui';
+import { useReprintKitchen } from '../lib/reprint';
 import { BagNumber } from './BagNumber';
 
 function eventLabel(e: OrderEvent): string {
@@ -96,6 +97,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
   const qc = useQueryClient();
   const nav = useNavigate();
   const settings = useSettings();
+  const reprint = useReprintKitchen();
   const { busy, go } = useAction();
   const [modal, setModal] = useState<null | 'pay' | 'discount' | 'edit' | 'accept'>(null);
   const refresh = (fresh?: Order) => {
@@ -481,8 +483,11 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
           <a href={notaUrl(o.id, settings.data?.printWidth, false)} target="_blank" rel="noreferrer" role="menuitem">
             <Printer size={16} aria-hidden /> Ver nota não fiscal
           </a>
+          <button type="button" role="menuitem" onClick={() => void reprint({ orderId: o.id })}>
+            <Printer size={16} aria-hidden /> 2ª via da comanda (impressora da cozinha)
+          </button>
           <a href={`/imprimir/${o.id}?via=cozinha&w=${settings.data?.printWidth ?? 80}`} target="_blank" rel="noreferrer" role="menuitem">
-            <Printer size={16} aria-hidden /> Imprimir via da cozinha
+            <Printer size={16} aria-hidden /> Imprimir via da cozinha neste aparelho
           </a>
           {o.status === 'open' && o.balanceCents > 0 && can('orders.close') && (
             <button type="button" role="menuitem" onClick={() => close(true)}>

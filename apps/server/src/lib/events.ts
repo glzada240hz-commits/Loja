@@ -16,6 +16,8 @@ export type LiveEvent =
   | { type: 'whatsapp.changed'; contactId?: string }
   | { type: 'bill.requested'; orderId: string; number: number; place: string; by: string }
   | { type: 'presence.changed' }
+  /** 2ª via da comanda: o computador que imprime a cozinha busca os tickets e imprime */
+  | { type: 'kitchen.reprint'; ticketIds: string[] }
   /** interno: há mensagens na fila de envio */
   | { type: 'wa.outbox' };
 

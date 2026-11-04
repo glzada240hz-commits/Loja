@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { formatBRL, normalizePhoneBR } from '@guto/core';
-import { RotateCcw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { formatBRL, normalizePhoneBR, parseAddressBR, searchFilter } from '@guto/core';
+import { ClipboardPaste, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '../lib/api';
 import { useNeighborhoods } from '../lib/queries';
 import { Field } from './ui';
+import type { Neighborhood } from '../lib/types';
 
 export interface CustomerDraft {
   name: string;
@@ -74,6 +75,22 @@ export function CustomerFields({
   }, [value.phone]);
 
   const nb = nbs.data?.find((n) => n.id === value.neighborhoodId);
+  const activeNbs = (nbs.data ?? []).filter((n) => n.active);
+  const [pasted, setPasted] = useState('');
+  const [pasteMsg, setPasteMsg] = useState<string | null>(null);
+  const applyPaste = (text: string) => {
+    const a = parseAddressBR(text, activeNbs);
+    const found = activeNbs.find((n) => n.id === a.neighborhoodId);
+    onChange({
+      ...value,
+      street: a.street || value.street,
+      number: a.number || value.number,
+      complement: a.complement || value.complement,
+      reference: a.reference || value.reference,
+      neighborhoodId: found ? found.id : value.neighborhoodId,
+    });
+    setPasteMsg(found ? `Bairro identificado: ${found.name} (taxa ${formatBRL(found.feeCents)}). Confira os campos abaixo.` : 'Bairro não identificado no texto: busque o bairro abaixo. Confira a rua e o número.');
+  };
   const last = (found?.history ?? []).find((h: any) => h.status !== 'cancelled');
   return (
     <div>
@@ -111,24 +128,47 @@ export function CustomerFields({
               </select>
             </Field>
           )}
+          {/* colar o endereço que o cliente mandou: separa rua/número/complemento e acha o bairro (taxa) */}
+          <Field label="Colar endereço do cliente" hint={pasteMsg ?? 'Cole aqui o endereço como o cliente mandou: o sistema separa a rua, o número e acha o bairro e a taxa.'}>
+            <textarea
+              rows={2}
+              value={pasted}
+              placeholder="Ex.: Rua das Acácias, 120, apto 2 - Santa Martinha"
+              onChange={(e) => setPasted(e.target.value)}
+              onPaste={(e) => {
+                const text = e.clipboardData.getData('text');
+                if (!text.trim()) return;
+                e.preventDefault();
+                setPasted(text);
+                applyPaste(text);
+              }}
+            />
+          </Field>
+          {pasted.trim() && (
+            <button type="button" className="btn sm" style={{ marginTop: -4, marginBottom: 8 }} onClick={() => applyPaste(pasted)}>
+              <ClipboardPaste className="icon" aria-hidden /> Preencher com o texto colado
+            </button>
+          )}
           {/* bairro primeiro: define a taxa; a rua sugere as já usadas naquele bairro */}
           <div className="row">
-            <Field label="Bairro" hint={nb ? `Taxa ${formatBRL(nb.feeCents)} · ~${nb.etaMinutes} min` : 'Cadastre os bairros e as taxas em Bairros e taxas'}>
-              <select value={value.neighborhoodId} onChange={(e) => set({ neighborhoodId: e.target.value })}>
-                <option value="">Selecione…</option>
-                {nbs.data
-                  ?.filter((n) => n.active)
-                  .map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.name} — {formatBRL(n.feeCents)}
-                    </option>
-                  ))}
-              </select>
+            <Field label="Bairro" hint={nb ? `Taxa ${formatBRL(nb.feeCents)} · ~${nb.etaMinutes} min` : 'Digite para buscar. Cadastre os bairros e as taxas em Bairros e taxas'}>
+              <NeighborhoodPicker list={activeNbs} value={value.neighborhoodId} onChange={(id) => set({ neighborhoodId: id })} />
             </Field>
           </div>
           <div className="row">
             <Field label="Rua">
-              <input value={value.street} onChange={(e) => set({ street: e.target.value })} maxLength={150} list={streets.length ? 'ruas-do-bairro' : undefined} autoComplete="off" />
+              <input
+                value={value.street}
+                onChange={(e) => set({ street: e.target.value })}
+                onPaste={(e) => {
+                  // endereço completo colado na rua (com número/bairro): separa sozinho
+                  const text = e.clipboardData.getData('text');
+                  if (!/\d/.test(text) && !/[,\n-]/.test(text)) return;
+                  e.preventDefault();
+                  setPasted(text);
+                  applyPaste(text);
+                }}
+                maxLength={150} list={streets.length ? 'ruas-do-bairro' : undefined} autoComplete="off" />
               {streets.length > 0 && (
                 <datalist id="ruas-do-bairro">
                   {streets.map((r) => (
@@ -154,6 +194,77 @@ export function CustomerFields({
           <input type="checkbox" checked={value.waOptIn} onChange={(e) => set({ waOptIn: e.target.checked })} />
           Cliente aceita receber atualizações do pedido pelo WhatsApp
         </label>
+      )}
+    </div>
+  );
+}
+
+/** Bairro com busca (ignora acentos e aceita erro de digitação); mostra a taxa de cada um. */
+function NeighborhoodPicker({ list, value, onChange }: { list: Neighborhood[]; value: string; onChange: (id: string) => void }) {
+  const sel = list.find((n) => n.id === value);
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+  const blur = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const matches = searchFilter(list, q, (n) => ({ name: n.name })).slice(0, 40);
+  const pick = (n: Neighborhood) => {
+    onChange(n.id);
+    setQ('');
+    setOpen(false);
+  };
+  return (
+    <div className="nb-pick">
+      <input
+        role="combobox"
+        aria-expanded={open}
+        aria-controls="nb-list"
+        aria-autocomplete="list"
+        autoComplete="off"
+        placeholder={sel ? undefined : 'Buscar bairro…'}
+        value={open ? q : sel ? `${sel.name} — ${formatBRL(sel.feeCents)}` : q}
+        onFocus={(e) => {
+          setOpen(true);
+          setQ('');
+          setHi(0);
+          e.currentTarget.select();
+        }}
+        onBlur={() => (blur.current = setTimeout(() => setOpen(false), 150))}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setHi(0);
+          setOpen(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') setHi((h) => Math.min(h + 1, matches.length - 1));
+          else if (e.key === 'ArrowUp') setHi((h) => Math.max(h - 1, 0));
+          else if (e.key === 'Enter' && open && matches[hi]) {
+            e.preventDefault();
+            pick(matches[hi]!);
+          } else if (e.key === 'Escape') setOpen(false);
+          else return;
+          e.preventDefault();
+        }}
+      />
+      {open && (
+        <ul className="nb-list" id="nb-list" role="listbox" aria-label="Bairros">
+          {matches.length === 0 && <li className="nb-empty">Nenhum bairro com esse nome</li>}
+          {matches.map((n, i) => (
+            <li
+              key={n.id}
+              role="option"
+              aria-selected={n.id === value}
+              className={(i === hi ? 'hi ' : '') + (n.id === value ? 'sel' : '')}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                if (blur.current) clearTimeout(blur.current);
+                pick(n);
+              }}
+            >
+              <span>{n.name}</span>
+              <b className="num">{formatBRL(n.feeCents)}</b>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

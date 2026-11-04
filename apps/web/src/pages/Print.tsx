@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { formatBRL, formatPhoneBR, ORDER_TYPE_LABEL, PAYMENT_METHOD_LABEL } from '@guto/core';
+import { deliveryAddressLine, deliveryCollectText, formatBRL, formatPhoneBR, ORDER_TYPE_LABEL, PAYMENT_METHOD_LABEL } from '@guto/core';
 import { Button, ErrorBox, Loading } from '../components/ui';
 import { formatDateTime, formatTime } from '../lib/format';
 import { useOrder, useSettings } from '../lib/queries';
@@ -87,6 +87,17 @@ export default function Print() {
               </div>
             ))}
             {o.notes && <><hr /><div>OBS DO PEDIDO: {o.notes}</div></>}
+            {o.type === 'delivery' && (
+              <>
+                <hr />
+                <div className="c"><b>ENTREGA</b></div>
+                {o.neighborhoodName && <div className="c"><b>{o.neighborhoodName.toUpperCase()}</b></div>}
+                <div><b>{deliveryAddressLine({ street: o.addrStreet, number: o.addrNumber, complement: o.addrComplement })}</b></div>
+                {o.addrReference && <div>Ref.: {o.addrReference}</div>}
+                <div>{[o.customerName, o.customerPhone ? formatPhoneBR(o.customerPhone) : null].filter(Boolean).join(' · ')}</div>
+                <div><b>{deliveryCollectText(o)}</b></div>
+              </>
+            )}
             {o.etaAt && <div className="c">Previsão {formatTime(o.etaAt)}</div>}
           </>
         ) : (

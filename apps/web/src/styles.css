@@ -1057,3 +1057,19 @@ button.conn { cursor: pointer; font-family: inherit; }
 .bag-no.big { font-size: 1.35rem; padding: 2px 12px 2px 9px; }
 .bag-no.big svg { width: 18px; height: 18px; }
 .bag-hint { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0; }
+
+/* busca de bairro (entrega) */
+.nb-pick { position: relative; }
+.nb-pick input { width: 100%; }
+.nb-list { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); max-height: 280px; overflow: auto; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .18); }
+.nb-list li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: 7px; cursor: pointer; }
+.nb-list li.hi, .nb-list li:hover { background: var(--surface-2, #f4f4f5); }
+.nb-list li.sel { font-weight: 700; }
+.nb-list li.nb-empty { color: var(--muted, #71717a); cursor: default; }
+
+/* 2ª via da comanda */
+.tk-band-r { display: inline-flex; align-items: center; gap: 8px; }
+.tk-reprint { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255, 255, 255, .55); background: rgba(0, 0, 0, .15); color: inherit; border-radius: 6px; padding: 1px 7px; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.tk-reprint svg { width: 13px; height: 13px; }
+.tk-reprint:hover { background: rgba(0, 0, 0, .3); }
+.rd-acts { display: inline-flex; gap: 6px; grid-row: 1 / span 2; grid-column: 2; }

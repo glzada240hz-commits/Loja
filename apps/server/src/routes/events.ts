@@ -8,7 +8,7 @@ import type { LiveEvent } from '../lib/events.js';
 function allowed(role: Role, e: LiveEvent): boolean {
   if (e.type === 'wa.outbox') return false;
   if (role === 'courier') return e.type === 'delivery.changed' || e.type === 'day.changed';
-  if (role === 'kitchen') return ['kitchen.changed', 'menu.changed', 'day.changed'].includes(e.type);
+  if (role === 'kitchen') return ['kitchen.changed', 'kitchen.reprint', 'menu.changed', 'day.changed'].includes(e.type);
   if (role === 'waiter') return ['order.changed', 'kitchen.changed', 'menu.changed', 'day.changed', 'bill.requested'].includes(e.type);
   return true;
 }
