@@ -1,3 +1,4 @@
+/* global crypto */
 // Prepara uma loja de DEMONSTRAÇÃO para o vídeo comercial (clientes fictícios).
 // Uso: node scripts/video/cenario.mjs http://localhost:3200
 const B = process.argv[2] ?? 'http://localhost:3200';

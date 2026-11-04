@@ -1,3 +1,4 @@
+/* global crypto, localStorage, window */
 // Grava as cenas do vídeo comercial a partir do sistema REAL (loja de demonstração preparada por cenario.mjs).
 // Cada cena vira uma sequência de quadros JPEG (screencast do Chromium) + lista de durações para o ffmpeg.
 // Uso: node scripts/video/gravar.mjs http://localhost:3200 <pasta-saida> [cena...]

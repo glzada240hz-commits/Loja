@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { buildPixPayload, formatBRL, formatPhoneBR, ORDER_TYPE_LABEL, PAYMENT_METHOD_LABEL } from '@guto/core';
+import { formatBRL, formatPhoneBR, ORDER_TYPE_LABEL, PAYMENT_METHOD_LABEL } from '@guto/core';
 import { Button, ErrorBox, Loading } from '../components/ui';
 import { formatDateTime, formatTime } from '../lib/format';
 import { useOrder, useSettings } from '../lib/queries';
@@ -24,26 +24,7 @@ export default function Print() {
     document.head.appendChild(style);
     return () => style.remove();
   }, [w]);
-  const o0 = q.data;
   const st = s.data;
-  /** QR Pix com o valor que falta (só na conta em aberto e com chave cadastrada) */
-  const pix = useMemo(() => {
-    if (!o0 || !st?.pixKey || o0.balanceCents <= 0 || via !== 'cliente') return null;
-    try {
-      return buildPixPayload({ key: st.pixKey, name: st.storeName, city: st.pixCity || 'BRASIL', amountCents: o0.balanceCents, txid: `PED${o0.number}` });
-    } catch {
-      return null;
-    }
-  }, [o0, st, via]);
-  const [qr, setQr] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    setQr(null);
-    if (pix) void import('qrcode').then((m) => m.toString(pix, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' })).then((svg) => alive && setQr(svg));
-    return () => {
-      alive = false;
-    };
-  }, [pix]);
   const logo: string | null = st ? st.logoUrl || '/logo-nota.png' : null;
   const [logoOk, setLogoOk] = useState(false);
   useEffect(() => {
@@ -53,9 +34,9 @@ export default function Print() {
     img.onload = img.onerror = () => setLogoOk(true);
     img.src = logo;
   }, [logo]);
-  const qrReady = (!pix || qr !== null) && (!logo || logoOk);
+  const ready = !logo || logoOk;
   useEffect(() => {
-    if (!(q.data && s.data && qrReady && p.get('auto') === '1')) return;
+    if (!(q.data && s.data && ready && p.get('auto') === '1')) return;
     // janela aberta pelo sistema: fecha sozinha depois de imprimir (ou cancelar)
     const after = () => setTimeout(() => window.close(), 200);
     window.addEventListener('afterprint', after);
@@ -64,7 +45,7 @@ export default function Print() {
       clearTimeout(t);
       window.removeEventListener('afterprint', after);
     };
-  }, [q.data, s.data, p, qrReady]);
+  }, [q.data, s.data, p, ready]);
   if (q.isLoading || s.isLoading) return <Loading />;
   if (q.error || !q.data) return <ErrorBox error={q.error} />;
   const o = q.data;
@@ -109,7 +90,7 @@ export default function Print() {
             {o.etaAt && <div className="c">Previsão {formatTime(o.etaAt)}</div>}
           </>
         ) : (
-          <Nota o={o} items={items} st={s.data} qr={qr} pix={pix} />
+          <Nota o={o} items={items} st={s.data} />
         )}
       </div>
     </div>
@@ -120,7 +101,7 @@ export default function Print() {
  * Nota NÃO fiscal do cliente. Com saldo: "CONTA" para conferência (e QR Pix com o valor, se a loja cadastrou a
  * chave). Quitada: "NOTA DE VENDA — PAGO" com as formas de pagamento e o troco.
  */
-function Nota({ o, items, st, qr, pix }: { o: Order; items: Order['items']; st: any; qr: string | null; pix: string | null }) {
+function Nota({ o, items, st }: { o: Order; items: Order['items']; st: any }) {
   const paid = o.balanceCents <= 0 && o.totalCents > 0;
   const pays = o.payments.filter((x) => x.status === 'confirmed');
   const change = pays.reduce((a, x) => a + (x.changeCents ?? 0), 0);
@@ -174,15 +155,6 @@ function Nota({ o, items, st, qr, pix }: { o: Order; items: Order['items']; st: 
       ) : o.balanceCents > 0 && o.paymentIntent ? (
         <div>Pagamento na entrega: {PAYMENT_METHOD_LABEL[o.paymentIntent]}{o.changeForCents ? ` · troco p/ ${formatBRL(o.changeForCents)}` : ''}</div>
       ) : null}
-      {pix && (
-        <div className="pix">
-          <hr />
-          <div className="c"><b>Pague com Pix: {formatBRL(o.balanceCents)}</b></div>
-          {qr ? <div className="qr" dangerouslySetInnerHTML={{ __html: qr }} /> : <div className="c">gerando QR…</div>}
-          <div className="c sub">Chave: {st.pixKey}</div>
-          <div className="c sub">Mostre o comprovante ao caixa. O pagamento só vale depois da conferência.</div>
-        </div>
-      )}
       {o.notes && <div>Obs: {o.notes}</div>}
       <hr />
       {paid && lastPay && <div className="c sub">Pago em {formatDateTime(lastPay.createdAt)}{lastPay.userName ? ` · ${lastPay.userName}` : ''}</div>}
