@@ -21,7 +21,7 @@ export interface OfficialCategory {
 const u = (priceCents: number) => [{ name: 'Único', priceCents }];
 
 // muda quando o cardápio muda: o modo loja aplica a correção sozinho uma vez
-export const OFFICIAL_MENU_VERSION = '2026-11-03f';
+export const OFFICIAL_MENU_VERSION = '2026-11-04a';
 
 export const OFFICIAL_STORE = {
   storePhone: '(31) 98841-4429',
@@ -201,5 +201,23 @@ export const OFFICIAL_ADDON_GROUPS: OfficialAddonGroup[] = [
       { name: 'Queijo', priceCents: 800 },
       { name: 'Bacon', priceCents: 800 },
     ],
+  },
+  {
+    // passados pelo dono em 04/11/2026
+    name: 'Acréscimos do prato',
+    categories: ['Pratos'],
+    maxSelect: 0,
+    options: [
+      { name: 'Frango', priceCents: 400 },
+      { name: 'Bacon', priceCents: 400 },
+      { name: 'Cheddar', priceCents: 400 },
+    ],
+  },
+  {
+    // gratuito (sem preço): pedido do cliente para tirar algo do prato
+    name: 'Retirar do prato',
+    categories: ['Pratos'],
+    maxSelect: 0,
+    options: ['Sem cebolinha', 'Sem presunto', 'Sem muçarela', 'Sem queijo', 'Sem bacon', 'Sem cheddar'].map((name) => ({ name, priceCents: 0 })),
   },
 ];

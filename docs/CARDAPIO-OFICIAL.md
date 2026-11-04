@@ -38,6 +38,8 @@ foi escrito “Whisky”. Acréscimos (passados pelo dono, versão `2026-11-03c`
   (versão `2026-11-03f`).
 - **Guloseimas** (não vai para a cozinha): Trento 5,00 · Kit Kat 6,00 · Trident 4,00 · Halls 3,00 · Suflair 10,00.
 - **Porções — Acréscimos da porção:** Cheddar 9,00 · Queijo 8,00 · Bacon 8,00 (separados; versão `2026-11-03e`).
+- **Pratos — Acréscimos do prato:** Frango 4,00 · Bacon 4,00 · Cheddar 4,00; **Retirar do prato** (grátis): sem
+  cebolinha, presunto, muçarela, queijo, bacon ou cheddar (versão `2026-11-04a`).
 
 Validação: teste de integração (preços, tamanhos, categorias, cozinha, exemplos fora, item do dono mantido,
 repetição sem duplicar, venda com “Sem milho”) e E2E (conferir → importar → aparece no PDV). Capturas em

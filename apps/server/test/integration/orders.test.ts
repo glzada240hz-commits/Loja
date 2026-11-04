@@ -462,6 +462,21 @@ describe('cardápio oficial do Bar do Guto', () => {
     const fritas = all2.find((x: any) => x.name === 'Fritas');
     expect(fritas.groups.find((g: any) => g.name === 'Acréscimos da porção').options.map((o: any) => [o.name, o.priceCents])).toEqual([['Cheddar', 900], ['Queijo', 800], ['Bacon', 800]]);
     expect(all2.filter((x: any) => x.categoryId === xt.categoryId).every((x: any) => x.groups.some((g: any) => g.name === 'Acréscimos'))).toBe(true);
+    // pratos: acréscimos pagos (frango, bacon, cheddar 4,00) e retirar ingredientes (grátis) em todos
+    const pratosCat = menu.find((c) => c.name === 'Pratos') as any;
+    const pratos = all2.filter((x: any) => x.categoryId === pratosCat.id);
+    expect(pratos).toHaveLength(6);
+    for (const pr of pratos) {
+      expect(pr.groups.find((g: any) => g.name === 'Acréscimos do prato').options.map((o: any) => [o.name, o.priceCents])).toEqual([['Frango', 400], ['Bacon', 400], ['Cheddar', 400]]);
+      expect(pr.groups.find((g: any) => g.name === 'Retirar do prato').options.every((o: any) => o.priceCents === 0)).toBe(true);
+    }
+    const omelete = pratos.find((x: any) => x.name === 'Omelete Simples');
+    const optP = (g: string, n: string) => omelete.groups.find((x: any) => x.name === g).options.find((o: any) => o.name === n).id;
+    const op = await caixa.post('/api/orders', { type: 'counter', send: true, items: [{ variantId: omelete.variants[0].id, quantity: 1, options: [{ optionId: optP('Acréscimos do prato', 'Bacon'), quantity: 1 }, { optionId: optP('Retirar do prato', 'Sem cebolinha'), quantity: 1 }] }] }, { 'idempotency-key': idemKey() });
+    expect(op.status).toBe(200);
+    expect(op.body.totalCents).toBe(1650 + 400);
+    // hambúrgueres não recebem as opções do prato
+    expect(xt.groups.some((g: any) => /prato/.test(g.name))).toBe(false);
     const troca = trocaXt.options[0].id;
     const picanha = acr.options.find((o: any) => o.name === 'Carne de picanha').id;
     const o2 = await caixa.post('/api/orders', { type: 'counter', send: true, items: [{ variantId: xt.variants[0].id, quantity: 1, options: [{ optionId: troca, quantity: 2 }, { optionId: picanha, quantity: 1 }] }] }, { 'idempotency-key': idemKey() });

@@ -509,7 +509,7 @@ function OfficialImport({ data, onClose }: { data: Official; onClose: () => void
       <p className="muted" style={{ margin: '6px 0' }}>Hambúrgueres ganham as opções gratuitas: {data.removals.join(', ')}.</p>
       {data.addons?.map((g) => (
         <p key={g.name} className="acr-line" style={{ margin: '4px 0' }}>
-          <b>{g.name}</b> ({g.categories.join(', ')}): {g.options.map((o) => `${o.name} + ${formatBRL(o.priceCents)}`).join(' · ')}
+          <b>{g.name}</b> ({g.categories.join(', ')}): {g.options.map((o) => (o.priceCents > 0 ? `${o.name} + ${formatBRL(o.priceCents)}` : o.name)).join(' · ')}
         </p>
       ))}
       <div className="official-list">
