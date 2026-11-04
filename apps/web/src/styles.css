@@ -1045,3 +1045,10 @@ button.conn { cursor: pointer; font-family: inherit; }
 .split-row.on { background: #eff6ff; }
 .split-row.done { opacity: .6; }
 .split-paid { color: #15803d; font-weight: 600; }
+
+/* nº da entrega (sacola) */
+.bag-no { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px 1px 7px; border-radius: 999px; background: #1c1917; color: #fff; font-weight: 800; font-size: 0.95rem; line-height: 1.5; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bag-no svg { width: 14px; height: 14px; color: #fb923c; }
+.bag-no.big { font-size: 1.35rem; padding: 2px 12px 2px 9px; }
+.bag-no.big svg { width: 18px; height: 18px; }
+.bag-hint { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0; }

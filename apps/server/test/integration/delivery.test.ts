@@ -271,6 +271,35 @@ describe('6/7/16. cardápio digital → cozinha → entrega → acerto do entreg
   });
 });
 
+describe('nº da entrega (sacola)', () => {
+  it('cada entrega do dia ganha 1, 2, 3… (pedido online só ao aceitar); mesa e balcão não; aparece na cozinha e na expedição', async () => {
+    const addr = { street: 'Rua A', number: '1', neighborhoodId: m.neighborhood('Centro') };
+    const items = [{ variantId: m.variant('X-Burguer'), quantity: 1 }];
+    const d1 = await caixa.post('/api/orders', { type: 'delivery', send: true, customer: { name: 'Ana', phone: '11 91111-1111' }, address: addr, items }, { 'idempotency-key': idemKey() });
+    expect(d1.status).toBe(200);
+    expect(d1.body.deliveryNumber).toBe(1);
+    // balcão e mesa não usam nº de sacola, e não pulam a contagem
+    const bal = await caixa.post('/api/orders', { type: 'takeout', send: true, customer: { name: 'Rafa', phone: null }, items }, { 'idempotency-key': idemKey() });
+    expect(bal.body.deliveryNumber).toBeNull();
+    await caixa.post('/api/orders', { type: 'table', tableLabel: '4', send: true, items }, { 'idempotency-key': idemKey() });
+    // online: pendente sem número; ganha ao aceitar
+    const on = await publicCheckout(onlineOrder('11 97777-1212'));
+    expect(on.status).toBe(200);
+    const pend = (await caixa.get('/api/orders?status=pending')).body[0];
+    expect(pend.deliveryNumber).toBeNull();
+    const d2 = await caixa.post('/api/orders', { type: 'delivery', send: true, customer: { name: 'Beto', phone: '11 92222-2222' }, address: addr, items }, { 'idempotency-key': idemKey() });
+    expect(d2.body.deliveryNumber).toBe(2);
+    await caixa.post(`/api/orders/${pend.id}/accept`, { version: pend.version });
+    expect((await caixa.get(`/api/orders/${pend.id}`)).body.deliveryNumber).toBe(3);
+    // cozinha e expedição mostram o número
+    const tk = (await (await as(h, 'cozinha')).get('/api/kitchen')).body.tickets;
+    expect(tk.find((t: any) => t.orderNumber === d2.body.number).deliveryNumber).toBe(2);
+    expect(tk.find((t: any) => t.orderNumber === bal.body.number).deliveryNumber).toBeNull();
+    const board = (await caixa.get('/api/deliveries')).body.orders;
+    expect(board.map((o: any) => o.deliveryNumber).sort()).toEqual([1, 2, 3]);
+  });
+});
+
 describe('cardápio na internet: porteiro', () => {
   it('de fora só passa o cardápio; API interna bloqueada; cookie da equipe não passa', async () => {
     const { startPublicGateway } = await import('../../src/services/publicGateway.js');

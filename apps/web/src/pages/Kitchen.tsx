@@ -24,6 +24,7 @@ import { Layout } from '../components/Layout';
 import { Button, ErrorBox, Loading, useAction, useUi } from '../components/ui';
 import { get, post } from '../lib/api';
 import { formatTime, minutesSince } from '../lib/format';
+import { BagNumber } from '../components/BagNumber';
 
 interface KTicket {
   id: string;
@@ -36,6 +37,7 @@ interface KTicket {
   changedAt: string | null;
   changeNote: string | null;
   orderNumber: number;
+  deliveryNumber?: number | null;
   orderType: 'counter' | 'takeout' | 'delivery' | 'table';
   orderStatus: string;
   tableLabel: string | null;
@@ -194,7 +196,7 @@ function ReadyRow({ t }: { t: KTicket }) {
   const label = t.orderType === 'table' ? t.place : ORDER_TYPE_LABEL[t.orderType];
   return (
     <article className="rd" aria-label={`Pedido ${t.orderNumber}`}>
-      <b>{label}</b>
+      <b>{label}</b> <BagNumber n={t.deliveryNumber} />
       <small>
         #{t.orderNumber} · pronto {formatTime(t.readyAt)} · {t.items.reduce((a, i) => a + (i.status === 'cancelled' ? 0 : i.quantity), 0)} item(ns)
       </small>
@@ -263,7 +265,7 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
       </div>
       <div className="tk-head">
         <span style={{ minWidth: 0 }}>
-          <span className="tk-place">{label}</span>
+          <span className="tk-place">{label} <BagNumber n={t.deliveryNumber} big /></span>
           <span className="tk-sub">
             {formatTime(t.createdAt)} · {t.createdByName ? `por ${t.createdByName}` : 'cardápio digital'}
             {t.customerName ? ` · ${t.customerName}` : ''}

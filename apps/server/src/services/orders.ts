@@ -38,7 +38,7 @@ import { AppError, badRequest, conflict, notFound, staleVersion, unprocessable }
 import { idempotent, type IdemKey } from '../lib/idempotency.js';
 import { enqueueOrderNotification } from '../whatsapp/notify.js';
 import { authorize, type SupervisorInput } from './auth.js';
-import { nextOrderNumber, requireOpenDay } from './businessDay.js';
+import { ensureDeliveryNumber, nextOrderNumber, requireOpenDay } from './businessDay.js';
 import { requireOpenCash } from './cash.js';
 import { resolveItems, type ItemInput, type ResolvedItem } from './menu.js';
 import { getSettings } from './settings.js';
@@ -496,6 +496,7 @@ export async function createOrder(
         .returning();
       await insertItems(tx, order!.id, items, byStaff ? ctx.actor : null, 0);
       await recalc(tx, order!.id);
+      const deliveryNumber = await ensureDeliveryNumber(tx, order!);
       await orderEvent(
         tx,
         order!.id,
@@ -515,7 +516,7 @@ export async function createOrder(
       if (status === 'open' && input.send !== false) await launchPending(tx, order!, ctx.actor, emit);
       if (!byStaff) await enqueueOrderNotification(tx, order!.id, 'order_received', emit);
       emit({ type: 'order.changed', orderId: order!.id, number });
-      return { id: order!.id, number, trackingToken: order!.trackingToken };
+      return { id: order!.id, number, deliveryNumber, trackingToken: order!.trackingToken };
     });
     return res.value;
   }));
@@ -643,6 +644,7 @@ export async function updateHeader(ctx: Ctx, orderId: string, version: number, p
     }
     await bump(tx, o.id, set);
     await recalc(tx, o.id);
+    await ensureDeliveryNumber(tx, { ...o, type }); // virou delivery: ganha nº de sacola
     await orderEvent(tx, o.id, 'updated', ctx.actor, changes, authorizedBy);
     emit({ type: 'order.changed', orderId: o.id, number: o.number });
     if (o.courierId) emit({ type: 'delivery.changed', orderId: o.id, courierId: o.courierId });
@@ -859,6 +861,7 @@ export async function acceptOrder(ctx: Ctx, orderId: string, version: number, et
     if (etaMinutes) set.etaAt = new Date(at.getTime() + etaMinutes * 60000);
     await bump(tx, o.id, set);
     await orderEvent(tx, o.id, 'accepted', ctx.actor, { etaMinutes });
+    await ensureDeliveryNumber(tx, { ...o, status: 'open' });
     const fresh = await lockOrder(tx, o.id);
     await launchPending(tx, fresh, ctx.actor, emit);
     await enqueueOrderNotification(tx, o.id, 'order_accepted', emit);
@@ -1254,6 +1257,7 @@ export async function listOrders(db: DbOrTx, f: OrderFilters) {
     .select({
       id: orders.id,
       number: orders.number,
+      deliveryNumber: orders.deliveryNumber,
       businessDayId: orders.businessDayId,
       type: orders.type,
       source: orders.source,

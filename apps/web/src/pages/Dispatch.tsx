@@ -10,9 +10,10 @@ import { Alert, Button, Empty, ErrorBox, Field, Loading, Modal, Money, MoneyInpu
 import { get, newIdemKey, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { formatDateTime, formatTime, minutesSince } from '../lib/format';
+import { BagNumber } from '../components/BagNumber';
 
 interface BoardOrder {
-  id: string; number: number; status: string; stage: any; customerName: string | null; customerPhone: string | null;
+  id: string; number: number; deliveryNumber?: number | null; status: string; stage: any; customerName: string | null; customerPhone: string | null;
   addrStreet: string | null; addrNumber: string | null; addrComplement: string | null; addrReference: string | null; neighborhoodName: string | null;
   totalCents: number; paidCents: number; deliveryFeeCents: number; courierFeeCents: number | null; paymentPlan?: { method: string; amountCents: number }[] | null; paymentIntent: any; changeForCents: number | null;
   deliveryStatus: any; deliveryIssue: string | null; courierId: string | null; courierName: string | null; deliveryRunId: string | null;
@@ -79,6 +80,7 @@ function Board() {
       <span style={{ paddingTop: 6 }}>{extra}</span>
       <div style={{ minWidth: 0 }}>
         <div className="hstack">
+          <BagNumber n={o.deliveryNumber} />
           <button type="button" className="btn ghost sm" style={{ paddingLeft: 4, paddingRight: 4 }} onClick={() => setOpen(o.id)}>
             <b>#{o.number}</b>
           </button>
@@ -238,6 +240,7 @@ function Board() {
           <h2 style={{ marginTop: 16 }}>Entregues hoje ({done.length})</h2>
           {done.map((o) => (
             <div key={o.id} className="hstack" style={{ padding: '4px 0' }}>
+              <BagNumber n={o.deliveryNumber} />
               <button type="button" className="btn ghost sm" onClick={() => setOpen(o.id)}>
                 #{o.number}
               </button>

@@ -11,6 +11,7 @@ import { get, qs } from '../lib/api';
 import { formatTime, formatDate } from '../lib/format';
 import { useDay } from '../lib/queries';
 import type { OrderRow } from '../lib/types';
+import { BagNumber } from '../components/BagNumber';
 
 type Filter = 'active' | 'pending' | 'closed' | 'cancelled' | 'receivable' | 'all';
 
@@ -89,7 +90,7 @@ export default function Orders() {
               {list.data.map((o) => (
                 <tr key={o.id} className="clickable" onClick={() => nav(`/pedidos/${o.id}`)} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav(`/pedidos/${o.id}`)}>
                   <td>
-                    <b>#{o.number}</b>
+                    <b>#{o.number}</b> <BagNumber n={o.deliveryNumber} />
                     {allDays && <div><small className="muted">{formatDate(o.referenceDate + 'T12:00:00')}</small></div>}
                   </td>
                   <td className="num">{formatTime(o.createdAt)}</td>

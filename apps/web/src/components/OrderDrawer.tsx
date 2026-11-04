@@ -24,6 +24,7 @@ import { formatPlan } from './PaymentPlan';
 import { notaUrl, openNota } from '../lib/print';
 import { DeliveryBadge, StageBadge, StatusBadge, TypeBadge } from './status';
 import { Alert, Button, Chips, ErrorBox, Field, Loading, Modal, Money, MoneyInput, MoreMenu, Stepper, useAction, useUi } from './ui';
+import { BagNumber } from './BagNumber';
 
 function eventLabel(e: OrderEvent): string {
   const d = e.data ?? {};
@@ -175,7 +176,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
       <div className="drawer-head">
         <div className="grow">
           <h2 className="hstack" style={{ gap: 8 }}>
-            Pedido #{o.number} <TypeBadge type={o.type} table={o.tableLabel} tabKind={o.tabKind} />
+            Pedido #{o.number} <TypeBadge type={o.type} table={o.tableLabel} tabKind={o.tabKind} />{o.type === 'delivery' && <> <BagNumber n={o.deliveryNumber} /></>}
           </h2>
           <small className="muted">
             {formatDateTime(o.createdAt)}

@@ -39,6 +39,18 @@ funciona sem ela, com o WhatsApp que a loja já usa.
 - O combinado aparece no pedido do caixa, em Entregas, no celular do motoboy, na nota e no resumo do WhatsApp.
   No **Receber** do caixa há botões com cada parte combinada; registre uma parte e a janela continua com o resto.
 
+## Nº da entrega (para marcar a sacola)
+
+Cada entrega do dia ganha um número próprio, em sequência: **1, 2, 3…** (recomeça quando abre o dia). Pedido do
+cardápio digital só ganha número quando a loja aceita; mesa e balcão não usam. O número aparece:
+- na **via da cozinha** em letra grande (“ENTREGA 3 — escreva 3 na sacola · pedido #12”);
+- no cartão da **Cozinha** e na lista de prontos, com o ícone de sacola;
+- na **Expedição** (Entregas), na tela do **entregador**, em **Pedidos**, no detalhe do pedido e na nota do cliente;
+- no celular, logo após enviar uma entrega pelo atendente.
+
+Quando o entregador sai com várias, a sacola marcada bate com o número da tela dele. Capturas em
+[`evidencias/sacola/`](evidencias/sacola/).
+
 ## Balcão (para levar) pelo celular
 
 Aba **Balcão** no app do atendente: cliente na loja que vai levar (sem mesa). **Novo pedido para levar** →

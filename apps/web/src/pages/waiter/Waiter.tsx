@@ -41,6 +41,7 @@ import { moveDraft, useDraft } from './draft';
 import { lineFromItem } from '../../lib/repeat';
 import { CustomerFields, customerPayload, emptyCustomer, type CustomerDraft } from '../../components/CustomerFields';
 import { formatPlan, PaymentPlanEditor, type PlanPart } from '../../components/PaymentPlan';
+import { BagNumber } from '../../components/BagNumber';
 
 /** App do atendente (PWA para celular/tablet). Mesmo servidor e banco do caixa e da cozinha. */
 export default function Waiter() {
@@ -855,7 +856,7 @@ function WhatsAppOrders({ channel }: { channel: Channel }) {
           {rows.map((o) => (
             <div key={o.id} className="wa-order">
               <div>
-                <b>#{o.number}</b> {o.customerName ?? 'Cliente'} <small className="muted">· {o.type === 'delivery' ? 'Entrega' : 'Retirada'} · {formatTime(o.createdAt)}</small>
+                <BagNumber n={o.deliveryNumber} /> <b>#{o.number}</b> {o.customerName ?? 'Cliente'} <small className="muted">· {o.type === 'delivery' ? 'Entrega' : 'Retirada'} · {formatTime(o.createdAt)}</small>
                 <br />
                 <small>{o.status === 'closed' ? 'Finalizado' : ORDER_STAGE_LABEL[o.stage as keyof typeof ORDER_STAGE_LABEL] ?? o.stage} · <b>{formatBRL(o.totalCents)}</b></small>
               </div>
@@ -923,6 +924,11 @@ function WhatsAppNew({ channel }: { channel: Channel }) {
           <CheckCircle2 size={44} color="var(--ok)" aria-hidden />
           <p className="pay-done-total">{formatBRL(sent.totalCents)}</p>
           <p className="muted">{[sent.customerName, formatPhoneBR(sent.customerPhone), sent.type === 'delivery' ? 'Entrega' : 'Para levar'].filter(Boolean).join(' · ')}</p>
+          {sent.type === 'delivery' && sent.deliveryNumber ? (
+            <p className="bag-hint">
+              <BagNumber n={sent.deliveryNumber} big /> <span>escreva <b>{sent.deliveryNumber}</b> na sacola</span>
+            </p>
+          ) : null}
           {wa ? (
             <p>Enviado para a cozinha. Agora avise o cliente pelo WhatsApp (abre o WhatsApp do celular com o resumo pronto).</p>
           ) : (

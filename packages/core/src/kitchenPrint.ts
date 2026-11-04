@@ -19,6 +19,8 @@ export interface PrintTicket {
   changedAt: string | null;
   changeNote: string | null;
   orderNumber: number;
+  /** nº da entrega do dia (marcar na sacola) */
+  deliveryNumber?: number | null;
   orderStatus: string;
   place: string;
   createdByName: string | null;
@@ -61,8 +63,12 @@ export function ticketLines(t: PrintTicket, kind: PrintKind, printedAt: Date = n
   const head = kind === 'cancelado' ? 'CANCELADO — NÃO FAZER' : kind === 'alterado' ? 'ALTERADO' : t.round > 1 ? `ACRÉSCIMO · RODADA ${t.round}` : 'NOVO PEDIDO';
   const out: PrintLine[] = [
     { style: 'title', text: head },
-    { style: 'big', text: `#${t.orderNumber}` },
-    { style: 'place', text: t.place.toUpperCase() },
+    ...(t.deliveryNumber
+      ? [
+          { style: 'big' as const, text: `ENTREGA ${t.deliveryNumber}` },
+          { style: 'center' as const, text: `escreva ${t.deliveryNumber} na sacola · pedido #${t.orderNumber}` },
+        ]
+      : [{ style: 'big' as const, text: `#${t.orderNumber}` }, { style: 'place' as const, text: t.place.toUpperCase() }]),
     { style: 'center', text: `${hhmmBR(t.createdAt)}${t.createdByName ? ` · ${t.createdByName}` : ''}` },
   ];
   if (t.customerName) out.push({ style: 'center', text: t.customerName });

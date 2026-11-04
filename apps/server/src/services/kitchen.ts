@@ -15,6 +15,7 @@ export async function kitchenQueue(db: DbOrTx) {
     .select({
       ticket: kitchenTickets,
       orderNumber: orders.number,
+      deliveryNumber: orders.deliveryNumber,
       orderType: orders.type,
       orderStatus: orders.status,
       tableLabel: orders.tableLabel,
@@ -44,6 +45,7 @@ export async function kitchenQueue(db: DbOrTx) {
     .map((r) => ({
       ...r.ticket,
       orderNumber: r.orderNumber,
+      deliveryNumber: r.deliveryNumber,
       orderType: r.orderType,
       orderStatus: r.orderStatus,
       tableLabel: r.tableLabel,

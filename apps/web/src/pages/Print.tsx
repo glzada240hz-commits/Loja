@@ -86,7 +86,14 @@ export default function Print() {
         {via === 'cozinha' ? (
           <>
             <div className="c">COZINHA</div>
-            <div className="big">#{o.number}</div>
+            {o.deliveryNumber ? (
+              <>
+                <div className="big">ENTREGA {o.deliveryNumber}</div>
+                <div className="c">escreva {o.deliveryNumber} na sacola · pedido #{o.number}</div>
+              </>
+            ) : (
+              <div className="big">#{o.number}</div>
+            )}
             <div className="c"><b>{o.type === 'table' ? `MESA ${o.tableLabel}` : ORDER_TYPE_LABEL[o.type].toUpperCase()}</b></div>
             <div className="c">{formatDateTime(o.createdAt)}</div>
             {o.customerName && <div className="c">{o.customerName}</div>}
@@ -127,6 +134,7 @@ function Nota({ o, items, st, qr, pix }: { o: Order; items: Order['items']; st: 
       {st.storePhone && <div className="c">{st.storePhone}</div>}
       <div className="warn">{paid ? 'NOTA DE VENDA — PAGO' : 'CONTA — CONFERÊNCIA'}<br />NÃO É DOCUMENTO FISCAL</div>
       <div className="l"><span>Pedido</span><b>#{o.number}</b></div>
+      {o.type === 'delivery' && o.deliveryNumber ? <div className="big">ENTREGA {o.deliveryNumber}</div> : null}
       <div className="l"><span>{o.type === 'table' ? (o.tabKind === 'tab' ? `Comanda ${o.tableLabel}` : `Mesa ${o.tableLabel}`) : ORDER_TYPE_LABEL[o.type]}</span><span>{formatDateTime(o.createdAt)}</span></div>
       {o.createdByName && <div>Atendente: {o.createdByName}</div>}
       {o.customerName && <div>Cliente: {o.customerName}</div>}

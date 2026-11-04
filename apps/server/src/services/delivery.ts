@@ -45,6 +45,7 @@ export async function saveCourier(
 const boardFields = {
   id: orders.id,
   number: orders.number,
+  deliveryNumber: orders.deliveryNumber,
   status: orders.status,
   stage: orders.stage,
   customerName: orders.customerName,
@@ -240,6 +241,7 @@ export async function courierView(ctx: Ctx) {
     .select({
       id: orders.id,
       number: orders.number,
+      deliveryNumber: orders.deliveryNumber,
       customerName: orders.customerName,
       customerPhone: orders.customerPhone,
       addrStreet: orders.addrStreet,

@@ -140,6 +140,8 @@ export const businessDays = pgTable(
     closedAt: ts('closed_at'),
     closedBy: uuid('closed_by').references(() => users.id),
     lastOrderNumber: integer('last_order_number').notNull().default(0),
+    /** numeração própria das entregas do dia (1, 2, 3…), para marcar nas sacolas */
+    lastDeliveryNumber: integer('last_delivery_number').notNull().default(0),
     notes: text('notes'),
   },
   (t) => [uniqueIndex('business_days_one_open').on(t.status).where(sql`status = 'open'`)],
@@ -467,6 +469,8 @@ export const orders = pgTable(
       .notNull()
       .references(() => businessDays.id),
     number: integer('number').notNull(),
+    /** nº da entrega no dia (escrito na sacola); só em delivery aceito */
+    deliveryNumber: integer('delivery_number'),
     type: orderTypeEnum('type').notNull(),
     source: orderSourceEnum('source').notNull().default('pos'),
     status: orderStatusEnum('status').notNull(),

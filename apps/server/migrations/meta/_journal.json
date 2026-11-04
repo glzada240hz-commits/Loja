@@ -29,6 +29,13 @@
       "when": 1793754160227,
       "tag": "0003_conta_por_itens",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793828336908,
+      "tag": "0004_numero_da_entrega",
+      "breakpoints": true
     }
   ]
 }

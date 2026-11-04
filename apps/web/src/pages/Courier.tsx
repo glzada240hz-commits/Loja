@@ -6,9 +6,10 @@ import { DeliveryBadge } from '../components/status';
 import { Button, Empty, ErrorBox, Loading, useAction, useUi } from '../components/ui';
 import { get, post } from '../lib/api';
 import { formatTime } from '../lib/format';
+import { BagNumber } from '../components/BagNumber';
 
 interface Delivery {
-  id: string; number: number; customerName: string | null; customerPhone: string | null; addrStreet: string | null; addrNumber: string | null;
+  id: string; number: number; deliveryNumber?: number | null; customerName: string | null; customerPhone: string | null; addrStreet: string | null; addrNumber: string | null;
   addrComplement: string | null; addrReference: string | null; neighborhoodName: string | null; balanceCents: number; paymentPlan?: { method: string; amountCents: number }[] | null; paymentIntent: any;
   changeForCents: number | null; notes: string | null; deliveryStatus: any; deliveryIssue: string | null; deliveryRunId: string | null;
   courierFeeCents: number | null; stage: string; dispatchedAt: string | null; deliveredAt: string | null; itemCount: number;
@@ -51,7 +52,8 @@ export default function Courier() {
     return (
       <div key={d.id} className="courier-card">
         <div className="hstack">
-          <b style={{ fontSize: '1.3rem' }}>#{d.number}</b>
+          <BagNumber n={d.deliveryNumber} big />
+          <b style={{ fontSize: d.deliveryNumber ? '1rem' : '1.3rem' }}>#{d.number}</b>
           <DeliveryBadge status={d.deliveryStatus} />
           <span className="spacer" />
           <small>{d.itemCount} item(ns)</small>
@@ -137,7 +139,7 @@ export default function Courier() {
       <h2 style={{ marginTop: 16 }}>Entregues hoje ({done.length})</h2>
       {done.map((d) => (
         <div key={d.id} className="hstack" style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
-          <b>#{d.number}</b> {d.neighborhoodName} <small className="muted">{formatTime(d.deliveredAt)}</small>
+          <BagNumber n={d.deliveryNumber} /> <b>#{d.number}</b> {d.neighborhoodName} <small className="muted">{formatTime(d.deliveredAt)}</small>
           <span className="spacer" />
           {d.courierFeeCents != null && <span>{formatBRL(d.courierFeeCents)}</span>}
         </div>
