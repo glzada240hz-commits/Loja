@@ -224,7 +224,7 @@ export function Layout({ children, title, actions, flush, bare }: { children: Re
                   <small>{me ? ROLE_LABEL[me.role] : ''}</small>
                 </span>
                 <Button size="sm" variant="ghost" icon={Info} aria-label="Sobre e versão" title="Sobre e versão" onClick={() => setAbout(true)} />
-                <Button size="sm" variant="ghost" icon={LogOut} onClick={() => void logout()}>
+                <Button className="top-logout" size="sm" variant="ghost" icon={LogOut} onClick={() => void logout()}>
                   Sair
                 </Button>
               </>

@@ -207,3 +207,20 @@ test('caixa divide a conta da mesa por itens: Cliente A paga os dele, Cliente B 
   await dlg.getByRole('button', { name: /^Registrar R\$ 19,50/ }).click();
   await expect(page.getByRole('dialog', { name: /pago$/ })).toBeVisible();
 });
+
+test('cozinha no celular: botão Sair aparece na tela e troca de conta', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const p = await ctx.newPage();
+  await login(p, 'cozinha');
+  await expect(p).toHaveURL(/\/cozinha$/);
+  const sair = p.getByRole('button', { name: 'Sair' });
+  const box = (await sair.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(390); // dentro da tela, sem rolar para o lado
+  await sair.tap();
+  await expect(p).toHaveURL(/\/login$/);
+  await p.getByLabel('Usuário').fill('atendente1');
+  await p.getByLabel('Senha').fill('demo1234');
+  await p.getByRole('button', { name: 'Entrar' }).click();
+  await expect(p).toHaveURL(/\/atendente$/);
+  await ctx.close();
+});
