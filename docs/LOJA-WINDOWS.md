@@ -17,7 +17,11 @@ Este é o **modo loja** (uso real), diferente do ambiente de testes (`iniciar-te
 
 ## Versão disponível
 
-- **`0.2.0+f0a40d5d`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-f0a40d5d
+- **`0.2.0+76ed108f`** — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-76ed108f
+  (`BarDoGuto-Instalador-0.2.0-76ed108f.exe`). **Pratos** com acréscimos (Frango, Bacon, Cheddar 4,00) e “Retirar do
+  prato” grátis (sem cebolinha, presunto, muçarela, queijo, bacon, cheddar), cardápio oficial `2026-11-04a`; delivery
+  do celular sem o “0” solto no total.
+- `0.2.0+f0a40d5d` (anterior) — https://github.com/glzada240hz-commits/Loja/releases/tag/loja-0.2.0-f0a40d5d
   (`BarDoGuto-Instalador-0.2.0-f0a40d5d.exe`). **Conta da mesa dividida por itens**: em Receber → Dividir conta → “Por
   itens (cada um paga o seu)”, marca os itens de cada pessoa (Cliente A, B, C…); itens já pagos aparecem como
   “pago por …” e não podem ser cobrados de novo; estorno libera o item.
