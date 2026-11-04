@@ -121,6 +121,68 @@ def centro(d, y, s, f, cor):
     d.text(((W - d.textlength(s, font=f)) / 2, y), s, font=f, fill=cor)
 
 
+AUTOR = 'Gustavo Alves'
+CURSO = 'Estudante de Análise e Desenvolvimento de Sistemas'
+
+
+def quadro_cena(nome, indice):
+    fs = sorted(f for f in os.listdir(os.path.join(CENAS, nome)) if f.endswith('.jpg'))
+    return Image.open(os.path.join(CENAS, nome, fs[min(indice, len(fs) - 1)])).convert('RGB')
+
+
+def colar_tela(base, tela, caixa, raio, borda=(58, 58, 66)):
+    """Cola um print com cantos arredondados, sombra e contorno fino."""
+    x0, y0, x1, y1 = caixa
+    tela = tela.resize((x1 - x0, y1 - y0), Image.LANCZOS)
+    sombra = Image.new('L', (W, H), 0)
+    ImageDraw.Draw(sombra).rounded_rectangle([x0 - 6, y0 + 18, x1 + 6, y1 + 40], raio, fill=200)
+    sombra = sombra.filter(ImageFilter.GaussianBlur(36))
+    base.paste(Image.new('RGB', (W, H), (0, 0, 0)), (0, 0), sombra)
+    mask = Image.new('L', tela.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, tela.width - 1, tela.height - 1], raio, fill=255)
+    base.paste(tela, (x0, y0), mask)
+    ImageDraw.Draw(base).rounded_rectangle(caixa, raio, outline=borda, width=2)
+
+
+def capa():
+    """Capa sóbria: autor e projeto à esquerda, telas reais do sistema à direita."""
+    img = Image.new('RGB', (W, H))
+    d = ImageDraw.Draw(img)
+    for y in range(H):
+        t = y / H
+        d.line([(0, y), (W, y)], fill=tuple(int(a + (b - a) * t) for a, b in zip((12, 12, 14), (20, 20, 24))))
+    brilho = Image.new('RGB', (W, H), (0, 0, 0))
+    ImageDraw.Draw(brilho).ellipse([1000, 60, 2100, 1050], fill=(40, 18, 6))
+    img = ImageChops.add(img, brilho.filter(ImageFilter.GaussianBlur(220)))
+    # grade fina de fundo
+    d = ImageDraw.Draw(img)
+    for x in range(0, W, 64):
+        d.line([(x, 0), (x, H)], fill=(24, 24, 28))
+    for y in range(0, H, 64):
+        d.line([(0, y), (W, y)], fill=(24, 24, 28))
+    # telas
+    colar_tela(img, quadro_cena('salao', 50), (990, 200, 990 + 830, 200 + 467), 14)
+    colar_tela(img, quadro_cena('atendente', 381), (1580, 440, 1580 + 250, 440 + 541), 30, (80, 80, 90))
+    d = ImageDraw.Draw(img)
+    # texto
+    x = 150
+    texto(d, (x, 300), 'PORTFÓLIO · PROJETO DE SOFTWARE', fonte('SemiBold', 21), LARANJA, 2)
+    d.text((x - 4, 350), AUTOR, font=fonte('Bold', 104), fill=BRANCO)
+    d.text((x, 482), CURSO, font=fonte('Regular', 28), fill=CINZA)
+    d.rectangle([x, 560, x + 64, 564], fill=LARANJA)
+    d.text((x, 600), 'Sistema de gestão', font=fonte('SemiBold', 50), fill=BRANCO)
+    d.text((x, 662), 'para bares e restaurantes', font=fonte('SemiBold', 50), fill=BRANCO)
+    d.text((x, 745), 'PDV · Mesas · Cozinha · Delivery · App do garçom', font=fonte('Regular', 25), fill=CINZA)
+    cx = x
+    for tag in ['React', 'TypeScript', 'Node.js', 'PostgreSQL']:
+        f = fonte('Medium', 21)
+        w = d.textlength(tag, font=f)
+        d.rounded_rectangle([cx, 812, cx + w + 32, 852], 20, outline=(70, 70, 80), width=2, fill=(22, 22, 26))
+        d.text((cx + 16, 820), tag, font=f, fill=(215, 215, 222))
+        cx += w + 44
+    return img
+
+
 def intro(d, img):
     logo = Image.open(LOGO).convert('RGBA')
     logo = logo.resize((int(logo.width * 0.78), int(logo.height * 0.78)), Image.LANCZOS)
@@ -229,7 +291,7 @@ CENAS_DEF = [
 
 
 def main():
-    segs = [(seg_estatico('intro', quadro_fixo(intro), 4.5), 4.5)]
+    segs = [(seg_estatico('intro', capa(), 5), 5)]
     for nome, fone, dur, vel, kick, tit, sub in CENAS_DEF:
         topo = topo_fone(kick, tit, sub) if fone else topo_desk(kick, tit, sub)
         segs.append((seg_cena(nome, topo, dur, vel, fone), dur))
