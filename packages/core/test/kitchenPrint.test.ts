@@ -5,7 +5,8 @@ describe('via da cozinha', () => {
   it('delivery mostra o nº da entrega em destaque para escrever na sacola', () => {
     const lines = ticketLines({ ...testTicket(), orderNumber: 12, deliveryNumber: 3, place: 'Delivery' }, 'novo');
     expect(lines.find((l) => l.style === 'big')!.text).toBe('ENTREGA 3');
-    expect(lines.some((l) => l.text === 'escreva 3 na sacola · pedido #12')).toBe(true);
+    expect(lines.some((l) => l.text === 'escreva 3 na sacola')).toBe(true);
+    expect(lines.some((l) => /#12/.test(l.text))).toBe(false); // numeração da loja não aparece na entrega
   });
   it('sem nº de entrega continua com o nº do pedido', () => {
     const lines = ticketLines({ ...testTicket(), orderNumber: 7, place: 'Mesa 2' }, 'novo');

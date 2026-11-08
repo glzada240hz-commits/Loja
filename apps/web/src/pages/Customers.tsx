@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatBRL, formatPhoneBR } from '@guto/core';
+import { formatBRL, formatPhoneBR, orderRef } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { OrderDrawer } from '../components/OrderDrawer';
 import { StatusBadge } from '../components/status';
@@ -119,7 +119,7 @@ function CustomerModal({ id, onClose }: { id: string; onClose: () => void }) {
       <h3 style={{ marginTop: 12 }}>Pedidos</h3>
       {d.history.map((o: any) => (
         <div key={o.id} className="hstack" style={{ padding: '4px 0' }}>
-          <button type="button" className="btn ghost sm" onClick={() => setOrder(o.id)}>#{o.number}</button>
+          <button type="button" className="btn ghost sm" onClick={() => setOrder(o.id)}>{orderRef(o)}</button>
           <small>{formatDateTime(o.createdAt)}</small>
           <StatusBadge status={o.status} />
           <span className="spacer" />

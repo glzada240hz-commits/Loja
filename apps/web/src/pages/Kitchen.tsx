@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, Ban, Bell, BellOff, Check, CheckCircle2, Clock, Flame, Inbox, Maximize, MessageSquareText, Pencil, PlusCircle, Sparkles, Undo2, ZoomIn, ZoomOut, Printer } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KITCHEN_STATUS_LABEL, ORDER_TYPE_LABEL, type KitchenStatus } from '@guto/core';
+import { KITCHEN_STATUS_LABEL, ORDER_TYPE_LABEL, type KitchenStatus, orderRef } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { Button, ErrorBox, Loading, useAction, useUi } from '../components/ui';
 import { get, post } from '../lib/api';
@@ -182,7 +182,7 @@ function ReadyRow({ t }: { t: KTicket }) {
     <article className="rd" aria-label={`Pedido ${t.orderNumber}`}>
       <b>{label}</b> <BagNumber n={t.deliveryNumber} />
       <small>
-        #{t.orderNumber} · pronto {formatTime(t.readyAt)} · {t.items.reduce((a, i) => a + (i.status === 'cancelled' ? 0 : i.quantity), 0)} item(ns)
+        {t.deliveryNumber ? '' : `#${t.orderNumber} · `}pronto {formatTime(t.readyAt)} · {t.items.reduce((a, i) => a + (i.status === 'cancelled' ? 0 : i.quantity), 0)} item(ns)
       </small>
       <span className="rd-acts">
       <Button size="sm" icon={Printer} aria-label={`Imprimir 2ª via do pedido ${t.orderNumber}`} title="Imprimir 2ª via da comanda" onClick={() => void reprint({ ticketId: t.id })} />
@@ -250,7 +250,7 @@ function TicketCard({ t, lateMinutes }: { t: KTicket; lateMinutes: number }) {
           <BandIcon className="icon" aria-hidden /> {bandText}
         </span>
         <span className="tk-band-r">
-          #{t.orderNumber}{t.round > 1 ? ` · rodada ${t.round}` : ''}
+          {orderRef({ number: t.orderNumber, deliveryNumber: t.deliveryNumber })}{t.round > 1 ? ` · rodada ${t.round}` : ''}
           {!cancelled && (
             <button type="button" className="tk-reprint" title="Imprimir 2ª via da comanda" aria-label={`Imprimir 2ª via do pedido ${t.orderNumber}`} onClick={() => void reprint({ ticketId: t.id })}>
               <Printer aria-hidden /> 2ª via

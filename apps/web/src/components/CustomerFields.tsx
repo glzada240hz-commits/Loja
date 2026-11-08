@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatBRL, normalizePhoneBR, parseAddressBR, searchFilter } from '@guto/core';
+import { formatBRL, normalizePhoneBR, parseAddressBR, searchFilter, orderRef } from '@guto/core';
 import { ClipboardPaste, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '../lib/api';
@@ -16,8 +16,10 @@ export interface CustomerDraft {
   reference: string;
   neighborhoodId: string;
   waOptIn: boolean;
+  /** entrega: com (true) ou sem (false) molho verde; null = ainda não escolhido */
+  greenSauce: boolean | null;
 }
-export const emptyCustomer: CustomerDraft = { name: '', phone: '', street: '', number: '', complement: '', reference: '', neighborhoodId: '', waOptIn: false };
+export const emptyCustomer: CustomerDraft = { name: '', phone: '', street: '', number: '', complement: '', reference: '', neighborhoodId: '', waOptIn: false, greenSauce: null };
 
 /** Dados do cliente com busca pelo telefone (preenche nome e último endereço). */
 export function CustomerFields({
@@ -96,7 +98,7 @@ export function CustomerFields({
     <div>
       {onRepeat && last && (
         <button type="button" className="btn sm" style={{ marginBottom: 10 }} onClick={() => onRepeat(last.id, last.number)}>
-          <RotateCcw className="icon" aria-hidden /> Repetir último pedido de {found.name?.split(' ')[0] ?? 'cliente'} (#{last.number} · {formatBRL(last.totalCents)})
+          <RotateCcw className="icon" aria-hidden /> Repetir último pedido de {found.name?.split(' ')[0] ?? 'cliente'} ({orderRef(last)} · {formatBRL(last.totalCents)})
         </button>
       )}
       <div className="row">
@@ -181,6 +183,18 @@ export function CustomerFields({
               <input value={value.number} onChange={(e) => set({ number: e.target.value })} maxLength={20} style={{ maxWidth: 110 }} />
             </Field>
           </div>
+          <Field label="Molho verde" group hint={value.greenSauce === null ? 'Pergunte ao cliente: sai na comanda da cozinha.' : undefined}>
+            <div className="segmented" role="radiogroup" aria-label="Molho verde">
+              {[
+                { v: true, label: 'Com molho verde' },
+                { v: false, label: 'Sem molho verde' },
+              ].map((o) => (
+                <button key={String(o.v)} type="button" role="radio" aria-checked={value.greenSauce === o.v} aria-pressed={value.greenSauce === o.v} onClick={() => set({ greenSauce: o.v })}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </Field>
           <Field label="Complemento">
             <input value={value.complement} onChange={(e) => set({ complement: e.target.value })} maxLength={100} />
           </Field>
@@ -277,5 +291,6 @@ export function customerPayload(c: CustomerDraft, delivery: boolean) {
       ? { street: c.street, number: c.number, complement: c.complement || null, reference: c.reference || null, neighborhoodId: c.neighborhoodId }
       : null,
     waOptIn: c.waOptIn,
+    ...(delivery ? { greenSauce: c.greenSauce } : {}),
   };
 }

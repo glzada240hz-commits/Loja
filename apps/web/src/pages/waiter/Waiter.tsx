@@ -26,7 +26,7 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
-import { formatBRL, formatPhoneBR, normalizePhoneBR, ORDER_STAGE_LABEL, PAYMENT_METHOD_LABEL, placeLabel, searchFilter, unitTotal } from '@guto/core';
+import { formatBRL, formatPhoneBR, normalizePhoneBR, ORDER_STAGE_LABEL, PAYMENT_METHOD_LABEL, placeLabel, searchFilter, unitTotal, orderRef, orderTitle } from '@guto/core';
 import { ConnectionPill } from '../../components/Layout';
 import { Logo } from '../../components/Logo';
 import { lineToItemInput, lineTotal, ProductDialog } from '../../components/ProductDialog';
@@ -794,7 +794,7 @@ export function whatsAppSummary(o: Order, storeName: string, etaMinutes: number 
   });
   const where = o.type === 'delivery' ? `Entrega: ${o.addrStreet}, ${o.addrNumber}${o.addrComplement ? ` - ${o.addrComplement}` : ''} - ${o.neighborhoodName}` : 'Retirada no balcão';
   return [
-    `Olá${o.customerName ? `, ${o.customerName.split(' ')[0]}` : ''}! Seu pedido #${o.number} no ${storeName} foi recebido e já está na cozinha:`,
+    `Olá${o.customerName ? `, ${o.customerName.split(' ')[0]}` : ''}! Seu pedido ${orderRef(o)} no ${storeName} foi recebido e já está na cozinha:`,
     ...items,
     o.type === 'delivery' ? `Taxa de entrega: ${formatBRL(o.deliveryFeeCents)}` : '',
     `Total: ${formatBRL(o.totalCents)}`,
@@ -856,7 +856,7 @@ function WhatsAppOrders({ channel }: { channel: Channel }) {
           {rows.map((o) => (
             <div key={o.id} className="wa-order">
               <div>
-                <BagNumber n={o.deliveryNumber} /> <b>#{o.number}</b> {o.customerName ?? 'Cliente'} <small className="muted">· {o.type === 'delivery' ? 'Entrega' : 'Retirada'} · {formatTime(o.createdAt)}</small>
+                {o.deliveryNumber ? <BagNumber n={o.deliveryNumber} /> : <b>#{o.number}</b>} {o.customerName ?? 'Cliente'} <small className="muted">· {o.type === 'delivery' ? 'Entrega' : 'Retirada'} · {formatTime(o.createdAt)}</small>
                 <br />
                 <small>{o.status === 'closed' ? 'Finalizado' : ORDER_STAGE_LABEL[o.stage as keyof typeof ORDER_STAGE_LABEL] ?? o.stage} · <b>{formatBRL(o.totalCents)}</b></small>
               </div>
@@ -873,7 +873,7 @@ function WhatsAppOrders({ channel }: { channel: Channel }) {
 function WaNotify({ orderId, big }: { orderId: string; big?: boolean }) {
   const o = useOrder(orderId);
   const s = useSettings();
-  if (!o.data) return null;
+  if (!o.data || !o.data.customerPhone) return null; // sem telefone (pedido pelo print): avise pela própria conversa
   const eta = o.data.etaAt ? Math.max(5, Math.round((new Date(o.data.etaAt).getTime() - Date.now()) / 60000)) : null;
   return (
     <a className={'btn wa-btn' + (big ? ' lg block' : ' sm')} href={waLink(o.data.customerPhone, whatsAppSummary(o.data, s.data?.storeName ?? 'Bar do Guto', eta))} target="_blank" rel="noreferrer">
@@ -909,17 +909,18 @@ function WhatsAppNew({ channel }: { channel: Channel }) {
   const cashDue = parts.filter((p) => p.method === 'cash' && !p.paid).reduce((a, p) => a + (p.amountCents ?? 0), 0);
   const planSum = parts.reduce((a, p) => a + (p.amountCents ?? 0), 0);
   const changeForCents = changeFor.trim() ? Math.round(Number(changeFor.replace(/\./g, '').replace(',', '.')) * 100) || 0 : 0;
-  // WhatsApp: nome e telefone obrigatórios (para avisar); balcão: só o nome para chamar na retirada (opcional)
-  const phoneOk = wa ? !!normalizePhoneBR(cust.phone) : !cust.phone.trim() || !!normalizePhoneBR(cust.phone);
+  // telefone é opcional (pedido pelo print da conversa); se informado, precisa ser válido. WhatsApp exige o nome
+  const phoneOk = !cust.phone.trim() || !!normalizePhoneBR(cust.phone);
   const nameOk = wa ? !!cust.name.trim() : true;
   const addrOk = !delivery || (cust.street.trim() && cust.number.trim() && cust.neighborhoodId);
   const planOk = planSum <= total;
-  const ready = lines.length > 0 && nameOk && phoneOk && addrOk && planOk;
-  const missing = [!nameOk && 'nome', !phoneOk && 'telefone', !addrOk && 'endereço', !lines.length && 'itens', !planOk && 'acertar o pagamento'].filter(Boolean).join(', ');
+  const sauceOk = !delivery || cust.greenSauce !== null;
+  const ready = lines.length > 0 && nameOk && phoneOk && addrOk && sauceOk && planOk;
+  const missing = [!nameOk && 'nome', !phoneOk && 'telefone', !addrOk && 'endereço', !sauceOk && 'molho verde', !lines.length && 'itens', !planOk && 'acertar o pagamento'].filter(Boolean).join(', ');
 
   if (sent)
     return (
-      <Shell title={`Pedido #${sent.number} na cozinha`} back={`/atendente/${channel}`} foot={wa ? <WaNotify orderId={sent.id} big /> : undefined}>
+      <Shell title={`${orderTitle(sent)} na cozinha`} back={`/atendente/${channel}`} foot={wa ? <WaNotify orderId={sent.id} big /> : undefined}>
         <div className="pay-done">
           <CheckCircle2 size={44} color="var(--ok)" aria-hidden />
           <p className="pay-done-total">{formatBRL(sent.totalCents)}</p>

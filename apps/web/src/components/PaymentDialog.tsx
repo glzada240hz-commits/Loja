@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { formatBRL, PAYMENT_METHOD_LABEL, splitEvenly, type PaymentMethod } from '@guto/core';
+import { formatBRL, PAYMENT_METHOD_LABEL, splitEvenly, type PaymentMethod, orderTitle } from '@guto/core';
 import { newIdemKey, post } from '../lib/api';
 import type { Order } from '../lib/types';
 import { Banknote, CheckCircle2, CreditCard, Printer, QrCode, Ticket, Wallet, type LucideIcon } from 'lucide-react';
@@ -97,7 +97,7 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
   if (done)
     return (
       <Modal
-        title={`Pedido #${done.order.number} pago`}
+        title={`${orderTitle(done.order)} pago`}
         onClose={onClose}
         footer={
           <>
@@ -124,7 +124,7 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
     );
 
   return (
-    <Modal title={`Receber — pedido #${order.number}`} onClose={onClose} className="pay-modal" bare>
+    <Modal title={`Receber — ${orderTitle(order)}`} onClose={onClose} className="pay-modal" bare>
       <div className="pay-band" aria-label="Resumo do pedido">
         <div>
           <div className="k">Total do pedido</div>

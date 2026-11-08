@@ -54,6 +54,7 @@ async function loadTickets(db: DbOrTx, where: SQL) {
       paymentIntent: orders.paymentIntent,
       paymentPlan: orders.paymentPlan,
       changeForCents: orders.changeForCents,
+      greenSauce: orders.greenSauce,
     })
     .from(kitchenTickets)
     .innerJoin(orders, eq(orders.id, kitchenTickets.orderId))
@@ -68,6 +69,7 @@ async function loadTickets(db: DbOrTx, where: SQL) {
       ...r.ticket,
       orderNumber: r.orderNumber,
       deliveryNumber: r.deliveryNumber,
+      greenSauce: r.orderType === 'delivery' ? r.greenSauce : null,
       orderType: r.orderType,
       orderStatus: r.orderStatus,
       tableLabel: r.tableLabel,

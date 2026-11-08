@@ -44,7 +44,8 @@ export async function contactForPhone(tx: DbOrTx, phone: string, customerId?: st
 }
 
 function textFor(purpose: NotificationPurpose, o: typeof orders.$inferSelect, store: string): { text: string; params: string[] } {
-  const n = `#${o.number}`;
+  // entrega tem numeração própria: "pedido de entrega nº 3"; loja: "pedido #3"
+  const n = o.type === 'delivery' ? `de entrega nº ${o.deliveryNumber ?? o.number}` : `#${o.number}`;
   const link = o.trackingToken ? trackingUrl(o.trackingToken) : '';
   switch (purpose) {
     case 'order_received':

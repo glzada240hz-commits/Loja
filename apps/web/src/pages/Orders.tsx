@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Bike } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { formatPhoneBR, ORDER_TYPE_LABEL, type OrderType } from '@guto/core';
+import { formatPhoneBR, ORDER_TYPE_LABEL, type OrderType, orderRef } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { OrderDrawer } from '../components/OrderDrawer';
 import { DeliveryBadge, StageBadge, StatusBadge, TypeBadge } from '../components/status';
@@ -90,7 +90,7 @@ export default function Orders() {
               {list.data.map((o) => (
                 <tr key={o.id} className="clickable" onClick={() => nav(`/pedidos/${o.id}`)} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && nav(`/pedidos/${o.id}`)}>
                   <td>
-                    <b>#{o.number}</b> <BagNumber n={o.deliveryNumber} />
+                    <b>{orderRef(o)}</b> <BagNumber n={o.deliveryNumber} />
                     {allDays && <div><small className="muted">{formatDate(o.referenceDate + 'T12:00:00')}</small></div>}
                   </td>
                   <td className="num">{formatTime(o.createdAt)}</td>

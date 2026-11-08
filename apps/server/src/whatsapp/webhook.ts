@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, lte, or, sql } from 'drizzle-orm';
-import { ORDER_STAGE_LABEL, normalizePhoneBR, phoneVariantsBR } from '@guto/core';
+import { ORDER_STAGE_LABEL, normalizePhoneBR, phoneVariantsBR, orderTitle } from '@guto/core';
 import type { Db, Tx } from '../db/index.js';
 import { orders, waContacts, waMessages, waWebhookEvents } from '../db/schema.js';
 import { now } from '../lib/clock.js';
@@ -225,7 +225,7 @@ async function botReply(tx: Tx, contactId: string, body: string, emit: (e: LiveE
     }
     const lines = list.map((o) => {
       const st = o.status === 'pending' ? 'aguardando confirmação da loja' : ORDER_STAGE_LABEL[o.stage].toLowerCase();
-      return `Pedido #${o.number}: ${st}. ${o.trackingToken ? trackingUrl(o.trackingToken) : ''}`;
+      return `${orderTitle(o)}: ${st}. ${o.trackingToken ? trackingUrl(o.trackingToken) : ''}`;
     });
     await queueReply(tx, contactId, lines.join('\n'), emit);
     return;

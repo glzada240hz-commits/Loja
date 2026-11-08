@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatBRL, formatPhoneBR, mapsLink, PAYMENT_METHOD_LABEL } from '@guto/core';
+import { formatBRL, formatPhoneBR, mapsLink, PAYMENT_METHOD_LABEL, orderTitle } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { formatPlan } from '../components/PaymentPlan';
 import { DeliveryBadge } from '../components/status';
@@ -33,12 +33,12 @@ export default function Courier() {
   const status = async (d: Delivery, s: 'delivered' | 'issue' | 'en_route') => {
     let note: string | null = null;
     if (s === 'issue') {
-      const r = await ui.confirm({ title: `Ocorrência no pedido #${d.number}`, reasonLabel: 'Descreva (ex.: cliente não atende)', confirmLabel: 'Registrar' });
+      const r = await ui.confirm({ title: `Ocorrência — ${orderTitle(d)}`, reasonLabel: 'Descreva (ex.: cliente não atende)', confirmLabel: 'Registrar' });
       if (typeof r !== 'string') return;
       note = r;
     }
     if (s === 'delivered') {
-      const ok = await ui.confirm({ title: `Confirmar entrega do #${d.number}?`, message: d.balanceCents > 0 ? `Valor a receber do cliente: ${formatBRL(d.balanceCents)}` : 'Pedido já pago.', confirmLabel: 'Entregue' });
+      const ok = await ui.confirm({ title: `Confirmar ${orderTitle(d)} entregue?`, message: d.balanceCents > 0 ? `Valor a receber do cliente: ${formatBRL(d.balanceCents)}` : 'Pedido já pago.', confirmLabel: 'Entregue' });
       if (!ok) return;
     }
     await go(async () => {
@@ -53,7 +53,6 @@ export default function Courier() {
       <div key={d.id} className="courier-card">
         <div className="hstack">
           <BagNumber n={d.deliveryNumber} big />
-          <b style={{ fontSize: d.deliveryNumber ? '1rem' : '1.3rem' }}>#{d.number}</b>
           <DeliveryBadge status={d.deliveryStatus} />
           <span className="spacer" />
           <small>{d.itemCount} item(ns)</small>
@@ -139,7 +138,7 @@ export default function Courier() {
       <h2 style={{ marginTop: 16 }}>Entregues hoje ({done.length})</h2>
       {done.map((d) => (
         <div key={d.id} className="hstack" style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
-          <BagNumber n={d.deliveryNumber} /> <b>#{d.number}</b> {d.neighborhoodName} <small className="muted">{formatTime(d.deliveredAt)}</small>
+          <BagNumber n={d.deliveryNumber} /> {d.neighborhoodName} <small className="muted">{formatTime(d.deliveredAt)}</small>
           <span className="spacer" />
           {d.courierFeeCents != null && <span>{formatBRL(d.courierFeeCents)}</span>}
         </div>

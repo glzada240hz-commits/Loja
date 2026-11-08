@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatBRL, formatPhoneBR, mapsLink, PAYMENT_METHOD_LABEL } from '@guto/core';
+import { formatBRL, formatPhoneBR, mapsLink, PAYMENT_METHOD_LABEL, orderTitle } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { formatPlan } from '../components/PaymentPlan';
 import { OrderDrawer } from '../components/OrderDrawer';
@@ -63,12 +63,12 @@ function Board() {
   const setStatus = async (o: BoardOrder, status: string) => {
     let note: string | null = null;
     if (status === 'issue') {
-      const r = await ui.confirm({ title: `Ocorrência no pedido #${o.number}`, reasonLabel: 'O que aconteceu?', confirmLabel: 'Registrar' });
+      const r = await ui.confirm({ title: `Ocorrência — ${orderTitle(o)}`, reasonLabel: 'O que aconteceu?', confirmLabel: 'Registrar' });
       if (typeof r !== 'string') return;
       note = r;
     }
     if (status === 'waiting') {
-      const ok = await ui.confirm({ title: `Pedido #${o.number} voltou para a loja?`, message: 'Ele volta para a fila de expedição sem entregador.' });
+      const ok = await ui.confirm({ title: `${orderTitle(o)} voltou para a loja?`, message: 'Ele volta para a fila de expedição sem entregador.' });
       if (!ok) return;
     }
     await go(async () => {
@@ -82,9 +82,8 @@ function Board() {
       <span style={{ paddingTop: 6 }}>{extra}</span>
       <div style={{ minWidth: 0 }}>
         <div className="hstack">
-          <BagNumber n={o.deliveryNumber} />
-          <button type="button" className="btn ghost sm" style={{ paddingLeft: 4, paddingRight: 4 }} onClick={() => setOpen(o.id)}>
-            <b>#{o.number}</b>
+          <button type="button" className="btn ghost sm" style={{ paddingLeft: 4, paddingRight: 4 }} onClick={() => setOpen(o.id)} aria-label={`Abrir ${orderTitle(o)}`}>
+            <BagNumber n={o.deliveryNumber ?? o.number} />
           </button>
           <StageBadge stage={o.stage} />
           {o.deliveryStatus && o.deliveryStatus !== 'waiting' && <DeliveryBadge status={o.deliveryStatus} />}
@@ -245,9 +244,8 @@ function Board() {
           <h2 style={{ marginTop: 16 }}>Entregues hoje ({done.length})</h2>
           {done.map((o) => (
             <div key={o.id} className="hstack" style={{ padding: '4px 0' }}>
-              <BagNumber n={o.deliveryNumber} />
-              <button type="button" className="btn ghost sm" onClick={() => setOpen(o.id)}>
-                #{o.number}
+              <button type="button" className="btn ghost sm" onClick={() => setOpen(o.id)} aria-label={`Abrir ${orderTitle(o)}`}>
+                <BagNumber n={o.deliveryNumber ?? o.number} />
               </button>
               <small>
                 {o.courierName} · {formatTime(o.deliveredAt)}
@@ -356,7 +354,7 @@ function CourierPendingCard({ courier, open, onToggle }: { courier: any; open: b
           <ul style={{ paddingLeft: 18 }}>
             {d.deliveries.map((x: any) => (
               <li key={x.id}>
-                #{x.number} · {x.neighborhoodName} · {formatTime(x.deliveredAt)} · {formatBRL(x.fee ?? 0)}
+                Entrega {x.deliveryNumber ?? x.number} · {x.neighborhoodName} · {formatTime(x.deliveredAt)} · {formatBRL(x.fee ?? 0)}
               </li>
             ))}
             {d.adjustments.map((a: any) => (

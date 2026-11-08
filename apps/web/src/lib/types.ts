@@ -38,7 +38,7 @@ export interface Ticket {
   createdByName: string | null; servedAt: string | null; servedByName: string | null;
 }
 export interface Order {
-  id: string; number: number; deliveryNumber?: number | null; businessDayId: string; type: OrderType; source: 'pos' | 'online' | 'whatsapp'; status: OrderStatus; stage: OrderStage;
+  id: string; number: number; deliveryNumber?: number | null; greenSauce?: boolean | null; businessDayId: string; type: OrderType; source: 'pos' | 'online' | 'whatsapp'; status: OrderStatus; stage: OrderStage;
   tableLabel: string | null; tabKind: 'table' | 'tab'; place: string; billRequestedAt: string | null; billRequestedByName: string | null; customerId: string | null; customerName: string | null; customerPhone: string | null;
   addrStreet: string | null; addrNumber: string | null; addrComplement: string | null; addrReference: string | null; neighborhoodId: string | null; neighborhoodName: string | null;
   notes: string | null; subtotalCents: number; discountType: 'amount' | 'percent' | null; discountValue: number | null; discountCents: number; discountReason: string | null;

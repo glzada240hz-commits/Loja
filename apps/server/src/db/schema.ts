@@ -471,6 +471,8 @@ export const orders = pgTable(
     number: integer('number').notNull(),
     /** nº da entrega no dia (escrito na sacola); só em delivery aceito */
     deliveryNumber: integer('delivery_number'),
+    /** entrega: true = com molho verde, false = sem; null = não informado */
+    greenSauce: boolean('green_sauce'),
     type: orderTypeEnum('type').notNull(),
     source: orderSourceEnum('source').notNull().default('pos'),
     status: orderStatusEnum('status').notNull(),
@@ -531,7 +533,9 @@ export const orders = pgTable(
     version: integer('version').notNull().default(1),
   },
   (t) => [
-    uniqueIndex('orders_day_number').on(t.businessDayId, t.number),
+    // numeração da loja (mesa/balcão) e numeração das entregas são separadas
+    uniqueIndex('orders_day_number').on(t.businessDayId, t.number).where(sql`type <> 'delivery'`),
+    uniqueIndex('orders_day_delivery_number').on(t.businessDayId, t.deliveryNumber),
     // no máximo uma comanda aberta por mesa/comanda no dia
     uniqueIndex('orders_open_place')
       .on(t.businessDayId, t.tabKind, t.tableLabel)

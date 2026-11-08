@@ -36,6 +36,13 @@
       "when": 1793828336908,
       "tag": "0004_numero_da_entrega",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793833153158,
+      "tag": "0005_entrega_numeracao_propria",
+      "breakpoints": true
     }
   ]
 }

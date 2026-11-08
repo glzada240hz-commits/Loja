@@ -74,7 +74,7 @@ describe('6/7/16. cardápio digital → cozinha → entrega → acerto do entreg
     const k = await as(h, 'cozinha');
     expect((await k.get('/api/kitchen')).body.tickets).toHaveLength(0);
     await processOutbox(h.deps, h.wa);
-    const sent1 = h.demo.sent.find((x) => /pedido #1 /.test(x.body))!;
+    const sent1 = h.demo.sent.find((x) => /pedido de entrega nº 1 /.test(x.body))!;
     expect(sent1.body).toMatch(/ainda será CONFIRMADO/);
     expect(sent1.body).not.toMatch(/foi confirmado/);
 
@@ -272,31 +272,44 @@ describe('6/7/16. cardápio digital → cozinha → entrega → acerto do entreg
 });
 
 describe('nº da entrega (sacola)', () => {
-  it('cada entrega do dia ganha 1, 2, 3… (pedido online só ao aceitar); mesa e balcão não; aparece na cozinha e na expedição', async () => {
+  it('entrega e loja têm numerações separadas; online numera ao chegar; sem telefone e molho verde', async () => {
     const addr = { street: 'Rua A', number: '1', neighborhoodId: m.neighborhood('Centro') };
     const items = [{ variantId: m.variant('X-Burguer'), quantity: 1 }];
-    const d1 = await caixa.post('/api/orders', { type: 'delivery', send: true, customer: { name: 'Ana', phone: '11 91111-1111' }, address: addr, items }, { 'idempotency-key': idemKey() });
+    const d1 = await caixa.post('/api/orders', { type: 'delivery', send: true, customer: { name: 'Ana', phone: '11 91111-1111' }, address: addr, items, greenSauce: false }, { 'idempotency-key': idemKey() });
     expect(d1.status).toBe(200);
-    expect(d1.body.deliveryNumber).toBe(1);
-    // balcão e mesa não usam nº de sacola, e não pulam a contagem
+    expect([d1.body.number, d1.body.deliveryNumber, d1.body.greenSauce]).toEqual([1, 1, false]);
+    // loja (balcão e mesa) começa no #1, sem pular por causa da entrega
     const bal = await caixa.post('/api/orders', { type: 'takeout', send: true, customer: { name: 'Rafa', phone: null }, items }, { 'idempotency-key': idemKey() });
-    expect(bal.body.deliveryNumber).toBeNull();
-    await caixa.post('/api/orders', { type: 'table', tableLabel: '4', send: true, items }, { 'idempotency-key': idemKey() });
-    // online: pendente sem número; ganha ao aceitar
+    expect([bal.body.number, bal.body.deliveryNumber]).toEqual([1, null]);
+    const mesa = await caixa.post('/api/orders', { type: 'table', tableLabel: '4', send: true, items }, { 'idempotency-key': idemKey() });
+    expect(mesa.body.number).toBe(2);
+    // online: numera na chegada (entrega 2)
     const on = await publicCheckout(onlineOrder('11 97777-1212'));
     expect(on.status).toBe(200);
     const pend = (await caixa.get('/api/orders?status=pending')).body[0];
-    expect(pend.deliveryNumber).toBeNull();
-    const d2 = await caixa.post('/api/orders', { type: 'delivery', send: true, customer: { name: 'Beto', phone: '11 92222-2222' }, address: addr, items }, { 'idempotency-key': idemKey() });
-    expect(d2.body.deliveryNumber).toBe(2);
+    expect(pend.deliveryNumber).toBe(2);
+    // pelo print da conversa: sem telefone, com molho verde (WhatsApp exige só o nome)
+    const d3 = await caixa.post('/api/orders', { type: 'delivery', source: 'whatsapp', send: true, customer: { name: 'Beto', phone: null }, address: addr, items, greenSauce: true }, { 'idempotency-key': idemKey() });
+    expect(d3.status).toBe(200);
+    expect([d3.body.number, d3.body.customerPhone, d3.body.greenSauce]).toEqual([3, null, true]);
+    const semNome = await caixa.post('/api/orders', { type: 'delivery', source: 'whatsapp', send: true, customer: { name: '', phone: null }, address: addr, items }, { 'idempotency-key': idemKey() });
+    expect(semNome.status).toBe(422);
     await caixa.post(`/api/orders/${pend.id}/accept`, { version: pend.version });
-    expect((await caixa.get(`/api/orders/${pend.id}`)).body.deliveryNumber).toBe(3);
-    // cozinha e expedição mostram o número
+    // cozinha: nº da entrega e molho verde
     const tk = (await (await as(h, 'cozinha')).get('/api/kitchen')).body.tickets;
-    expect(tk.find((t: any) => t.orderNumber === d2.body.number).deliveryNumber).toBe(2);
-    expect(tk.find((t: any) => t.orderNumber === bal.body.number).deliveryNumber).toBeNull();
+    const t3 = tk.find((t: any) => t.orderId === d3.body.id);
+    expect([t3.deliveryNumber, t3.greenSauce]).toEqual([3, true]);
+    expect(tk.find((t: any) => t.orderId === d1.body.id).greenSauce).toBe(false);
+    expect(tk.find((t: any) => t.orderId === bal.body.id)).toMatchObject({ deliveryNumber: null, greenSauce: null });
     const board = (await caixa.get('/api/deliveries')).body.orders;
     expect(board.map((o: any) => o.deliveryNumber).sort()).toEqual([1, 2, 3]);
+    // virar entrega pega o próximo nº de entrega; voltar para balcão pega o próximo da loja
+    const v = (await caixa.get(`/api/orders/${bal.body.id}`)).body;
+    const toDel = await caixa.patch(`/api/orders/${bal.body.id}`, { version: v.version, type: 'delivery', customer: { name: 'Rafa', phone: null }, address: addr, greenSauce: false });
+    expect(toDel.status).toBe(200);
+    expect([toDel.body.number, toDel.body.deliveryNumber]).toEqual([4, 4]);
+    const back = await caixa.patch(`/api/orders/${bal.body.id}`, { version: toDel.body.version, type: 'takeout', customer: { name: 'Rafa', phone: null } });
+    expect([back.body.number, back.body.deliveryNumber]).toEqual([3, null]);
   });
 
   it('via da cozinha leva o endereço para o motoboy; 2ª via de pedido já pronto vai para o computador da cozinha', async () => {

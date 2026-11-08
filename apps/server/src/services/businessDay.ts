@@ -83,16 +83,15 @@ export async function listDays(db: DbOrTx, limit = 60) {
     .limit(limit);
 }
 
-/** Nº da entrega do dia (1, 2, 3…) para marcar a sacola; só para delivery aceito e só uma vez. */
-export async function ensureDeliveryNumber(tx: DbOrTx, o: { id: string; businessDayId: string; type: string; status: string; deliveryNumber: number | null }) {
-  if (o.type !== 'delivery' || o.status === 'pending' || o.status === 'cancelled' || o.deliveryNumber != null) return o.deliveryNumber;
+/** Reserva o próximo nº de entrega do dia (1, 2, 3…), separado da numeração da loja. */
+export async function nextDeliveryNumber(tx: DbOrTx, dayId: string): Promise<number> {
   const [r] = await tx
     .update(businessDays)
     .set({ lastDeliveryNumber: sql`${businessDays.lastDeliveryNumber} + 1` })
-    .where(eq(businessDays.id, o.businessDayId))
+    .where(eq(businessDays.id, dayId))
     .returning({ n: businessDays.lastDeliveryNumber });
-  await tx.update(orders).set({ deliveryNumber: r!.n }).where(eq(orders.id, o.id));
-  return r!.n;
+  if (!r) throw new AppError(409, 'day_closed', 'O dia operacional foi fechado');
+  return r.n;
 }
 
 /** Reserva o próximo número visível do dia (com bloqueio de linha: sem números repetidos). */

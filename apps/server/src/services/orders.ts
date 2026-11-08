@@ -1,18 +1,5 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
-import {
-  can,
-  cashPayment,
-  computeOrderTotals,
-  effectiveDiscountBp,
-  normalizePhoneBR,
-  placeLabel,
-  stageFromTickets,
-  splitEvenly,
-  type DiscountInput,
-  type KitchenStatus,
-  type OrderType,
-  type PaymentMethod,
-} from '@guto/core';
+import { can, cashPayment, computeOrderTotals, effectiveDiscountBp, normalizePhoneBR, placeLabel, stageFromTickets, splitEvenly, type DiscountInput, type KitchenStatus, type OrderType, type PaymentMethod, orderTitle } from '@guto/core';
 import type { DbOrTx, Tx } from '../db/index.js';
 import {
   businessDays,
@@ -38,7 +25,7 @@ import { AppError, badRequest, conflict, notFound, staleVersion, unprocessable }
 import { idempotent, type IdemKey } from '../lib/idempotency.js';
 import { enqueueOrderNotification } from '../whatsapp/notify.js';
 import { authorize, type SupervisorInput } from './auth.js';
-import { ensureDeliveryNumber, nextOrderNumber, requireOpenDay } from './businessDay.js';
+import { nextDeliveryNumber, nextOrderNumber, requireOpenDay } from './businessDay.js';
 import { requireOpenCash } from './cash.js';
 import { resolveItems, type ItemInput, type ResolvedItem } from './menu.js';
 import { getSettings } from './settings.js';
@@ -83,6 +70,8 @@ export interface CreateOrderInput {
   /** pagamento combinado em partes (ex.: dinheiro + Pix) */
   paymentPlan?: { method: PaymentMethod; amountCents: number }[] | null;
   waOptIn?: boolean;
+  /** entrega: com (true) ou sem (false) molho verde */
+  greenSauce?: boolean | null;
 }
 
 // ---------------- utilidades internas ----------------
@@ -395,11 +384,14 @@ export async function createOrder(
       if (input.type === 'delivery') {
         address = validateAddress(input.address);
         nb = await resolveNeighborhood(tx, address.neighborhoodId);
-        if (!input.customer?.name?.trim() || !input.customer?.phone) throw unprocessable('Delivery exige nome e telefone do cliente');
+        // equipe pode lançar sem telefone (pedido pelo print da conversa); o cardápio digital exige
+        if (!input.customer?.name?.trim()) throw unprocessable('Entrega exige o nome do cliente');
       }
-      if (source !== 'pos' && (!input.customer?.name?.trim() || !input.customer?.phone)) {
+      if (!byStaff && (!input.customer?.name?.trim() || !input.customer?.phone)) {
         throw unprocessable('Informe nome e telefone');
       }
+      // pedido do WhatsApp lançado pela equipe: o nome basta (telefone é opcional)
+      if (source === 'whatsapp' && !input.customer?.name?.trim()) throw unprocessable('Informe o nome do cliente');
       const cust = await upsertCustomer(tx, input.customer, address, nb?.name ?? null);
 
       const deliveryFeeCents = input.type === 'delivery' ? (feeOverride ? input.deliveryFeeCents! : nb!.feeCents) : 0;
@@ -447,7 +439,8 @@ export async function createOrder(
         }
       }
 
-      const number = await nextOrderNumber(tx, day.id);
+      // entrega tem numeração própria (Entrega 1, 2, 3…); loja (mesa/balcão) segue a dela (#1, #2…)
+      const number = input.type === 'delivery' ? await nextDeliveryNumber(tx, day.id) : await nextOrderNumber(tx, day.id);
       const at = now();
       const etaMinutes =
         input.etaMinutes ?? (input.type === 'delivery' ? (nb?.etaMinutes ?? settings.deliveryEtaMinutes) : input.type === 'takeout' ? settings.pickupEtaMinutes : null);
@@ -457,6 +450,8 @@ export async function createOrder(
         .values({
           businessDayId: day.id,
           number,
+          deliveryNumber: input.type === 'delivery' ? number : null,
+          greenSauce: input.type === 'delivery' ? (input.greenSauce ?? null) : null,
           type: input.type,
           source,
           status,
@@ -496,7 +491,7 @@ export async function createOrder(
         .returning();
       await insertItems(tx, order!.id, items, byStaff ? ctx.actor : null, 0);
       await recalc(tx, order!.id);
-      const deliveryNumber = await ensureDeliveryNumber(tx, order!);
+      const deliveryNumber = order!.deliveryNumber;
       await orderEvent(
         tx,
         order!.id,
@@ -571,6 +566,7 @@ export interface HeaderPatch {
   notes?: string | null;
   etaMinutes?: number | null;
   deliveryFeeCents?: number | null;
+  greenSauce?: boolean | null;
 }
 
 export async function updateHeader(ctx: Ctx, orderId: string, version: number, patch: HeaderPatch, supervisor?: SupervisorInput | null) {
@@ -607,7 +603,7 @@ export async function updateHeader(ctx: Ctx, orderId: string, version: number, p
         nb = await resolveNeighborhood(tx, address.neighborhoodId);
       }
       const custIn = patch.customer ?? { name: o.customerName, phone: o.customerPhone };
-      if (type === 'delivery' && (!custIn.name?.trim() || !custIn.phone)) throw unprocessable('Delivery exige nome e telefone do cliente');
+      if (type === 'delivery' && !custIn.name?.trim()) throw unprocessable('Entrega exige o nome do cliente');
       const cust = await upsertCustomer(tx, custIn, address, nb?.name ?? null);
       Object.assign(set, {
         customerId: cust.customerId,
@@ -633,6 +629,10 @@ export async function updateHeader(ctx: Ctx, orderId: string, version: number, p
       set.deliveryFeeCents = patch.deliveryFeeCents;
     }
     if (patch.deliveryFeeCents != null) changes.deliveryFee = { from: o.deliveryFeeCents, to: patch.deliveryFeeCents };
+    if (patch.greenSauce !== undefined) {
+      set.greenSauce = type === 'delivery' ? patch.greenSauce : null;
+      changes.greenSauce = set.greenSauce;
+    }
     if (patch.notes !== undefined) {
       set.notes = patch.notes?.trim().slice(0, 500) || null;
       changes.notes = set.notes;
@@ -644,7 +644,12 @@ export async function updateHeader(ctx: Ctx, orderId: string, version: number, p
     }
     await bump(tx, o.id, set);
     await recalc(tx, o.id);
-    await ensureDeliveryNumber(tx, { ...o, type }); // virou delivery: ganha nº de sacola
+    // mudou entre loja e entrega: pega o número da outra sequência
+    if ((type === 'delivery') !== (o.type === 'delivery')) {
+      const n = type === 'delivery' ? await nextDeliveryNumber(tx, o.businessDayId) : await nextOrderNumber(tx, o.businessDayId);
+      await tx.update(orders).set({ number: n, deliveryNumber: type === 'delivery' ? n : null }).where(eq(orders.id, o.id));
+      changes.number = { from: o.number, to: n };
+    }
     await orderEvent(tx, o.id, 'updated', ctx.actor, changes, authorizedBy);
     emit({ type: 'order.changed', orderId: o.id, number: o.number });
     if (o.courierId) emit({ type: 'delivery.changed', orderId: o.id, courierId: o.courierId });
@@ -861,7 +866,6 @@ export async function acceptOrder(ctx: Ctx, orderId: string, version: number, et
     if (etaMinutes) set.etaAt = new Date(at.getTime() + etaMinutes * 60000);
     await bump(tx, o.id, set);
     await orderEvent(tx, o.id, 'accepted', ctx.actor, { etaMinutes });
-    await ensureDeliveryNumber(tx, { ...o, status: 'open' });
     const fresh = await lockOrder(tx, o.id);
     await launchPending(tx, fresh, ctx.actor, emit);
     await enqueueOrderNotification(tx, o.id, 'order_accepted', emit);
@@ -956,7 +960,7 @@ export async function addPayment(ctx: Ctx, orderId: string, input: PaymentInput,
         amountCents: applied,
         paymentId: p!.id,
         orderId: o.id,
-        reason: `Pedido #${o.number}`,
+        reason: orderTitle(o),
         createdBy: ctx.actor.userId,
         createdAt: at,
       });

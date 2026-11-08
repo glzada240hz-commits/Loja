@@ -15,6 +15,17 @@ export interface PrintDelivery {
   collect: string;
 }
 
+/** Como o pedido é chamado: entrega tem numeração própria ("Entrega 3"); loja (mesa/balcão) usa "#3". */
+export function orderRef(o: { type?: string | null; number: number; deliveryNumber?: number | null }): string {
+  return o.type === 'delivery' || o.deliveryNumber ? `Entrega ${o.deliveryNumber ?? o.number}` : `#${o.number}`;
+}
+
+/** "Entrega 3" ou "Pedido #3" (títulos e mensagens). */
+export function orderTitle(o: { type?: string | null; number: number; deliveryNumber?: number | null }): string {
+  const r = orderRef(o);
+  return r.startsWith('#') ? `Pedido ${r}` : r;
+}
+
 /** "Rua das Acácias, 120 - apto 2" */
 export function deliveryAddressLine(a: { street: string | null; number: string | null; complement: string | null }): string {
   return `${a.street ?? ''}${a.number ? `, ${a.number}` : ''}${a.complement ? ` - ${a.complement}` : ''}`.trim();
@@ -67,6 +78,8 @@ export interface PrintTicket {
   customerName: string | null;
   orderNotes: string | null;
   delivery?: PrintDelivery | null;
+  /** entrega: com/sem molho verde (null = não informado) */
+  greenSauce?: boolean | null;
   items: PrintItem[];
 }
 /** reimpressao: 2ª via pedida pela equipe (comanda perdida) */
@@ -109,7 +122,7 @@ export function ticketLines(t: PrintTicket, kind: PrintKind, printedAt: Date = n
     ...(t.deliveryNumber
       ? [
           { style: 'big' as const, text: `ENTREGA ${t.deliveryNumber}` },
-          { style: 'center' as const, text: `escreva ${t.deliveryNumber} na sacola · pedido #${t.orderNumber}` },
+          { style: 'center' as const, text: `escreva ${t.deliveryNumber} na sacola` },
         ]
       : [{ style: 'big' as const, text: `#${t.orderNumber}` }, { style: 'place' as const, text: t.place.toUpperCase() }]),
     { style: 'center', text: `${hhmmBR(t.createdAt)}${t.createdByName ? ` · ${t.createdByName}` : ''}` },
@@ -123,6 +136,7 @@ export function ticketLines(t: PrintTicket, kind: PrintKind, printedAt: Date = n
     for (const o of i.options) out.push({ style: 'mod', text: /^sem /i.test(o.name) ? o.name.toUpperCase() : `+ ${o.quantity > 1 ? `${o.quantity}x ` : ''}${o.name}` });
     if (i.notes) out.push({ style: 'mod', text: `OBS: ${i.notes}` });
   }
+  if (t.greenSauce != null && kind !== 'cancelado') out.push({ style: 'title', text: t.greenSauce ? 'COM MOLHO VERDE' : 'SEM MOLHO VERDE' });
   if (kind === 'alterado' && t.changeNote) out.push({ style: 'rule', text: '' }, { style: 'text', text: `ALTERAÇÃO: ${t.changeNote}` });
   if (t.orderNotes) out.push({ style: 'rule', text: '' }, { style: 'text', text: `OBS DO PEDIDO: ${t.orderNotes}` });
   if (t.delivery && kind !== 'cancelado') {

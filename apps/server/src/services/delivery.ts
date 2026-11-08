@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
-import { can, canTransitionDelivery, normalizePhoneBR, type DeliveryStatus } from '@guto/core';
+import { can, canTransitionDelivery, normalizePhoneBR, type DeliveryStatus, orderTitle } from '@guto/core';
 import type { DbOrTx, Tx } from '../db/index.js';
 import {
   cashMovements,
@@ -124,8 +124,8 @@ export async function assignOrders(ctx: Ctx, orderIds: string[], courierId: stri
     const list = await tx.select().from(orders).where(inArray(orders.id, orderIds)).for('update');
     if (list.length !== orderIds.length) throw notFound('Pedido não encontrado');
     for (const o of list) {
-      if (o.type !== 'delivery' || o.status === 'cancelled' || o.status === 'pending') throw conflict(`Pedido #${o.number} não pode ser atribuído`);
-      if (o.deliveryStatus !== 'waiting') throw conflict(`Pedido #${o.number} já saiu para entrega`);
+      if (o.type !== 'delivery' || o.status === 'cancelled' || o.status === 'pending') throw conflict(`${orderTitle(o)} não pode ser atribuída`);
+      if (o.deliveryStatus !== 'waiting') throw conflict(`${orderTitle(o)} já saiu`);
     }
     const [run] = await tx.insert(deliveryRuns).values({ businessDayId: day.id, courierId, createdBy: ctx.actor.userId, createdAt: now() }).returning();
     const previousRuns = new Set<string>();
@@ -289,7 +289,7 @@ export async function courierView(ctx: Ctx) {
 
 export async function courierPending(db: DbOrTx, courierId: string) {
   const delivered = await db
-    .select({ id: orders.id, number: orders.number, fee: orders.courierFeeCents, deliveredAt: orders.deliveredAt, neighborhoodName: orders.neighborhoodName })
+    .select({ id: orders.id, number: orders.number, deliveryNumber: orders.deliveryNumber, fee: orders.courierFeeCents, deliveredAt: orders.deliveredAt, neighborhoodName: orders.neighborhoodName })
     .from(orders)
     .where(and(eq(orders.courierId, courierId), eq(orders.deliveryStatus, 'delivered'), isNull(orders.courierSettlementId), ne(orders.status, 'cancelled')))
     .orderBy(asc(orders.deliveredAt));

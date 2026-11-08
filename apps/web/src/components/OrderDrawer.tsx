@@ -2,17 +2,7 @@ import { useState } from 'react';
 import { Ban, CheckCheck, HandPlatter, History, MapPin, Pencil, Phone, Plus, Printer, ReceiptText, RotateCcw, Send, Tag, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  DELIVERY_STATUS_LABEL,
-  KITCHEN_STATUS_LABEL,
-  ORDER_STAGE_LABEL,
-  ORDER_TYPE_LABEL,
-  PAYMENT_METHOD_LABEL,
-  formatBRL,
-  formatPhoneBR,
-  mapsLink,
-  type OrderType,
-} from '@guto/core';
+import { DELIVERY_STATUS_LABEL, KITCHEN_STATUS_LABEL, ORDER_STAGE_LABEL, ORDER_TYPE_LABEL, PAYMENT_METHOD_LABEL, formatBRL, formatPhoneBR, mapsLink, type OrderType, orderTitle } from '@guto/core';
 import { post, patch, put } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { addressLine, formatDateTime, formatTime } from '../lib/format';
@@ -119,7 +109,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
 
   const cancelOrder = async () => {
     const reason = await ui.confirm({
-      title: o.status === 'pending' ? `Recusar pedido #${o.number}` : `Cancelar pedido #${o.number}`,
+      title: o.status === 'pending' ? `Recusar ${orderTitle(o)}` : `Cancelar ${orderTitle(o)}`,
       message:
         o.paidCents > 0 ? (
           <Alert kind="warn">
@@ -161,7 +151,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
   };
 
   const reopen = async () => {
-    const reason = await ui.confirm({ title: `Reabrir pedido #${o.number}`, reasonLabel: 'Motivo da reabertura', confirmLabel: 'Reabrir' });
+    const reason = await ui.confirm({ title: `Reabrir ${orderTitle(o)}`, reasonLabel: 'Motivo da reabertura', confirmLabel: 'Reabrir' });
     if (typeof reason !== 'string') return;
     await act((sup) => post(`/api/orders/${o.id}/reopen`, { reason, supervisor: sup }), 'Pedido reaberto');
   };
@@ -178,7 +168,7 @@ export function OrderDetail({ order: o, onClose }: { order: Order; onClose: () =
       <div className="drawer-head">
         <div className="grow">
           <h2 className="hstack" style={{ gap: 8 }}>
-            Pedido #{o.number} <TypeBadge type={o.type} table={o.tableLabel} tabKind={o.tabKind} />{o.type === 'delivery' && <> <BagNumber n={o.deliveryNumber} /></>}
+            {orderTitle(o)} <TypeBadge type={o.type} table={o.tableLabel} tabKind={o.tabKind} />{o.type === 'delivery' && <> <BagNumber n={o.deliveryNumber} /></>}
           </h2>
           <small className="muted">
             {formatDateTime(o.createdAt)}
@@ -576,6 +566,7 @@ function EditOrderDialog({ order: o, onClose, onSaved }: { order: Order; onClose
     reference: o.addrReference ?? '',
     neighborhoodId: o.neighborhoodId ?? '',
     waOptIn: o.waOptIn,
+    greenSauce: o.greenSauce ?? null,
   });
   const { busy, go } = useAction();
   const delivery = type === 'delivery';
@@ -590,7 +581,10 @@ function EditOrderDialog({ order: o, onClose, onSaved }: { order: Order; onClose
         customer: p.customer,
         supervisor: sup,
       };
-      if (delivery) body.address = p.address;
+      if (delivery) {
+        body.address = p.address;
+        body.greenSauce = cust.greenSauce;
+      }
       if (eta) body.etaMinutes = Number(eta);
       if (fee != null) body.deliveryFeeCents = fee;
       onSaved(await patch<Order>(`/api/orders/${o.id}`, body));
@@ -598,7 +592,7 @@ function EditOrderDialog({ order: o, onClose, onSaved }: { order: Order; onClose
   return (
     <Modal
       wide
-      title={`Editar pedido #${o.number}`}
+      title={`Editar ${orderTitle(o)}`}
       onClose={onClose}
       footer={
         <>
@@ -645,7 +639,7 @@ function AcceptDialog({ order, onClose, onSaved }: { order: Order; onClose: () =
   const { busy, go } = useAction();
   return (
     <Modal
-      title={`Aceitar pedido #${order.number}`}
+      title={`Aceitar ${orderTitle(order)}`}
       onClose={onClose}
       footer={
         <>

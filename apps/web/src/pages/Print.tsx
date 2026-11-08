@@ -70,7 +70,7 @@ export default function Print() {
             {o.deliveryNumber ? (
               <>
                 <div className="big">ENTREGA {o.deliveryNumber}</div>
-                <div className="c">escreva {o.deliveryNumber} na sacola · pedido #{o.number}</div>
+                <div className="c">escreva {o.deliveryNumber} na sacola</div>
               </>
             ) : (
               <div className="big">#{o.number}</div>
@@ -125,8 +125,7 @@ function Nota({ o, items, st }: { o: Order; items: Order['items']; st: any }) {
       {st.storeAddress && <div className="c">{st.storeAddress}</div>}
       {st.storePhone && <div className="c">{st.storePhone}</div>}
       <div className="warn">{paid ? 'NOTA DE VENDA — PAGO' : 'CONTA — CONFERÊNCIA'}<br />NÃO É DOCUMENTO FISCAL</div>
-      <div className="l"><span>Pedido</span><b>#{o.number}</b></div>
-      {o.type === 'delivery' && o.deliveryNumber ? <div className="big">ENTREGA {o.deliveryNumber}</div> : null}
+      {o.type === 'delivery' && o.deliveryNumber ? <div className="big">ENTREGA {o.deliveryNumber}</div> : <div className="l"><span>Pedido</span><b>#{o.number}</b></div>}
       <div className="l"><span>{o.type === 'table' ? (o.tabKind === 'tab' ? `Comanda ${o.tableLabel}` : `Mesa ${o.tableLabel}`) : ORDER_TYPE_LABEL[o.type]}</span><span>{formatDateTime(o.createdAt)}</span></div>
       {o.createdByName && <div>Atendente: {o.createdByName}</div>}
       {o.customerName && <div>Cliente: {o.customerName}</div>}

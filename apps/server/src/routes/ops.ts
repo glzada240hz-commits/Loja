@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { can, DELIVERY_STATUSES, KITCHEN_STATUSES, ticketLines, type PrintTicket } from '@guto/core';
+import { can, DELIVERY_STATUSES, KITCHEN_STATUSES, ticketLines, type PrintTicket, orderRef } from '@guto/core';
 import { requirePerm } from '../lib/context.js';
 import { authorize } from '../services/auth.js';
 import { closeDay, currentDay, listDays, openDay } from '../services/businessDay.js';
@@ -98,7 +98,7 @@ export async function opsRoutes(app: FastifyInstance) {
       via = 'computador';
     }
     await audit(ctx.db, ctx.actor, 'kitchen.reprint', 'order', tickets[0]!.orderId, { tickets: tickets.length, via });
-    return { via, count: tickets.length, orderNumber: tickets[0]!.orderNumber };
+    return { via, count: tickets.length, orderNumber: tickets[0]!.orderNumber, ref: orderRef({ number: tickets[0]!.orderNumber, deliveryNumber: tickets[0]!.deliveryNumber }) };
   });
   /** tickets pedidos numa 2ª via (o computador que imprime a cozinha busca por aqui) */
   app.get('/api/kitchen/tickets', async (req) => {

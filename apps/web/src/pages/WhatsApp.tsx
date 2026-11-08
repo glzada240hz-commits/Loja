@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatBRL, formatPhoneBR, ORDER_STATUS_LABEL } from '@guto/core';
+import { formatBRL, formatPhoneBR, ORDER_STATUS_LABEL, orderRef } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { PublicLinkCard } from '../components/PublicLink';
 import { OrderDrawer } from '../components/OrderDrawer';
@@ -160,7 +160,7 @@ function Chat({ id, onBack }: { id: string; onBack: () => void }) {
         {orders.length === 0 && <p className="muted">Nenhum.</p>}
         {orders.map((o: any) => (
           <div key={o.id} className="hstack" style={{ padding: '3px 0' }}>
-            <button type="button" className="btn ghost sm" onClick={() => setOrder(o.id)}>#{o.number}</button>
+            <button type="button" className="btn ghost sm" onClick={() => setOrder(o.id)}>{orderRef(o)}</button>
             <small>{ORDER_STATUS_LABEL[o.status as 'open']} · {formatBRL(o.totalCents)}</small>
           </div>
         ))}

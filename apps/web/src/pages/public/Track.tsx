@@ -30,7 +30,7 @@ export default function Track() {
   return (
     <div className="public">
       <header className="public-hero">
-        <h1><Logo size={40} /> Pedido #{o.number}</h1>
+        <h1><Logo size={40} /> {o.type === 'delivery' || o.deliveryNumber ? `Pedido (entrega nº ${o.deliveryNumber ?? o.number})` : `Pedido #${o.number}`}</h1>
         <p style={{ margin: '6px 0 0', color: '#e9e0d3' }}>
           {o.customerFirstName ? `Olá, ${o.customerFirstName}! ` : ''}Atualiza automaticamente.
         </p>

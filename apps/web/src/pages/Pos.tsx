@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Bike, CheckCircle2, LayoutGrid, MapPin, MessageSquareText, Minus, Plus, Printer, Search, SearchX, ShoppingBag, ShoppingCart, Store, Trash2, UserRound, X } from 'lucide-react';
-import { computeOrderTotals, formatBRL, ORDER_TYPE_LABEL, placeLabel, searchFilter, searchScore, type OrderType } from '@guto/core';
+import { computeOrderTotals, formatBRL, ORDER_TYPE_LABEL, placeLabel, searchFilter, searchScore, type OrderType, orderRef, orderTitle } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { CustomerFields, customerPayload, emptyCustomer, type CustomerDraft } from '../components/CustomerFields';
 import { lineToItemInput, lineTotal, ProductDialog } from '../components/ProductDialog';
@@ -181,7 +181,8 @@ export default function Pos() {
   const missing: string[] = [];
   if (!targetId) {
     if (type === 'table' && !table) missing.push('mesa');
-    if (delivery && (!cust.name || !cust.phone || !cust.street || !cust.number || !cust.neighborhoodId)) missing.push('dados de entrega');
+    if (delivery && (!cust.name || !cust.street || !cust.number || !cust.neighborhoodId)) missing.push('dados de entrega');
+    if (delivery && cust.greenSauce === null) missing.push('molho verde');
   }
 
   if (menu.isLoading) return <Layout title="Venda"><Loading /></Layout>;
@@ -489,7 +490,7 @@ export default function Pos() {
       )}
       {created && !created.pay && (
         <Modal
-          title={`Pedido #${created.order.number} registrado`}
+          title={`${orderTitle(created.order)} registrado`}
           onClose={() => setCreated(null)}
           footer={
             <>
@@ -508,7 +509,7 @@ export default function Pos() {
         >
           <div style={{ textAlign: 'center' }}>
             <CheckCircle2 size={40} color="var(--ok)" aria-hidden />
-            <p style={{ fontSize: '2.6rem', fontWeight: 800, margin: '4px 0 0', letterSpacing: '-.02em' }}>#{created.order.number}</p>
+            <p style={{ fontSize: '2.6rem', fontWeight: 800, margin: '4px 0 0', letterSpacing: '-.02em' }}>{orderRef(created.order)}</p>
             <p className="muted">
               {created.order.place} · Total <b className="money" style={{ color: 'var(--ink)' }}>{formatBRL(created.order.totalCents)}</b> ·{' '}
               {created.order.tickets.length ? 'enviado à cozinha' : 'sem itens de cozinha'}
@@ -551,7 +552,7 @@ function RecentOrders({ dayId, onOpen }: { dayId?: string; onOpen: (id: string) 
           return (
             <li key={o.id}>
               <button type="button" onClick={() => onOpen(o.id)} aria-label={`Abrir pedido ${o.number}`}>
-                <b className="r-num">#{o.number}</b>
+                <b className="r-num">{orderRef(o)}</b>
                 <span className="r-place ellipsis">{placeLabel(o)}{o.customerName ? ` · ${o.customerName}` : ''}</span>
                 <span className="r-state">
                   {o.status === 'pending' ? (

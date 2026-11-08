@@ -11,7 +11,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { get } from './api';
 
-import { pendingPrints, testTicket, ticketLines, type PrintKind, type PrintTicket, type PrintedMap } from '@guto/core';
+import { pendingPrints, testTicket, ticketLines, type PrintKind, type PrintTicket, type PrintedMap, orderRef } from '@guto/core';
 export { pendingPrints, testTicket };
 export type { PrintKind, PrintTicket, PrintedMap };
 
@@ -37,7 +37,7 @@ export function ticketHtml(t: PrintTicket, kind: PrintKind, width: number = 80):
       }
     })
     .join('\n');
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Cozinha #${t.orderNumber}</title><style>
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Cozinha ${orderRef({ number: t.orderNumber, deliveryNumber: t.deliveryNumber })}</title><style>
 @page { size: ${w}mm auto; margin: 0; }
 * { box-sizing: border-box; }
 body { margin: 0; padding: 3mm; width: ${w}mm; font-family: 'Courier New', monospace; color: #000; font-size: ${w === 58 ? 13 : 15}px; line-height: 1.25; }
@@ -178,7 +178,7 @@ export function useKitchenPrinterStation(enabled: boolean, width: number) {
           await printHtml(ticketHtml(ticket, kind, width));
           done[ticket.id] = { at: Date.now(), changedAt: ticket.changedAt, cancelled: kind === 'cancelado' || undefined };
           saveDone(done);
-          setStatus({ last: `#${ticket.orderNumber} ${kind === 'novo' ? '' : `(${kind}) `}às ${hhmm(new Date().toISOString())}`, error: null });
+          setStatus({ last: `${orderRef({ number: ticket.orderNumber, deliveryNumber: ticket.deliveryNumber })} ${kind === 'novo' ? '' : `(${kind}) `}às ${hhmm(new Date().toISOString())}`, error: null });
           await new Promise((r) => setTimeout(r, 800));
         }
       } catch (e) {
@@ -201,7 +201,7 @@ export function useKitchenPrinterStation(enabled: boolean, width: number) {
         for (const t of tickets) {
           if (stop) break;
           await printHtml(ticketHtml(t, 'reimpressao', width));
-          setStatus({ last: `#${t.orderNumber} (2ª via) às ${hhmm(new Date().toISOString())}`, error: null });
+          setStatus({ last: `${orderRef({ number: t.orderNumber, deliveryNumber: t.deliveryNumber })} (2ª via) às ${hhmm(new Date().toISOString())}`, error: null });
           await new Promise((r) => setTimeout(r, 800));
         }
       } catch (err) {
