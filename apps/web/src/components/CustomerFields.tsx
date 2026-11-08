@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatBRL, normalizePhoneBR, parseAddressBR, searchFilter, orderRef } from '@guto/core';
-import { ClipboardPaste, RotateCcw } from 'lucide-react';
+import { formatBRL, formatPhoneBR, normalizePhoneBR, orderRef, parseAddressBR, parseChatText, searchFilter, type ChatItem, type ChatParse } from '@guto/core';
+import { ClipboardPaste, ImageUp, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '../lib/api';
-import { useNeighborhoods } from '../lib/queries';
+import { useMenu, useNeighborhoods } from '../lib/queries';
+import { readImageText } from '../lib/ocr';
 import { Field } from './ui';
 import type { Neighborhood } from '../lib/types';
 
@@ -27,14 +28,22 @@ export function CustomerFields({
   onChange,
   delivery,
   onRepeat,
+  readPrint,
+  onChatItems,
 }: {
   value: CustomerDraft;
   onChange: (v: CustomerDraft) => void;
   delivery: boolean;
   /** "repetir último pedido": recebe o id do pedido anterior do cliente */
   onRepeat?: (orderId: string, number: number) => void;
+  /** mostra "Ler print da conversa" (lê nome, telefone, endereço e itens de uma imagem) */
+  readPrint?: boolean;
+  /** itens do cardápio encontrados no print: o formulário do pedido adiciona */
+  onChatItems?: (items: ChatItem[]) => void;
 }) {
   const nbs = useNeighborhoods();
+  const menu = useMenu();
+  const [chat, setChat] = useState<(ChatParse & { added?: number }) | null>(null);
   const streetsQ = useQuery({
     queryKey: ['streets', value.neighborhoodId],
     queryFn: () => get<string[]>(`/api/neighborhoods/${value.neighborhoodId}/streets`),
@@ -93,6 +102,30 @@ export function CustomerFields({
     });
     setPasteMsg(found ? `Bairro identificado: ${found.name} (taxa ${formatBRL(found.feeCents)}). Confira os campos abaixo.` : 'Bairro não identificado no texto: busque o bairro abaixo. Confira a rua e o número.');
   };
+  // texto lido do print da conversa: preenche o que estiver vazio e sugere os itens
+  const applyChat = (text: string) => {
+    const products = (menu.data ?? []).flatMap((c) => c.products).map((pr) => ({ id: pr.id, name: pr.name, variants: pr.variants.map((v) => ({ id: v.id, name: v.name })) }));
+    const r = parseChatText(text, { neighborhoods: activeNbs, products });
+    const a = r.address;
+    const nbFound = activeNbs.find((n) => n.id === a?.neighborhoodId);
+    onChange({
+      ...value,
+      name: value.name || r.name || '',
+      phone: value.phone || (r.phone ? formatPhoneBR(r.phone) : ''),
+      ...(a
+        ? {
+            street: a.street || value.street,
+            number: a.number || value.number,
+            complement: a.complement || value.complement,
+            reference: a.reference || value.reference,
+            neighborhoodId: nbFound ? nbFound.id : value.neighborhoodId,
+          }
+        : {}),
+    });
+    setChat(r);
+    if (a) setPasted(r.addressText);
+    setPasteMsg(nbFound ? `Bairro identificado no print: ${nbFound.name} (taxa ${formatBRL(nbFound.feeCents)}). Confira os campos.` : r.addressText ? 'Bairro não identificado no print: busque o bairro abaixo.' : null);
+  };
   const last = (found?.history ?? []).find((h: any) => h.status !== 'cancelled');
   return (
     <div>
@@ -100,6 +133,29 @@ export function CustomerFields({
         <button type="button" className="btn sm" style={{ marginBottom: 10 }} onClick={() => onRepeat(last.id, last.number)}>
           <RotateCcw className="icon" aria-hidden /> Repetir último pedido de {found.name?.split(' ')[0] ?? 'cliente'} ({orderRef(last)} · {formatBRL(last.totalCents)})
         </button>
+      )}
+      {readPrint && <ChatPrintReader onText={applyChat} />}
+      {chat && (
+        <div className="chat-result" role="status">
+          <b>Lido do print — confira antes de enviar</b>
+          {chat.items.length > 0 ? (
+            <div>
+              Itens: {chat.items.map((i) => `${i.quantity}x ${i.name}`).join(', ')}
+              {onChatItems && (
+                <button type="button" className="btn sm primary" style={{ marginLeft: 8 }} onClick={() => { onChatItems(chat.items); setChat({ ...chat, items: [], added: chat.items.length }); }}>
+                  Adicionar ao pedido
+                </button>
+              )}
+            </div>
+          ) : chat.added ? (
+            <div>{chat.added} item(ns) adicionado(s) ao pedido: confira acréscimos e observações.</div>
+          ) : (
+            <div className="muted">Nenhum item do cardápio reconhecido: adicione os produtos.</div>
+          )}
+          {chat.amounts.length > 0 && <div>Valores na conversa: {chat.amounts.map((c) => formatBRL(c)).join(' · ')} (compare com o total do pedido)</div>}
+          {!chat.addressText && delivery && <div className="muted">Endereço não encontrado no print.</div>}
+          <button type="button" className="link" onClick={() => setChat(null)}>fechar</button>
+        </div>
       )}
       <div className="row">
         <Field label="Telefone" hint={found ? `Cliente cadastrado · ${found.history?.length ?? 0} pedido(s)` : undefined}>
@@ -209,6 +265,45 @@ export function CustomerFields({
           Cliente aceita receber atualizações do pedido pelo WhatsApp
         </label>
       )}
+    </div>
+  );
+}
+
+/** Botão "Ler print da conversa": escolhe/cola a imagem e lê o texto no próprio aparelho. */
+function ChatPrintReader({ onText }: { onText: (text: string) => void }) {
+  const [pct, setPct] = useState<number | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const file = useRef<HTMLInputElement>(null);
+  const read = async (img: Blob) => {
+    setErr(null);
+    setPct(0);
+    try {
+      const text = await readImageText(img, setPct);
+      if (!text.trim()) throw new Error('Não deu para ler texto nesta imagem');
+      onText(text);
+    } catch (e) {
+      setErr((e as Error).message || 'Não foi possível ler o print');
+    } finally {
+      setPct(null);
+    }
+  };
+  return (
+    <div
+      className="chat-print"
+      onPaste={(e) => {
+        const f = [...e.clipboardData.files].find((x) => x.type.startsWith('image/'));
+        if (f) {
+          e.preventDefault();
+          void read(f);
+        }
+      }}
+    >
+      <input ref={file} type="file" accept="image/*" hidden aria-label="Imagem do print da conversa" onChange={(e) => { const f = e.target.files?.[0]; if (f) void read(f); e.target.value = ''; }} />
+      <button type="button" className="btn" disabled={pct !== null} onClick={() => file.current?.click()}>
+        <ImageUp className="icon" aria-hidden /> {pct !== null ? `Lendo o print… ${pct}%` : 'Ler print da conversa'}
+      </button>
+      <small className="muted">Mande o print da conversa do WhatsApp: o sistema lê nome, telefone, endereço e itens. No computador, também dá para colar a imagem (Ctrl+V) aqui.</small>
+      {err && <small className="err">{err}</small>}
     </div>
   );
 }

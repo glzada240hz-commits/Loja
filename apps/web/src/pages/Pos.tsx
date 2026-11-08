@@ -5,6 +5,7 @@ import { ArrowLeft, Bike, CheckCircle2, LayoutGrid, MapPin, MessageSquareText, M
 import { computeOrderTotals, formatBRL, ORDER_TYPE_LABEL, placeLabel, searchFilter, searchScore, type OrderType, orderRef, orderTitle } from '@guto/core';
 import { Layout } from '../components/Layout';
 import { CustomerFields, customerPayload, emptyCustomer, type CustomerDraft } from '../components/CustomerFields';
+import { chatItemsToLines } from '../lib/chatLines';
 import { lineToItemInput, lineTotal, ProductDialog } from '../components/ProductDialog';
 import { OrderDrawer } from '../components/OrderDrawer';
 import { PaymentDialog } from '../components/PaymentDialog';
@@ -471,7 +472,18 @@ export default function Pos() {
             </Button>
           }
         >
-          <CustomerFields value={cust} onChange={setCust} delivery={delivery} onRepeat={(id, n) => void repeatOrder(id, n)} />
+          <CustomerFields
+            value={cust}
+            onChange={setCust}
+            delivery={delivery}
+            onRepeat={(id, n) => void repeatOrder(id, n)}
+            readPrint={delivery || type === 'takeout'}
+            onChatItems={(items) => {
+              const r = chatItemsToLines(items, menu.data);
+              setCart((c) => [...c, ...r.lines]);
+              ui.toast(r.skipped.length ? `${r.lines.length} item(ns) adicionado(s); indisponível: ${r.skipped.join(', ')}` : `${r.lines.length} item(ns) adicionado(s). Confira acréscimos e observações.`, r.skipped.length ? 'error' : 'ok');
+            }}
+          />
           <Field label="Observação do pedido">
             <input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Ex.: cliente aguarda no balcão" />
           </Field>

@@ -1073,3 +1073,15 @@ button.conn { cursor: pointer; font-family: inherit; }
 .tk-reprint svg { width: 13px; height: 13px; }
 .tk-reprint:hover { background: rgba(0, 0, 0, .3); }
 .rd-acts { display: inline-flex; gap: 6px; grid-row: 1 / span 2; grid-column: 2; }
+
+/* dividir o valor de um item entre pessoas */
+.split-ctl { display: inline-flex; align-items: center; gap: 6px; }
+.split-ways { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0 2px; }
+.split-share { color: var(--ok, #15803d); font-weight: 600; }
+.split-share .link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+
+/* ler print da conversa */
+.chat-print { display: grid; gap: 4px; margin-bottom: 10px; padding: 10px; border: 1px dashed var(--line); border-radius: 10px; }
+.chat-print .btn { justify-self: start; }
+.chat-result { display: grid; gap: 4px; margin-bottom: 10px; padding: 10px 12px; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; font-size: var(--fs-sm); }
+.chat-result .link { justify-self: start; background: none; border: 0; padding: 0; color: var(--ink-2); text-decoration: underline; cursor: pointer; font: inherit; }

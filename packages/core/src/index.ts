@@ -7,3 +7,4 @@ export * from './search.js';
 export * from './pix.js';
 export * from './kitchenPrint.js';
 export * from './address.js';
+export * from './chat.js';

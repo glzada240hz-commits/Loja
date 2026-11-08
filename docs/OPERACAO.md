@@ -61,6 +61,14 @@ Atualização de versão: `git pull && npm ci && npm run build && sudo systemctl
 Se a conexão cair, aparece uma faixa vermelha “Sem conexão”: nada é salvo até voltar. O sistema **não
 tem modo offline de pedidos** — anote em papel e lance depois.
 
+### Conta da mesa dividida (por pessoa e por item)
+
+Receber → **Dividir conta** → “Por itens (cada um paga o seu)”: marque os itens de cada pessoa (Cliente A, B…).
+Para **dividir o valor de um item** (ex.: uma porção para duas pessoas), toque em **Dividir** na linha do item e
+escolha entre quantas pessoas (2 a 6): a parte desta pessoa entra na conta dela (“½ desta pessoa = R$ …”). As
+outras pessoas fazem o mesmo; o sistema não deixa pagar mais que o item inteiro, e quem fecha a conta paga o
+saldo exato (o centavo que sobra da divisão). Captura em [`evidencias/dividir/`](evidencias/dividir/).
+
 ## 3. Backup
 
 `scripts/backup.sh` gera `guto-AAAAMMDD-HHMMSS.dump` (formato custom do `pg_dump`, compactado),

@@ -930,8 +930,10 @@ export async function addPayment(ctx: Ctx, orderId: string, input: PaymentInput,
         for (const it of input.items) {
           const row = its.find((x) => x.id === it.itemId && x.status === 'active');
           if (!row) throw unprocessable('Item não pertence a este pedido');
-          if (!Number.isSafeInteger(it.quantity) || it.quantity <= 0) throw badRequest('Quantidade inválida');
-          if ((taken.get(it.itemId) ?? 0) + it.quantity > row.quantity) throw conflict(`${row.productName}: já foi pago por outra pessoa`);
+          // fração = item dividido entre pessoas (ex.: 0,5 de uma porção); tolerância para 1/3 + 1/3 + 1/3
+          if (!Number.isFinite(it.quantity) || it.quantity <= 0) throw badRequest('Quantidade inválida');
+          if ((taken.get(it.itemId) ?? 0) + it.quantity > row.quantity + 1e-6) throw conflict(`${row.productName}: já foi pago por outra pessoa`);
+          taken.set(it.itemId, (taken.get(it.itemId) ?? 0) + it.quantity);
           paidItems.push({ itemId: it.itemId, quantity: it.quantity });
         }
       }

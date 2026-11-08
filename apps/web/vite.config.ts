@@ -47,6 +47,19 @@ export default defineConfig({
   plugins: [
     react(),
     {
+      // leitor do print da conversa (OCR) roda no próprio aparelho, sem serviço externo: arquivos servidos em /ocr
+      name: 'guto-ocr-assets',
+      generateBundle() {
+        const nm = (p: string) => path.join(__dirname, '../../node_modules', p);
+        const files: [string, string][] = [
+          ['ocr/worker.min.js', nm('tesseract.js/dist/worker.min.js')],
+          ['ocr/por.traineddata.gz', nm('@tesseract.js-data/por/4.0.0_best_int/por.traineddata.gz')],
+          ...['tesseract-core-lstm.wasm.js', 'tesseract-core-simd-lstm.wasm.js', 'tesseract-core-relaxedsimd-lstm.wasm.js'].map((f): [string, string] => [`ocr/${f}`, nm(`tesseract.js-core/${f}`)]),
+        ];
+        for (const [fileName, from] of files) this.emitFile({ type: 'asset', fileName, source: fs.readFileSync(from) });
+      },
+    },
+    {
       name: 'guto-version-json',
       generateBundle() {
         this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ ...BUILD, id: buildId }) });
@@ -74,8 +87,9 @@ export default defineConfig({
       workbox: {
         // somente a "casca" do app fica em cache; dados SEMPRE vêm do servidor (sem modo offline de pedidos)
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['ocr/**'], // leitor de print: baixado só quando usado
+        navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//, /^\/ocr\//],
         runtimeCaching: [],
       },
     }),

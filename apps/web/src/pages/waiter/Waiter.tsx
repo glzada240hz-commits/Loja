@@ -39,6 +39,7 @@ import { useDay, useMenu, useNeighborhoods, useOrder, useSettings } from '../../
 import type { CartLine, MenuProduct, Order, OrderItem, OrderRow, Ticket } from '../../lib/types';
 import { moveDraft, useDraft } from './draft';
 import { lineFromItem } from '../../lib/repeat';
+import { chatItemsToLines } from '../../lib/chatLines';
 import { CustomerFields, customerPayload, emptyCustomer, type CustomerDraft } from '../../components/CustomerFields';
 import { formatPlan, PaymentPlanEditor, type PlanPart } from '../../components/PaymentPlan';
 import { BagNumber } from '../../components/BagNumber';
@@ -991,7 +992,17 @@ function WhatsAppNew({ channel }: { channel: Channel }) {
             <button type="button" aria-pressed={delivery} onClick={() => setDelivery(true)}>Entrega</button>
           </div>
         )}
-        <CustomerFields value={cust} onChange={setCust} delivery={wa && delivery} />
+        <CustomerFields
+          value={cust}
+          onChange={setCust}
+          delivery={wa && delivery}
+          readPrint={wa}
+          onChatItems={(items) => {
+            const r = chatItemsToLines(items, menu.data);
+            setLines((ls) => [...ls, ...r.lines]);
+            ui.toast(r.skipped.length ? `${r.lines.length} item(ns) adicionado(s); indisponível: ${r.skipped.join(', ')}` : `${r.lines.length} item(ns) adicionado(s). Confira acréscimos e observações.`, r.skipped.length ? 'error' : 'ok');
+          }}
+        />
       </section>
       <section className="wsec">
         <h3>Itens {lines.length > 0 && <small className="muted">· {formatBRL(itemsTotal)}</small>}</h3>

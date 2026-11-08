@@ -635,4 +635,33 @@ describe('conta da mesa dividida por itens', () => {
     const again = await caixa.post(`/api/orders/${o.body.id}/payments`, { method: 'debit', amountCents: 1950, payerLabel: 'Cliente A', items: [{ itemId: xb.id, quantity: 1 }, { itemId: refri.id, quantity: 1 }] }, { 'idempotency-key': idemKey() });
     expect(again.status).toBe(200);
   });
+
+  it('dividir o valor de um item: porção meio a meio e em três', async () => {
+    const o = await caixa.post('/api/orders', { type: 'table', tableLabel: '10', send: true, items: [
+      { variantId: m.variant('Batata frita'), quantity: 1 },
+      { variantId: m.variant('Refrigerante lata'), quantity: 1 },
+    ] }, { 'idempotency-key': idemKey() });
+    const [porcao, refri] = o.body.items;
+    const half = Math.round(porcao.totalCents / 2);
+    const pay = (who: string, items: any[], amountCents: number) =>
+      caixa.post(`/api/orders/${o.body.id}/payments`, { method: 'pix_manual', amountCents, payerLabel: who, items }, { 'idempotency-key': idemKey() });
+    expect((await pay('Cliente A', [{ itemId: porcao.id, quantity: 0.5 }], half)).status).toBe(200);
+    // B: a outra metade + o refri; uma terceira "metade" não existe
+    const b = await pay('Cliente B', [{ itemId: porcao.id, quantity: 0.5 }, { itemId: refri.id, quantity: 1 }], porcao.totalCents - half + refri.totalCents);
+    expect(b.status).toBe(200);
+    expect(b.body.order.balanceCents).toBe(0);
+    expect(b.body.order.payments.find((p: any) => p.payerLabel === 'Cliente B').items[0]).toMatchObject({ itemId: porcao.id, quantity: 0.5 });
+
+    const o3 = await caixa.post('/api/orders', { type: 'table', tableLabel: '11', send: true, items: [{ variantId: m.variant('Batata frita'), quantity: 1 }] }, { 'idempotency-key': idemKey() });
+    const p3 = o3.body.items[0];
+    const third = Math.floor(p3.totalCents / 3);
+    const pay3 = (who: string, cents: number) =>
+      caixa.post(`/api/orders/${o3.body.id}/payments`, { method: 'cash', amountCents: cents, payerLabel: who, items: [{ itemId: p3.id, quantity: 1 / 3 }] }, { 'idempotency-key': idemKey() });
+    expect((await pay3('A', third)).status).toBe(200);
+    expect((await pay3('B', third)).status).toBe(200);
+    const last = await pay3('C', p3.totalCents - 2 * third); // último paga o centavo que sobra
+    expect(last.status).toBe(200);
+    expect(last.body.order.balanceCents).toBe(0);
+    expect((await pay3('D', 1)).status).toBe(409); // já foi todo pago
+  });
 });

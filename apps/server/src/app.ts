@@ -111,7 +111,8 @@ export async function buildApp(config: Config, opts: { db?: Db; wa?: WaProvider;
         defaultSrc: ["'self'"],
         imgSrc: ["'self'", 'data:', 'blob:'],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
+        // 'wasm-unsafe-eval' só libera WebAssembly (leitor do print da conversa); eval de texto continua proibido
+        scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
         connectSrc: ["'self'"],
         workerSrc: ["'self'"],
         manifestSrc: ["'self'"],

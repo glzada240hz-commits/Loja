@@ -126,10 +126,44 @@ test('atendente do celular: entrega com bairro mostra o total com a taxa antes d
   await expect(cel.getByText('Combinado: as partes fecham o total.')).toBeVisible();
   await cel.getByLabel('Troco para').fill('50,00');
   await expect(box).toContainText('R$ 30,00'); // troco sobre a parte em dinheiro
+  await cel.getByRole('radio', { name: 'Com molho verde' }).click();
   await cel.getByRole('button', { name: /Enviar para a cozinha · R\$ 22,00/ }).click();
   await expect(cel.getByText(/na cozinha/).first()).toBeVisible();
   const link = await cel.getByRole('link', { name: 'Avisar no WhatsApp' }).getAttribute('href');
   expect(decodeURIComponent(link!)).toContain('Pagamento: Dinheiro R$ 20,00 + Pix R$ 2,00 (troco para R$ 50,00)');
+  await ctx.close();
+});
+
+test('atendente lê o print da conversa: nome, endereço, bairro e itens; envia sem telefone com molho verde', async ({ browser }) => {
+  test.setTimeout(120_000);
+  // imagem parecida com um print do WhatsApp
+  const shot = await browser.newPage({ viewport: { width: 390, height: 520 }, deviceScaleFactor: 2 });
+  await shot.setContent(`<body style="margin:0;background:#efeae2;font-family:Arial,sans-serif">
+    <div style="background:#075e54;color:#fff;padding:14px 16px;font-size:19px;font-weight:bold">Juliana Prado</div>
+    <div style="padding:12px;display:grid;gap:8px;font-size:17px">
+    <div style="background:#fff;padding:8px 10px;border-radius:8px">Boa noite! Quero 2 X-Tudo e 1 Coca-Cola 2L</div>
+    <div style="background:#fff;padding:8px 10px;border-radius:8px">Rua das Acácias, 120<br>apto 2<br>Santa Martinha</div></div></body>`);
+  const png = await shot.screenshot();
+  await shot.close();
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'pt-BR' });
+  const cel = await ctx.newPage();
+  await login(cel, 'atendente1');
+  await cel.goto('/atendente/whatsapp/novo');
+  await cel.getByRole('button', { name: 'Entrega' }).click();
+  await cel.getByLabel('Imagem do print da conversa').setInputFiles({ name: 'print.png', mimeType: 'image/png', buffer: png });
+  await expect(cel.getByText('Lido do print')).toBeVisible({ timeout: 90_000 });
+  await expect(cel.getByLabel('Nome', { exact: true }).first()).toHaveValue('Juliana Prado');
+  await expect(cel.getByLabel('Rua', { exact: true })).toHaveValue('Rua das Acácias');
+  await expect(cel.getByLabel('Número', { exact: true })).toHaveValue('120');
+  await expect(cel.getByRole('combobox', { name: /^Bairro/ })).toHaveValue('Santa Martinha — R$ 4,00');
+  await cel.getByRole('button', { name: 'Adicionar ao pedido' }).click();
+  const box = cel.getByLabel('Valor total');
+  await expect(box.locator('dd.grand')).toHaveText('R$ 64,80'); // 2 x 21,90 + 17,00 + taxa 4,00
+  // molho verde é obrigatório na entrega; telefone não
+  await expect(cel.getByRole('button', { name: /Falta: molho verde/ })).toBeVisible();
+  await cel.getByRole('radio', { name: 'Sem molho verde' }).click();
+  await cel.getByRole('button', { name: /Enviar para a cozinha · R\$ 64,80/ }).click();
+  await expect(cel.getByText(/Entrega \d+ na cozinha/).first()).toBeVisible();
   await ctx.close();
 });
 

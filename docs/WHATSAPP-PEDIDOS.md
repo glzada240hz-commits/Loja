@@ -39,6 +39,30 @@ funciona sem ela, com o WhatsApp que a loja já usa.
 - O combinado aparece no pedido do caixa, em Entregas, no celular do motoboy, na nota e no resumo do WhatsApp.
   No **Receber** do caixa há botões com cada parte combinada; registre uma parte e a janela continua com o resto.
 
+## Ler o print da conversa
+
+No pedido do WhatsApp (celular do atendente) e no caixa (entrega ou retirada): **Ler print da conversa** → escolha
+a imagem (no computador, dá para colar com Ctrl+V). O sistema lê o texto **no próprio aparelho** (sem serviço
+externo, sem custo; os arquivos do leitor ficam no sistema e só carregam na primeira leitura) e preenche o que
+estiver vazio: nome (cabeçalho da conversa), telefone (contato não salvo), endereço, bairro/taxa. Mostra os
+itens do cardápio citados (**Adicionar ao pedido**) e os valores em R$ da conversa para comparar com o total.
+É uma sugestão: **confira** antes de enviar (acréscimos e observações não são lidos). Captura em
+[`evidencias/print/`](evidencias/print/).
+
+## Telefone opcional e molho verde
+
+- Pedido de entrega lançado pela equipe **não exige telefone** (só o nome). Sem telefone, o botão “Avisar no
+  WhatsApp” não aparece: responda pela própria conversa. O cardápio digital continua exigindo telefone.
+- Na entrega, a escolha **Com molho verde / Sem molho verde** é obrigatória e sai em destaque na comanda.
+
+## Numeração: loja e entrega separadas
+
+Mesa e balcão seguem **#1, #2, #3…**; entregas seguem **Entrega 1, 2, 3…** (cada uma recomeça ao abrir o dia).
+A comanda da entrega mostra só “ENTREGA N” (sem o número da loja), e o mesmo número aparece na cozinha, na
+expedição, no entregador, em Pedidos e nas mensagens ao cliente (“pedido de entrega nº N”). Pedido do cardápio
+digital ganha o número quando chega. Mudar um pedido de balcão para entrega (ou o contrário) troca para o
+próximo número da outra sequência.
+
 ## Endereço: colar e buscar o bairro
 
 - **Colar endereço do cliente**: cole o endereço como o cliente mandou no WhatsApp (uma linha ou várias). O sistema

@@ -58,7 +58,7 @@ test.describe.serial('16. fluxo completo: cardápio digital → cozinha → entr
     await cliente.waitForURL(/\/c\/pedido\//);
     trackUrl = cliente.url();
     await expect(cliente.getByText('ainda será CONFIRMADO')).toBeVisible();
-    await expect(cliente.getByRole('heading', { name: 'Pedido #1' })).toBeVisible();
+    await expect(cliente.getByRole('heading', { name: 'Pedido (entrega nº 1)' })).toBeVisible();
     await shot(cliente, '03-cliente-acompanhamento');
   });
 
@@ -66,7 +66,7 @@ test.describe.serial('16. fluxo completo: cardápio digital → cozinha → entr
     caixa = await login(browser, 'caixa');
     await caixa.goto('/pedidos');
     await caixa.getByRole('button', { name: 'Aguardando aceite' }).click();
-    await caixa.getByRole('cell', { name: '#1' }).click();
+    await caixa.getByRole('cell', { name: 'Entrega 1' }).click();
     await expect(caixa.getByText('aguardando aceite', { exact: false }).first()).toBeVisible();
     await caixa.getByRole('button', { name: 'Aceitar pedido' }).click();
     await caixa.getByRole('button', { name: '40 min' }).click();
@@ -121,7 +121,7 @@ test.describe.serial('16. fluxo completo: cardápio digital → cozinha → entr
 
   test('caixa recebe com troco e finaliza', async () => {
     await caixa.goto('/pedidos');
-    await caixa.getByRole('cell', { name: '#1' }).click();
+    await caixa.getByRole('cell', { name: 'Entrega 1' }).click();
     await caixa.getByRole('button', { name: 'Receber R$ 50,80' }).click();
     const dlg = caixa.getByRole('dialog', { name: /Receber/ });
     await expect(dlg.getByLabel('Valor recebido em dinheiro')).toHaveValue('100,00');
@@ -130,7 +130,7 @@ test.describe.serial('16. fluxo completo: cardápio digital → cozinha → entr
     await dlg.getByRole('button', { name: /Registrar R\$ 50,80/ }).click();
     await expect(caixa.getByText('Pagamento registrado')).toBeVisible();
     // tela de pago: troco e nota não fiscal
-    const pago = caixa.getByRole('dialog', { name: /Pedido #1 pago/ });
+    const pago = caixa.getByRole('dialog', { name: /Entrega 1 pago/ });
     await caixa.context().addInitScript(() => (window.print = () => undefined)); // sem diálogo de impressão no teste
     await expect(pago.getByText('R$ 49,20')).toBeVisible();
     const [nota] = await Promise.all([caixa.waitForEvent('popup'), pago.getByRole('button', { name: 'Imprimir nota' }).click()]);
@@ -155,9 +155,9 @@ test.describe.serial('16. fluxo completo: cardápio digital → cozinha → entr
     await expect(caixa.locator('.order-sum dd.grand')).toHaveText('R$ 33,00');
     await shot(caixa, '10-pdv-carrinho');
     await caixa.getByRole('button', { name: 'Enviar pedido' }).dblclick();
-    await expect(caixa.getByRole('heading', { name: 'Pedido #2 registrado' })).toBeVisible();
+    await expect(caixa.getByRole('heading', { name: 'Pedido #1 registrado' })).toBeVisible(); // loja tem numeração própria (a entrega 1 não conta)
     const list = await (await caixa.request.get('/api/orders')).json();
-    expect(list.filter((o: any) => o.number === 2)).toHaveLength(1);
+    expect(list.filter((o: any) => o.number === 1 && o.type !== 'delivery')).toHaveLength(1);
     expect(list).toHaveLength(2);
     await caixa.getByRole('button', { name: 'Novo pedido' }).click();
   });

@@ -15,6 +15,17 @@ const METHOD_ICON: Partial<Record<PaymentMethod, LucideIcon>> = { cash: Banknote
  * Registro de pagamento (total, parcial ou dividido) com cálculo de troco. O servidor confere tudo.
  * "Imprimir conta" tira a nota não fiscal para o cliente conferir; quitado, mostra o troco e "Imprimir nota".
  */
+/** 1 → "1"; 0,5 → "½"; 1/3 → "⅓"; 1,5 → "1 ½" */
+function fmtQty(q: number): string {
+  const whole = Math.floor(q + 1e-6);
+  const frac = q - whole;
+  if (frac < 1e-6) return String(whole);
+  const F: [number, string][] = [[1 / 2, '½'], [1 / 3, '⅓'], [2 / 3, '⅔'], [1 / 4, '¼'], [3 / 4, '¾'], [1 / 5, '⅕'], [2 / 5, '⅖'], [3 / 5, '⅗'], [4 / 5, '⅘'], [1 / 6, '⅙'], [5 / 6, '⅚']];
+  const hit = F.find(([v]) => Math.abs(v - frac) < 1e-3);
+  const f = hit ? hit[1] : frac.toFixed(2).replace('.', ',');
+  return whole ? `${whole} ${f}` : f;
+}
+
 export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClose: () => void; onPaid: (o: Order) => void }) {
   const balance = order.balanceCents;
   const [method, setMethod] = useState<PaymentMethod>(order.paymentIntent && order.paymentIntent !== 'pix_integrated' ? order.paymentIntent : 'cash');
@@ -25,6 +36,10 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
   // conta dividida por itens (ways = 0): cada pessoa paga os itens dela
   const byItems = ways === 0;
   const [pick, setPick] = useState<Record<string, number>>({});
+  // item dividido entre pessoas: 1 unidade ÷ N (ex.: porção meio a meio = ÷2); a parte desta pessoa é 1/N
+  const [share, setShare] = useState<Record<string, number>>({});
+  const [splitOpen, setSplitOpen] = useState<string | null>(null);
+  const qtyOf = (id: string) => (pick[id] ?? 0) + (share[id] ? 1 / share[id]! : 0);
   const activeItems = order.items.filter((i) => i.status === 'active');
   const paidBy = useMemo(() => {
     const m = new Map<string, { qty: number; who: string[] }>();
@@ -41,12 +56,13 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
   const nextPerson = `Cliente ${String.fromCharCode(65 + Math.min(splitPeople, 25))}`;
   // desconto do pedido dividido na mesma proporção dos itens
   const factor = order.subtotalCents > 0 ? (order.subtotalCents - order.discountCents) / order.subtotalCents : 1;
-  const pickSum = Math.round(activeItems.reduce((a, i) => a + (pick[i.id] ?? 0) * (i.totalCents / i.quantity), 0) * factor);
+  const rawSum = Math.round(activeItems.reduce((a, i) => a + qtyOf(i.id) * (i.totalCents / i.quantity), 0) * factor);
+  // se com esta pessoa todos os itens ficam pagos, ela paga o saldo exato (sem sobrar centavo das divisões)
+  const clearsAll = activeItems.every((i) => i.quantity - (paidBy.get(i.id)?.qty ?? 0) - qtyOf(i.id) < 1e-6);
+  const pickSum = rawSum > 0 && clearsAll ? balance : rawSum;
   useEffect(() => {
     if (!byItems) return;
     setAmount(Math.min(pickSum, balance) || null);
-    if (!payer) setPayer(nextPerson);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [byItems, pickSum, balance]);
   const key = useRef(newIdemKey());
   const { busy, go } = useAction();
@@ -69,8 +85,9 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
             method,
             amountCents: amount,
             tenderedCents: method === 'cash' ? (tendered ?? amount) : null,
-            payerLabel: payer || null,
-            items: byItems ? activeItems.filter((i) => (pick[i.id] ?? 0) > 0).map((i) => ({ itemId: i.id, quantity: pick[i.id]! })) : null,
+            // por itens: sem nome digitado, vale a próxima letra (Cliente A, B, C…)
+            payerLabel: payer.trim() || (byItems ? nextPerson : null),
+            items: byItems ? activeItems.filter((i) => qtyOf(i.id) > 0).map((i) => ({ itemId: i.id, quantity: qtyOf(i.id) })) : null,
           },
           { idempotencyKey: key.current },
         );
@@ -78,6 +95,7 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
         if (byItems) {
           // próxima pessoa
           setPick({});
+          setShare({});
           setPayer('');
           setTendered(null);
         }
@@ -202,18 +220,46 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
                 const paid = paidBy.get(i.id);
                 const left = i.quantity - (paid?.qty ?? 0);
                 const q = pick[i.id] ?? 0;
+                const sh = share[i.id];
+                const unit = i.totalCents / i.quantity;
+                const maxWhole = Math.floor(left - (sh ? 1 / sh : 0) + 1e-6);
                 return (
-                  <div key={i.id} className={'split-row' + (left <= 0 ? ' done' : q > 0 ? ' on' : '')}>
+                  <div key={i.id} className={'split-row' + (left <= 1e-6 ? ' done' : qtyOf(i.id) > 0 ? ' on' : '')}>
                     <span className="grow">
                       {i.quantity}x {i.productName}
                       {i.options.length > 0 && <small className="muted"> · {i.options.map((o) => o.optionName).join(', ')}</small>}
-                      {paid && <small className="split-paid"> · pago {paid.qty} ({paid.who.join(', ')})</small>}
+                      {paid && <small className="split-paid"> · pago {fmtQty(paid.qty)} ({paid.who.join(', ')})</small>}
+                      {sh ? (
+                        <small className="split-share">
+                          {' '}· {fmtQty(1 / sh)} desta pessoa = {formatBRL(Math.round((unit / sh) * factor))}{' '}
+                          <button type="button" className="link" onClick={() => setShare(({ [i.id]: _, ...rest }) => rest)}>tirar</button>
+                        </small>
+                      ) : null}
                     </span>
-                    <span className="num">{formatBRL(Math.round(i.totalCents / i.quantity))}</span>
-                    {left > 0 ? (
-                      <Stepper label={i.productName} value={q} min={0} max={left} onChange={(v) => setPick({ ...pick, [i.id]: v })} />
+                    <span className="num">{formatBRL(Math.round(unit))}</span>
+                    {left > 1e-6 ? (
+                      <span className="split-ctl">
+                        {maxWhole >= 1 || q > 0 ? <Stepper label={i.productName} value={q} min={0} max={Math.max(q, maxWhole)} onChange={(v) => setPick({ ...pick, [i.id]: v })} /> : null}
+                        {!sh && (
+                          <button type="button" className="btn sm" aria-expanded={splitOpen === i.id} onClick={() => setSplitOpen(splitOpen === i.id ? null : i.id)} title="Dividir o valor de 1 unidade entre pessoas">
+                            Dividir
+                          </button>
+                        )}
+                      </span>
                     ) : (
                       <span className="badge green">pago</span>
+                    )}
+                    {splitOpen === i.id && !sh && (
+                      <span className="split-ways" role="group" aria-label={`Dividir 1 ${i.productName} entre`}>
+                        <small className="muted">1 unidade entre:</small>
+                        {[2, 3, 4, 5, 6]
+                          .filter((n) => 1 / n <= left - q + 1e-6)
+                          .map((n) => (
+                            <button key={n} type="button" className="btn sm" onClick={() => { setShare({ ...share, [i.id]: n }); setSplitOpen(null); }}>
+                              {n} pessoas ({formatBRL(Math.round((unit / n) * factor))})
+                            </button>
+                          ))}
+                      </span>
                     )}
                   </div>
                 );
@@ -233,7 +279,7 @@ export function PaymentDialog({ order, onClose, onPaid }: { order: Order; onClos
           )}
           <small className="muted">Parte em dinheiro e parte no Pix/cartão? Registre a primeira parte com o valor dela; a janela continua aberta com o que falta.</small>
           <Field label={byItems ? 'Quem está pagando' : 'Identificação (opcional)'} hint="Ex.: Cliente A, João">
-            <input value={payer} onChange={(e) => setPayer(e.target.value)} maxLength={60} />
+            <input value={payer} onChange={(e) => setPayer(e.target.value)} maxLength={60} placeholder={byItems ? nextPerson : undefined} />
           </Field>
         </div>
         <div className="pay-col">

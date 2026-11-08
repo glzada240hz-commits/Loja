@@ -208,6 +208,35 @@ test('caixa divide a conta da mesa por itens: Cliente A paga os dele, Cliente B 
   await expect(page.getByRole('dialog', { name: /pago$/ })).toBeVisible();
 });
 
+test('caixa divide o valor de uma porção meio a meio entre duas pessoas', async ({ page }) => {
+  await login(page, 'caixa');
+  const H = { 'x-requested-with': 'guto' };
+  const menu = await (await page.request.get('/api/menu')).json();
+  const prod = menu.flatMap((c: any) => c.products).find((p: any) => p.name === 'Batata frita');
+  const price = prod.variants[0].priceCents;
+  const brl = (c: number) => (c / 100).toFixed(2).replace('.', ',');
+  const o = await (await page.request.post('/api/orders', { headers: { ...H, 'idempotency-key': `e2e-half-${Date.now()}` }, data: { type: 'table', tableLabel: '12', send: true, items: [{ variantId: prod.variants[0].id, quantity: 1 }] } })).json();
+  await page.goto(`/pedidos/${o.id}`);
+  await page.getByRole('button', { name: /^Receber R\$/ }).click();
+  const dlg = page.getByRole('dialog', { name: /Receber/ });
+  await dlg.getByLabel('Dividir conta').selectOption({ label: 'Por itens (cada um paga o seu)' });
+  const items = dlg.getByRole('group', { name: 'Itens desta pessoa' });
+  await items.getByRole('button', { name: 'Dividir', exact: true }).click();
+  await items.getByRole('button', { name: /^2 pessoas/ }).click();
+  await expect(items).toContainText('½ desta pessoa');
+  await expect(dlg.getByLabel('Valor deste pagamento')).toHaveValue(brl(Math.round(price / 2)));
+  await dlg.getByRole('button', { name: 'Pix (conferido manualmente)' }).click();
+  await dlg.getByRole('button', { name: /^Registrar R\$/ }).click();
+  await expect(items).toContainText('Itens de Cliente B');
+  await expect(items).toContainText('pago ½ (Cliente A)');
+  await items.getByRole('button', { name: 'Dividir', exact: true }).click();
+  await items.getByRole('button', { name: /^2 pessoas/ }).click();
+  await expect(dlg.getByLabel('Valor deste pagamento')).toHaveValue(brl(price - Math.round(price / 2))); // o último paga o saldo exato
+  await dlg.getByRole('button', { name: 'Dinheiro' }).click();
+  await dlg.getByRole('button', { name: /^Registrar R\$/ }).click();
+  await expect(page.getByRole('dialog', { name: /pago$/ })).toBeVisible();
+});
+
 test('cozinha no celular: botão Sair aparece na tela e troca de conta', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const p = await ctx.newPage();
